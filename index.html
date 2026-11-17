@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MASTER CONNECTOR</title>
+<meta name="theme-color" content="#0f3d6e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#f3f5f9;--card:#fff;--ink:#14213d;--muted:#667085;--line:#e3e7ee;--pri:#0f3d6e;--pri2:#1d64b0;--ok:#12805c;--okbg:#e3f6ee;--bad:#c0392b;--badbg:#fdecea;--warn:#a46300;--warnbg:#fff4de}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Devanagari",sans-serif;background:var(--bg);color:var(--ink);font-size:16px}
+header{background:var(--pri);color:#fff;padding:14px 16px calc(14px);position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between}
+header h1{font-size:18px;margin:0;letter-spacing:.5px}
+header small{display:block;font-size:12px;opacity:.8;font-weight:400}
+main{padding:14px 14px 90px;max-width:720px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.card h3{margin:0 0 10px;font-size:16px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff;color:var(--ink)}
+textarea{min-height:80px;resize:vertical}
+button{font:inherit;border:0;border-radius:10px;padding:11px 14px;background:var(--pri2);color:#fff;cursor:pointer}
+button.sec{background:#e8eef7;color:var(--pri)}
+button.bad{background:var(--bad)}
+button.ok{background:var(--ok)}
+button.sm{padding:7px 10px;font-size:13px}
+button:disabled{opacity:.5}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}
+.between{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.muted{color:var(--muted);font-size:13px}
+.pill{display:inline-block;font-size:12px;padding:3px 9px;border-radius:99px;background:#eef1f6;color:var(--muted)}
+.pill.ok{background:var(--okbg);color:var(--ok)}
+.pill.bad{background:var(--badbg);color:var(--bad)}
+.pill.warn{background:var(--warnbg);color:var(--warn)}
+.list>div{padding:10px 0;border-top:1px solid var(--line)}
+.list>div:first-child{border-top:0}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav button{flex:1;background:none;color:var(--muted);border-radius:0;padding:10px 2px;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button b{font-size:20px;font-weight:400}
+nav button.on{color:var(--pri2)}
+.big{font-size:22px;padding:18px;width:100%;border-radius:14px}
+.stat{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.stat div{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+.stat b{font-size:24px;display:block}
+.toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#14213d;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:20;max-width:90%}
+.hidden{display:none!important}
+.popup{position:fixed;inset:0;background:rgba(10,20,40,.55);z-index:30;display:flex;align-items:center;justify-content:center;padding:20px}
+.popup .card{max-width:420px;width:100%}
+a{color:var(--pri2);word-break:break-all}
+.switch{width:64px;height:36px;border-radius:99px;background:#cfd6e2;position:relative;flex:none;padding:0}
+.switch::after{content:"";position:absolute;top:4px;left:4px;width:28px;height:28px;border-radius:50%;background:#fff;transition:.2s}
+.switch.on{background:var(--ok)}
+.switch.on::after{left:32px}
+</style>
+</head>
+<body>
+<header><h1>MASTER CONNECTOR<small id="who">लोड हो रहा है…</small></h1><button class="sec sm hidden" id="logoutBtn">लॉग आउट</button></header>
+<main id="app"><div class="card">लोड हो रहा है…</div></main>
+<nav id="nav" class="hidden"></nav>
+<div id="toast" class="toast hidden"></div>
+<div id="popup" class="popup hidden"></div>
+
+<script type="module">
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyApw_GttyXeEmHFvKlJjoQFI11KuL4ahxI",
+  authDomain: "master-connector-f2a0d.firebaseapp.com",
+  projectId: "master-connector-f2a0d",
+  storageBucket: "master-connector-f2a0d.firebasestorage.app",
+  messagingSenderId: "542800382335",
+  appId: "1:542800382335:web:8bf9d3ac9ad3b7906bb24a"
+};
+const OWNER_UID = "Y7u25ODNNLOFBiiePyM7oR7Ts6n2";
+
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+setPersistence(auth, browserLocalPersistence).catch(()=>{});
+let db;
+try { db = initializeFirestore(fbApp, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
+catch(e){ db = initializeFirestore(fbApp, {}); }
+
+const $ = s => document.querySelector(s);
+const app = $("#app"), nav = $("#nav");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const linkify = s => esc(s).replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
+function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.remove("hidden"); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.add("hidden"),2600); }
+const toD = v => v?.toDate ? v.toDate() : (v instanceof Date ? v : null);
+const fmtT = v => { const d=toD(v); return d ? d.toLocaleTimeString("hi-IN",{hour:"2-digit",minute:"2-digit"}) : "—"; };
+const fmtD = v => { const d=toD(v); return d ? d.toLocaleDateString("hi-IN",{day:"numeric",month:"short"}) : ""; };
+const fmtDur = (a,b) => { const s=toD(a), e=toD(b)||new Date(); if(!s) return ""; const m=Math.max(0,Math.round((e-s)/60000)); return `${Math.floor(m/60)} घं ${m%60} मि`; };
+const shiftName = s => s==="evening" ? "शाम" : "सुबह";
+const errMsg = e => { const c=e?.code||""; if(c.includes("invalid-credential")||c.includes("wrong-password")||c.includes("user-not-found")) return "ईमेल या पासवर्ड गलत है"; if(c.includes("email-already-in-use")) return "ये ईमेल पहले से इस्तेमाल में है"; if(c.includes("weak-password")) return "पासवर्ड कम से कम 6 अक्षर का रखें"; if(c.includes("invalid-email")) return "ईमेल सही नहीं है"; if(c.includes("permission-denied")) return "इसकी अनुमति नहीं है"; if(c.includes("network")) return "इंटरनेट नहीं है"; return e?.message || "कुछ गड़बड़ हुई"; };
+
+let me = null, profile = null, isOwner = false, canEdit = false, tab = null, unsubs = [];
+const clearSubs = () => { unsubs.forEach(u=>{try{u()}catch(e){}}); unsubs = []; };
+const sub = u => unsubs.push(u);
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+
+$("#logoutBtn").onclick = async () => { if(confirm("लॉग आउट करें?")) { clearSubs(); await signOut(auth); } };
+
+function showLogin(){
+  clearSubs(); nav.classList.add("hidden"); $("#logoutBtn").classList.add("hidden"); $("#who").textContent = "लॉगिन करें";
+  app.innerHTML = `<div class="card"><h3>लॉगिन</h3>
+    <label>ईमेल</label><input id="em" type="email" autocomplete="username" inputmode="email">
+    <label>पासवर्ड</label><input id="pw" type="password" autocomplete="current-password">
+    <div style="margin-top:14px"><button id="go" style="width:100%">लॉगिन करें</button></div>
+    <p class="muted" style="margin-top:12px">अकाउंट एडमिन बनाते हैं। पासवर्ड भूल गए? <a href="#" id="fp">रीसेट लिंक भेजें</a></p></div>`;
+  $("#go").onclick = async () => { const b=$("#go"); b.disabled=true; try{ await signInWithEmailAndPassword(auth,$("#em").value.trim(),$("#pw").value); }catch(e){ toast(errMsg(e)); } b.disabled=false; };
+  $("#pw").onkeydown = e => { if(e.key==="Enter") $("#go").click(); };
+  $("#fp").onclick = async e => { e.preventDefault(); const em=$("#em").value.trim(); if(!em) return toast("पहले ईमेल लिखें"); try{ await sendPasswordResetEmail(auth,em); toast("रीसेट लिंक ईमेल पर भेजा गया"); }catch(err){ toast(errMsg(err)); } };
+}
+
+onAuthStateChanged(auth, async user => {
+  clearSubs();
+  if(!user){ me=null; return showLogin(); }
+  me = user; isOwner = user.uid === OWNER_UID;
+  const ref = doc(db,"users",user.uid);
+  try {
+    let snap = await getDoc(ref);
+    if(!snap.exists() && isOwner){ await setDoc(ref,{name:"मुख्य एडमिन",email:user.email,role:"admin",canEdit:true,active:true,shift:"morning",createdAt:serverTimestamp()}); snap = await getDoc(ref); }
+    if(!snap.exists()){ app.innerHTML = `<div class="card">आपका अकाउंट अभी जोड़ा नहीं गया है। एडमिन से संपर्क करें।</div>`; $("#logoutBtn").classList.remove("hidden"); return; }
+    profile = snap.data();
+  } catch(e){ app.innerHTML = `<div class="card">प्रोफ़ाइल लोड नहीं हुई: ${esc(errMsg(e))}</div>`; $("#logoutBtn").classList.remove("hidden"); return; }
+  if(profile.active === false && !isOwner){ app.innerHTML = `<div class="card">आपका अकाउंट बंद कर दिया गया है।</div>`; $("#logoutBtn").classList.remove("hidden"); return; }
+  canEdit = isOwner || profile.canEdit === true;
+  $("#logoutBtn").classList.remove("hidden");
+  $("#who").textContent = `${profile.name || user.email} · ${isOwner ? "मुख्य एडमिन" : canEdit ? "एडमिन (अनुमति)" : "वर्कर"}`;
+  sub(onSnapshot(ref, s => { if(s.exists()){ const p=s.data(); const was=canEdit; profile=p; canEdit = isOwner || p.canEdit===true; if(was!==canEdit) location.reload(); if(p.active===false && !isOwner) signOut(auth); } }));
+  watchCommands();
+  buildNav();
+});
+
+const TABS_ADMIN = [["home","🏠","होम"],["workers","👥","वर्कर"],["cmd","📢","कमांड"],["files","📁","फ़ाइलें"],["dip","⚡","DIP"]];
+const TABS_WORKER = [["duty","🕘","ड्यूटी"],["cmd","📢","सूचना"],["files","📁","फ़ाइलें"],["dip","⚡","DIP"]];
+let pageSubs = [];
+const clearPage = () => { pageSubs.forEach(u=>{try{u()}catch(e){}}); pageSubs=[]; };
+const psub = u => pageSubs.push(u);
+
+function buildNav(){
+  const tabs = canEdit ? TABS_ADMIN : TABS_WORKER;
+  nav.innerHTML = tabs.map(([k,i,t])=>`<button data-k="${k}"><b>${i}</b>${t}</button>`).join("");
+  nav.classList.remove("hidden");
+  nav.querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.k));
+  go(tabs[0][0]);
+}
+function go(k){ tab=k; clearPage(); nav.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.k===k)); window.scrollTo(0,0); ({home:pageHome,workers:pageWorkers,duty:pageDuty,cmd:pageCmd,files:pageFiles,dip:pageDip})[k](); }
+
+/* ---------- WORKER: DUTY ---------- */
+function pageDuty(){
+  app.innerHTML = `<div class="card" id="dutyBox">लोड हो रहा है…</div><div class="card"><h3>मेरी पिछली ड्यूटी</h3><div class="list" id="myDuty"></div></div>`;
+  psub(onSnapshot(query(collection(db,"duty"),where("uid","==",me.uid)), s => {
+    const rows = s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(toD(b.start)||0)-(toD(a.start)||0));
+    const open = rows.find(r=>!r.end);
+    const box = $("#dutyBox"); if(!box) return;
+    if(open){
+      box.innerHTML = `<div class="between"><h3 style="margin:0">ड्यूटी चालू है</h3><span class="pill ok">ON</span></div>
+        <p class="muted">शुरू: ${fmtD(open.start)} ${fmtT(open.start)} · ${shiftName(open.shift)} शिफ्ट · अब तक ${fmtDur(open.start)}</p>
+        <button class="big bad" id="endBtn">ड्यूटी खत्म करें</button>`;
+      $("#endBtn").onclick = async () => { if(!confirm("ड्यूटी खत्म करें?")) return; try{ await updateDoc(doc(db,"duty",open.id),{end:serverTimestamp()}); toast("ड्यूटी खत्म दर्ज हुई"); }catch(e){ toast(errMsg(e)); } };
+    } else {
+      const h = new Date().getHours();
+      box.innerHTML = `<div class="between"><h3 style="margin:0">ड्यूटी बंद है</h3><span class="pill">OFF</span></div>
+        <label>शिफ्ट</label><select id="sh"><option value="morning">सुबह</option><option value="evening">शाम</option></select>
+        <div style="margin-top:12px"><button class="big ok" id="startBtn">ड्यूटी शुरू करें</button></div>`;
+      $("#sh").value = profile.shift || (h>=14 ? "evening" : "morning");
+      $("#startBtn").onclick = async () => { try{ await addDoc(collection(db,"duty"),{uid:me.uid,name:profile.name||me.email,shift:$("#sh").value,start:serverTimestamp(),end:null}); toast("ड्यूटी शुरू दर्ज हुई"); }catch(e){ toast(errMsg(e)); } };
+    }
+    $("#myDuty").innerHTML = rows.slice(0,30).map(r=>`<div class="between"><span>${fmtD(r.start)} · ${shiftName(r.shift)}<br><span class="muted">${fmtT(r.start)} – ${r.end?fmtT(r.end):"चालू"}</span></span><span class="pill ${r.end?"":"ok"}">${fmtDur(r.start,r.end)}</span></div>`).join("") || `<p class="muted">अभी कोई रिकॉर्ड नहीं</p>`;
+  }, e => toast(errMsg(e))));
+}
+
+/* ---------- ADMIN: HOME ---------- */
+function pageHome(){
+  app.innerHTML = `<div class="stat"><div><span class="muted">अभी ड्यूटी पर</span><b id="sOn">0</b></div><div><span class="muted">कुल वर्कर</span><b id="sAll">0</b></div></div>
+    <div class="card"><h3>अभी ड्यूटी पर</h3><div class="list" id="onNow"></div></div>
+    <div class="card"><div class="between"><h3 style="margin:0">ड्यूटी रिपोर्ट</h3><input type="date" id="dt" style="width:auto"></div><div class="list" id="rep" style="margin-top:8px"></div></div>
+    <div class="card" id="myDutyCard"><h3>मेरी ड्यूटी</h3><button class="sec" id="openMyDuty">मेरी ड्यूटी शुरू/खत्म करें</button></div>`;
+  $("#openMyDuty").onclick = () => { clearPage(); pageDuty(); };
+  const dt = $("#dt"); const today = new Date(); dt.value = today.toISOString().slice(0,10);
+  let all = [];
+  const render = () => {
+    const open = all.filter(r=>!r.end);
+    $("#sOn").textContent = open.length;
+    $("#onNow").innerHTML = open.map(r=>`<div class="between"><span>${esc(r.name)}<br><span class="muted">${shiftName(r.shift)} · ${fmtT(r.start)} से</span></span><span class="pill ok">${fmtDur(r.start)}</span></div>`).join("") || `<p class="muted">अभी कोई ड्यूटी पर नहीं</p>`;
+    const [y,m,d] = dt.value.split("-").map(Number); const s=new Date(y,m-1,d), e=new Date(y,m-1,d+1);
+    const day = all.filter(r=>{const t=toD(r.start); return t && t>=s && t<e;});
+    $("#rep").innerHTML = day.map(r=>`<div class="between"><span>${esc(r.name)} · ${shiftName(r.shift)}<br><span class="muted">${fmtT(r.start)} – ${r.end?fmtT(r.end):"चालू"}</span></span><span class="pill ${r.end?"":"ok"}">${fmtDur(r.start,r.end)}</span></div>`).join("") || `<p class="muted">इस दिन कोई ड्यूटी नहीं</p>`;
+  };
+  dt.onchange = render;
+  psub(onSnapshot(query(collection(db,"duty"),orderBy("start","desc"),limit(300)), s => { all = s.docs.map(d=>({id:d.id,...d.data()})); render(); }, e=>toast(errMsg(e))));
+  psub(onSnapshot(collection(db,"users"), s => { $("#sAll").textContent = s.docs.filter(d=>d.data().role!=="admin").length; }));
+  const iv = setInterval(render, 60000); psub(()=>clearInterval(iv));
+}
+
+/* ---------- ADMIN: WORKERS ---------- */
+function pageWorkers(){
+  app.innerHTML = `${isOwner?`<div class="card"><h3>नया वर्कर जोड़ें</h3>
+    <label>नाम</label><input id="wn">
+    <label>ईमेल (लॉगिन के लिए)</label><input id="we" type="email" inputmode="email">
+    <label>पासवर्ड (कम से कम 6 अक्षर)</label><input id="wp" type="text">
+    <label>शिफ्ट</label><select id="ws"><option value="morning">सुबह</option><option value="evening">शाम</option></select>
+    <div style="margin-top:12px"><button id="addW" style="width:100%">वर्कर जोड़ें</button></div>
+    <p class="muted">ये ईमेल-पासवर्ड वर्कर को दे दें, वो इसी से लॉगिन करेगा।</p></div>`:""}
+    <div class="card"><h3>सभी लोग</h3><div class="list" id="wl"></div></div>`;
+  if(isOwner) $("#addW").onclick = async () => {
+    const name=$("#wn").value.trim(), email=$("#we").value.trim(), pass=$("#wp").value, shift=$("#ws").value;
+    if(!name||!email||!pass) return toast("नाम, ईमेल और पासवर्ड भरें");
+    const b=$("#addW"); b.disabled=true; b.textContent="जोड़ रहा है…";
+    const tmp = initializeApp(firebaseConfig, "tmp"+Date.now());
+    try{
+      const cred = await createUserWithEmailAndPassword(getAuth(tmp), email, pass);
+      await setDoc(doc(db,"users",cred.user.uid),{name,email,role:"worker",canEdit:false,active:true,shift,createdAt:serverTimestamp()});
+      toast(`${name} जोड़ा गया`); ["#wn","#we","#wp"].forEach(s=>$(s).value="");
+    }catch(e){ toast(errMsg(e)); }
+    try{ await signOut(getAuth(tmp)); await deleteApp(tmp); }catch(e){}
+    b.disabled=false; b.textContent="वर्कर जोड़ें";
+  };
+  psub(onSnapshot(collection(db,"users"), s => {
+    const rows = s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.id===OWNER_UID?-1:b.id===OWNER_UID?1:(a.name||"").localeCompare(b.name||"")));
+    $("#wl").innerHTML = rows.map(u=>{
+      const owner=u.id===OWNER_UID;
+      return `<div><div class="between"><span><b>${esc(u.name)}</b> ${owner?'<span class="pill warn">मुख्य एडमिन</span>':u.canEdit?'<span class="pill warn">एडमिन अनुमति</span>':''} ${u.active===false?'<span class="pill bad">बंद</span>':''}<br><span class="muted">${esc(u.email)} · ${shiftName(u.shift)} शिफ्ट</span></span></div>
+      ${isOwner&&!owner?`<div class="row" style="margin-top:8px">
+        <button class="sec sm" data-a="shift" data-id="${u.id}">शिफ्ट बदलें</button>
+        <button class="sec sm" data-a="perm" data-id="${u.id}">${u.canEdit?"अनुमति हटाएँ":"एडमिन अनुमति दें"}</button>
+        <button class="${u.active===false?"ok":"bad"} sm" data-a="act" data-id="${u.id}">${u.active===false?"चालू करें":"बंद करें"}</button></div>`:""}</div>`;
+    }).join("");
+    $("#wl").querySelectorAll("button[data-a]").forEach(b=>b.onclick=async()=>{
+      const u=rows.find(r=>r.id===b.dataset.id); const r=doc(db,"users",u.id);
+      try{
+        if(b.dataset.a==="shift") await updateDoc(r,{shift:u.shift==="evening"?"morning":"evening"});
+        if(b.dataset.a==="perm"){ if(!confirm(u.canEdit?"इस व्यक्ति से एडमिन अनुमति हटाएँ?":"इस व्यक्ति को बदलाव करने की अनुमति दें?")) return; await updateDoc(r,{canEdit:!u.canEdit}); }
+        if(b.dataset.a==="act"){ if(!confirm(u.active===false?"अकाउंट चालू करें?":"अकाउंट बंद करें? ये व्यक्ति लॉगिन नहीं कर पाएगा।")) return; await updateDoc(r,{active:u.active===false}); }
+        toast("बदलाव सेव हुआ");
+      }catch(e){ toast(errMsg(e)); }
+    });
+  }, e=>toast(errMsg(e))));
+}
+
+/* ---------- COMMANDS ---------- */
+let cmdFirst = true;
+function watchCommands(){
+  cmdFirst = true;
+  sub(onSnapshot(query(collection(db,"commands"),orderBy("createdAt","desc"),limit(50)), s => {
+    if(!cmdFirst && !canEdit){
+      s.docChanges().forEach(ch=>{ if(ch.type==="added"){ const c=ch.doc.data(); if(c.target==="all"||c.target===me.uid) showCommandPopup(ch.doc.id,c); }});
+    }
+    if(cmdFirst && !canEdit){
+      s.docs.forEach(d=>{ const c=d.data(); const seen=JSON.parse(localStorage.getItem("mc_seen")||"[]"); if((c.target==="all"||c.target===me.uid) && !seen.includes(d.id)) showCommandPopup(d.id,c); });
+    }
+    cmdFirst = false;
+  }, ()=>{}));
+}
+function markSeen(id){ const seen=JSON.parse(localStorage.getItem("mc_seen")||"[]"); if(!seen.includes(id)){ seen.push(id); localStorage.setItem("mc_seen",JSON.stringify(seen.slice(-300))); } setDoc(doc(db,"commands",id,"seen",me.uid),{name:profile?.name||me.email,at:serverTimestamp()}).catch(()=>{}); }
+function showCommandPopup(id,c){
+  const p=$("#popup"); if(!p.classList.contains("hidden")) { setTimeout(()=>showCommandPopup(id,c),1500); return; }
+  try{ navigator.vibrate?.([300,150,300]); }catch(e){}
+  p.innerHTML = `<div class="card"><div class="between"><h3 style="margin:0">📢 एडमिन की कमांड</h3><span class="muted">${fmtT(c.createdAt)}</span></div>
+    <p style="font-size:18px;white-space:pre-wrap">${linkify(c.text)}</p>
+    ${c.link?`<p><a href="${esc(c.link)}" target="_blank" rel="noopener">${esc(c.link)}</a></p>`:""}
+    <div class="row">${c.link?`<button class="ok" id="cOpen">खोलें</button>`:""}<button id="cOk">ठीक है, देख लिया</button></div></div>`;
+  p.classList.remove("hidden");
+  const done = () => { markSeen(id); p.classList.add("hidden"); };
+  $("#cOk").onclick = done;
+  if(c.link) $("#cOpen").onclick = () => { done(); window.open(c.link,"_blank"); };
+  if(c.link && c.autoOpen){ done(); window.open(c.link,"_blank"); }
+}
+function pageCmd(){
+  app.innerHTML = `${canEdit?`<div class="card"><h3>नई कमांड भेजें</h3>
+    <label>किसे</label><select id="ct"><option value="all">सभी वर्कर</option></select>
+    <label>संदेश / काम</label><textarea id="cx" placeholder="जैसे: आज 10 बजे सभी ट्रेनिंग कॉल पर आएँ"></textarea>
+    <label>लिंक (वैकल्पिक: फ़ाइल, वीडियो, कॉल)</label><input id="cl" type="url" placeholder="https://">
+    <label class="row" style="color:var(--ink)"><input type="checkbox" id="ca" style="width:auto;flex:none"> <span>वर्कर के फ़ोन पर लिंक अपने आप खुल जाए</span></label>
+    <div style="margin-top:12px"><button id="cs" style="width:100%">भेजें</button></div></div>`:""}
+    <div class="card"><h3>${canEdit?"भेजी गई कमांड":"मेरी सूचनाएँ"}</h3><div class="list" id="clist"></div></div>`;
+  let users = [];
+  if(canEdit){
+    psub(onSnapshot(collection(db,"users"), s => { users = s.docs.map(d=>({id:d.id,...d.data()})); const sel=$("#ct"); if(!sel) return; const v=sel.value; sel.innerHTML=`<option value="all">सभी वर्कर</option>`+users.filter(u=>u.id!==OWNER_UID).map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join(""); sel.value=v||"all"; }));
+    $("#cs").onclick = async () => {
+      const text=$("#cx").value.trim(), link=$("#cl").value.trim();
+      if(!text && !link) return toast("संदेश या लिंक लिखें");
+      if(link && !/^https?:\/\//.test(link)) return toast("लिंक https:// से शुरू होना चाहिए");
+      try{ await addDoc(collection(db,"commands"),{text,link,autoOpen:$("#ca").checked,target:$("#ct").value,by:me.uid,createdAt:serverTimestamp()}); $("#cx").value="";$("#cl").value="";$("#ca").checked=false; toast("कमांड भेजी गई"); }catch(e){ toast(errMsg(e)); }
+    };
+  }
+  psub(onSnapshot(query(collection(db,"commands"),orderBy("createdAt","desc"),limit(50)), s => {
+    const rows = s.docs.map(d=>({id:d.id,...d.data()})).filter(c=>canEdit||c.target==="all"||c.target===me.uid);
+    const el=$("#clist"); if(!el) return;
+    el.innerHTML = rows.map(c=>`<div><div class="between"><span class="muted">${fmtD(c.createdAt)} ${fmtT(c.createdAt)} · ${c.target==="all"?"सभी":esc(users.find(u=>u.id===c.target)?.name||"एक वर्कर")}</span>${canEdit?`<button class="sec sm" data-del="${c.id}">हटाएँ</button>`:""}</div>
+      <div style="white-space:pre-wrap;margin-top:4px">${linkify(c.text)}</div>${c.link?`<a href="${esc(c.link)}" target="_blank" rel="noopener">${esc(c.link)}</a>`:""}
+      ${canEdit?`<div class="muted" data-seen="${c.id}" style="margin-top:4px"></div>`:""}</div>`).join("") || `<p class="muted">अभी कुछ नहीं</p>`;
+    if(canEdit){
+      el.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{ if(confirm("ये कमांड हटाएँ?")) try{ await deleteDoc(doc(db,"commands",b.dataset.del)); }catch(e){ toast(errMsg(e)); } });
+      rows.slice(0,10).forEach(c=>psub(onSnapshot(collection(db,"commands",c.id,"seen"), ss=>{ const t=el.querySelector(`[data-seen="${c.id}"]`); if(t) t.textContent = ss.size ? `देखा: ${ss.docs.map(d=>d.data().name).join(", ")}` : "अभी किसी ने नहीं देखा"; }, ()=>{})));
+    }
+  }, e=>toast(errMsg(e))));
+}
+
+/* ---------- FILES ---------- */
+function pageFiles(){
+  app.innerHTML = `${canEdit?`<div class="card"><h3>फ़ाइल / लिंक शेयर करें</h3>
+    <label>नाम</label><input id="fn" placeholder="जैसे: ट्रेनिंग वीडियो 1">
+    <label>लिंक (Google Drive, YouTube आदि)</label><input id="fl" type="url" placeholder="https://">
+    <label>नोट (वैकल्पिक)</label><input id="fx">
+    <div style="margin-top:12px"><button id="fs" style="width:100%">शेयर करें</button></div>
+    <p class="muted">Google Drive की फ़ाइल हो तो उसकी शेयरिंग "Anyone with the link" रखें।</p></div>`:""}
+    <div class="card"><h3>फ़ाइलें</h3><div class="list" id="flist"></div></div>`;
+  if(canEdit) $("#fs").onclick = async () => {
+    const title=$("#fn").value.trim(), url=$("#fl").value.trim(), note=$("#fx").value.trim();
+    if(!title||!/^https?:\/\//.test(url)) return toast("नाम और सही लिंक (https://) डालें");
+    try{ await addDoc(collection(db,"files"),{title,url,note,by:me.uid,createdAt:serverTimestamp()}); ["#fn","#fl","#fx"].forEach(s=>$(s).value=""); toast("शेयर हो गया"); }catch(e){ toast(errMsg(e)); }
+  };
+  psub(onSnapshot(query(collection(db,"files"),orderBy("createdAt","desc"),limit(100)), s => {
+    const el=$("#flist"); if(!el) return;
+    el.innerHTML = s.docs.map(d=>{ const f=d.data(); return `<div><div class="between"><b>${esc(f.title)}</b><span class="muted">${fmtD(f.createdAt)}</span></div>
+      ${f.note?`<div class="muted">${esc(f.note)}</div>`:""}
+      <div class="row" style="margin-top:8px"><button class="ok sm" data-open="${esc(f.url)}">खोलें / डाउनलोड</button><button class="sec sm" data-copy="${esc(f.url)}">लिंक कॉपी</button>${canEdit?`<button class="sec sm" data-del="${d.id}">हटाएँ</button>`:""}</div></div>`; }).join("") || `<p class="muted">अभी कोई फ़ाइल नहीं</p>`;
+    el.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>window.open(b.dataset.open,"_blank"));
+    el.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{ try{ await navigator.clipboard.writeText(b.dataset.copy); toast("लिंक कॉपी हुआ"); }catch(e){ prompt("लिंक कॉपी करें:",b.dataset.copy); } });
+    el.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{ if(confirm("ये फ़ाइल हटाएँ?")) try{ await deleteDoc(doc(db,"files",b.dataset.del)); }catch(e){ toast(errMsg(e)); } });
+  }, e=>toast(errMsg(e))));
+}
+
+/* ---------- DIP MASTER CONTROL ---------- */
+function pageDip(){
+  app.innerHTML = `<div class="card"><div class="between"><span><h3 style="margin:0">DIP Master AI</h3><span class="muted" id="dipSt">लोड हो रहा है…</span></span>${canEdit?`<button class="switch" id="dipSw" aria-label="DIP Master चालू/बंद"></button>`:`<span class="pill" id="dipPill">—</span>`}</div></div>
+    ${canEdit?`<div class="card"><h3>नया ग्राहक जोड़ें</h3><label>नाम</label><input id="dn"><label>फ़ोन (वैकल्पिक)</label><input id="dp" inputmode="tel"><label>नोट (वैकल्पिक)</label><input id="dx"><div style="margin-top:12px"><button id="da" style="width:100%">जोड़ें</button></div></div>`:""}
+    <div class="card"><h3>ग्राहक लिस्ट</h3><div class="list" id="dl"></div></div>`;
+  let on = false;
+  psub(onSnapshot(doc(db,"dip","control"), s => {
+    const d = s.exists()? s.data() : {}; on = d.enabled === true;
+    $("#dipSt").textContent = (on?"चालू":"बंद") + (d.updatedAt?` · ${fmtD(d.updatedAt)} ${fmtT(d.updatedAt)}`:"");
+    if(canEdit) $("#dipSw").classList.toggle("on",on); else { const p=$("#dipPill"); p.textContent=on?"चालू":"बंद"; p.className="pill "+(on?"ok":"bad"); }
+  }, e=>toast(errMsg(e))));
+  if(canEdit){
+    $("#dipSw").onclick = async () => { if(!confirm(on?"DIP Master AI बंद करें?":"DIP Master AI चालू करें?")) return; try{ await setDoc(doc(db,"dip","control"),{enabled:!on,updatedAt:serverTimestamp(),by:me.uid},{merge:true}); toast(on?"बंद किया":"चालू किया"); }catch(e){ toast(errMsg(e)); } };
+    $("#da").onclick = async () => { const name=$("#dn").value.trim(); if(!name) return toast("नाम लिखें"); try{ await addDoc(collection(db,"dipCustomers"),{name,phone:$("#dp").value.trim(),note:$("#dx").value.trim(),active:true,createdAt:serverTimestamp()}); ["#dn","#dp","#dx"].forEach(s=>$(s).value=""); toast("ग्राहक जुड़ा"); }catch(e){ toast(errMsg(e)); } };
+  }
+  psub(onSnapshot(query(collection(db,"dipCustomers"),orderBy("createdAt","desc"),limit(300)), s => {
+    const el=$("#dl"); if(!el) return;
+    el.innerHTML = s.docs.map(d=>{ const c=d.data(); return `<div class="between"><span><b>${esc(c.name)}</b> ${c.active===false?'<span class="pill bad">बंद</span>':''}<br><span class="muted">${esc(c.phone||"")}${c.note?" · "+esc(c.note):""}</span></span>
+      ${canEdit?`<span class="row" style="flex:none"><button class="sec sm" data-t="${d.id}" data-v="${c.active===false?1:0}">${c.active===false?"चालू":"बंद"}</button><button class="sec sm" data-del="${d.id}">हटाएँ</button></span>`:""}</div>`; }).join("") || `<p class="muted">अभी कोई ग्राहक नहीं</p>`;
+    el.querySelectorAll("[data-t]").forEach(b=>b.onclick=async()=>{ try{ await updateDoc(doc(db,"dipCustomers",b.dataset.t),{active:b.dataset.v==="1"}); }catch(e){ toast(errMsg(e)); } });
+    el.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{ if(confirm("ये ग्राहक हटाएँ?")) try{ await deleteDoc(doc(db,"dipCustomers",b.dataset.del)); }catch(e){ toast(errMsg(e)); } });
+  }, e=>toast(errMsg(e))));
+}
+</script>
+</body>
+</html>
