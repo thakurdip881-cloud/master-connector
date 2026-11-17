@@ -1,4 +1,7 @@
 plugins { id 'com.android.application' }
+
+def vcode = (project.findProperty('vcode') ?: '1').toString().toInteger()
+
 android {
     namespace 'com.masterconnector.app'
     compileSdk 34
@@ -6,11 +9,11 @@ android {
         applicationId 'com.masterconnector.app'
         minSdk 24
         targetSdk 34
-        versionCode (System.getenv("VERSION_CODE") ?: "1").toInteger()
-        versionName "1." + (System.getenv("VERSION_CODE") ?: "1")
+        versionCode vcode
+        versionName "1.${vcode}"
     }
-    buildTypes {
-        release { minifyEnabled false; signingConfig signingConfigs.debug }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
-    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
