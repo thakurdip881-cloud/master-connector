@@ -1,0 +1,41 @@
+# Firebase नियम (firestore.rules) अपने-आप publish करना
+# एक बार की सेटअप: repo Settings → Secrets and variables → Actions → New secret
+#   नाम: FIREBASE_SA   मान: Firebase Console → Project settings → Service accounts → "Generate new private key" वाली JSON फ़ाइल का पूरा text
+# फिर: firestore.rules बदलते ही, या Actions → "Deploy Firebase rules" → Run workflow से, नियम अपने-आप publish
+name: Deploy Firebase rules
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['firestore.rules', '.github/workflows/deploy-rules.yml']
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Secret है या नहीं
+        id: chk
+        env: { SA: '${{ secrets.FIREBASE_SA }}' }
+        run: |
+          if [ -z "$SA" ]; then echo "::warning::FIREBASE_SA secret अभी नहीं डाला गया — नियम publish नहीं हुए"; echo "ok=0" >> "$GITHUB_OUTPUT"; else echo "ok=1" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/setup-node@v4
+        if: steps.chk.outputs.ok == '1'
+        with: { node-version: 20 }
+      - name: नियम publish
+        if: steps.chk.outputs.ok == '1'
+        env: { SA: '${{ secrets.FIREBASE_SA }}' }
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          echo '{"firestore":{"rules":"firestore.rules"}}' > firebase.json
+          npx --yes firebase-tools@13.29.1 deploy --only firestore:rules --project master-connector-f2a0d --non-interactive
+          rm -f "$RUNNER_TEMP/sa.json"
+      - name: जाँच (नए नियम हों तो invites 404)
+        if: steps.chk.outputs.ok == '1'
+        run: |
+          sleep 20
+          B='https://firestore.googleapis.com/v1/projects/master-connector-f2a0d/databases/(default)/documents'
+          c=$(curl -s -o /dev/null -w '%{http_code}' "$B/invites/zzzzzzzzzzzzzzzzzzzz"); echo "FS invites: $c"
+          [ "$c" = "404" ] && echo "::notice::✅ Firebase नियम publish हो गए" || echo "::warning::invites अभी $c — एक-दो मिनट में फिर जाँचें"
