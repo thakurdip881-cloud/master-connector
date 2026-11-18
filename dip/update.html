@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>🚀 अपडेट पैनल</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Noto Sans Devanagari",sans-serif;background:#140b02;color:#fdf3d7;padding:12px;max-width:760px;margin:auto}
+h1{font-size:21px;color:#f5c542;margin:6px 0 4px}
+.sub{color:#d6c08a;font-size:13px;margin-bottom:12px}
+.card{background:#2a1a06;border:1px solid #3a2709;border-radius:12px;padding:12px;margin-bottom:12px}
+.card h2{font-size:15px;margin:0 0 8px;color:#f5c542}
+label{display:block;font-size:13px;color:#d6c08a;margin:8px 0 4px}
+input,select,textarea{font:inherit;width:100%;padding:10px;border-radius:8px;border:1px solid #6b4f1d;background:#140b02;color:#fdf3d7}
+textarea{min-height:180px;font-family:ui-monospace,monospace;font-size:12px}
+button{font:inherit;border:0;border-radius:8px;padding:11px 14px;cursor:pointer;background:#b8860b;color:#fff;font-weight:700}
+button.sec{background:#4a3412}button.green{background:#16a34a}button.red{background:#dc2626}
+button:disabled{opacity:.5}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.tabs{display:flex;gap:6px;margin-bottom:8px}.tabs button{flex:1;background:#4a3412}.tabs button.on{background:#b8860b}
+.small{font-size:12px;color:#d6c08a}
+.log{background:#0c0601;border-radius:8px;padding:8px;font-size:13px;max-height:220px;overflow:auto;white-space:pre-wrap;margin-top:8px}
+.ok{color:#86efac}.err{color:#fca5a5}.warn{color:#fcd34d}
+.file{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #4a3412;font-size:13px}
+.hidden{display:none}
+a{color:#f5c542}
+</style>
+</head>
+<body>
+<h1>🚀 अपडेट पैनल</h1>
+<div class="sub">यहाँ सोर्स कोड डालें → GitHub में जाएगा → Netlify अपने-आप ऐप अपडेट करेगा → सबके APK में नया वर्ज़न।</div>
+
+<div class="card" id="setupCard">
+  <h2>🔑 1. एक बार की सेटिंग</h2>
+  <label>GitHub repo (owner/नाम)</label>
+  <input id="repo" value="thakurdip881-cloud/Dip">
+  <label>शाखा (branch)</label>
+  <input id="branch" value="main">
+  <label>GitHub Token <span class="small">(सिर्फ़ इसी फ़ोन में सेव रहता है, कहीं नहीं भेजा जाता — सिर्फ़ GitHub को)</span></label>
+  <input id="token" type="password" placeholder="github_pat_…">
+  <div class="row"><button id="btnSave" class="green">सेव और जाँचें</button><span id="who" class="small"></span></div>
+  <details style="margin-top:8px"><summary class="small">Token कैसे बनाएँ?</summary>
+    <ol class="small" style="line-height:1.7;padding-left:18px">
+      <li>यह खोलें: <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a></li>
+      <li>Token name: <b>update-panel</b> · Expiration: 1 साल</li>
+      <li>Repository access: <b>Only select repositories → Dip</b></li>
+      <li>Permissions → Repository → <b>Contents: Read and write</b></li>
+      <li>Generate token → कॉपी करके ऊपर डालें</li>
+    </ol>
+  </details>
+</div>
+
+<div class="card">
+  <h2>📤 2. नया कोड डालें</h2>
+  <div class="tabs"><button id="tPaste" class="on">📋 कोड चिपकाएँ</button><button id="tFile">📁 फ़ाइल चुनें</button></div>
+  <div id="pasteBox">
+    <label>फ़ाइल का नाम (repo में)</label>
+    <input id="pName" value="index.html">
+    <label>कोड</label>
+    <textarea id="pCode" placeholder="यहाँ पूरा कोड चिपकाएँ…"></textarea>
+    <div class="row"><button id="btnLoad" class="sec">⬇ अभी वाला कोड लाएँ</button><span class="small" id="pInfo"></span></div>
+  </div>
+  <div id="fileBox" class="hidden">
+    <label>फ़ाइलें चुनें (एक या ज़्यादा)</label>
+    <input id="files" type="file" multiple>
+    <label>किस फ़ोल्डर में डालें <span class="small">(खाली = मुख्य फ़ोल्डर)</span></label>
+    <input id="folder" placeholder="जैसे: site">
+    <div id="fileList"></div>
+  </div>
+  <label>बदलाव का नोट <span class="small">(वैकल्पिक)</span></label>
+  <input id="msg" placeholder="जैसे: नया बटन जोड़ा">
+  <div class="row"><button id="btnUp" style="flex:1">🚀 चढ़ाएँ और APK अपडेट करें</button></div>
+  <div class="log hidden" id="log"></div>
+</div>
+
+<div class="card">
+  <h2>↩ 3. गलती हो गई? पिछला वर्ज़न वापस लाएँ</h2>
+  <label>फ़ाइल का नाम</label>
+  <input id="rName" value="index.html">
+  <div class="row"><button id="btnHist" class="sec">🕘 पिछले बदलाव देखें</button></div>
+  <div id="hist"></div>
+</div>
+
+<div class="card small">
+  ✅ ऐप अपने-आप तभी अपडेट होगा जब Netlify की साइट इसी GitHub repo से जुड़ी हो।<br>
+  ⏱ GitHub में जाने के बाद Netlify को ऐप अपडेट करने में आम तौर पर 1–2 मिनट लगते हैं। APK खोलकर नीचे खींचें (refresh) या दोबारा खोलें।<br>
+  💡 हर अपडेट पर Netlify थोड़े credits लेता है — कई बदलाव हों तो एक साथ चढ़ाएँ।
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const S={get(k,d){try{const v=localStorage.getItem('up_'+k);return v===null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem('up_'+k,v)}catch(e){}}};
+$('repo').value=S.get('repo',$('repo').value); $('branch').value=S.get('branch',$('branch').value); $('token').value=S.get('token','');
+const API='https://api.github.com';
+function H(){ return {'Authorization':'Bearer '+$('token').value.trim(),'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}; }
+function repo(){ return $('repo').value.trim().replace(/^https?:\/\/github\.com\//,'').replace(/\/$/,''); }
+function br(){ return $('branch').value.trim()||'main'; }
+function encPath(p){ return p.split('/').map(encodeURIComponent).join('/'); }
+function log(t,c){ const l=$('log'); l.classList.remove('hidden'); const d=document.createElement('div'); if(c) d.className=c; d.textContent=t; l.appendChild(d); l.scrollTop=l.scrollHeight; }
+async function gh(path,opt){ const r=await fetch(API+path,Object.assign({headers:H()},opt||{})); let j=null; try{ j=await r.json(); }catch(e){} if(!r.ok){ const m=(j&&j.message)||('HTTP '+r.status); const e=new Error(m); e.status=r.status; throw e; } return j; }
+function b64FromBytes(u8){ let s=''; for(let i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000)); return btoa(s); }
+function b64FromText(t){ return b64FromBytes(new TextEncoder().encode(t)); }
+function textFromB64(b){ const bin=atob(b.replace(/\n/g,'')), u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new TextDecoder().decode(u); }
+function friendly(e){ if(e.status===401) return 'Token गलत है या उसकी अवधि खत्म हो गई।'; if(e.status===403) return 'Token को इस repo में लिखने की अनुमति नहीं है (Contents: Read and write दें)।'; if(e.status===404) return 'Repo/फ़ाइल नहीं मिली — repo का नाम और Token की repo अनुमति जाँचें।'; if(e.status===409) return 'टकराव हुआ — दोबारा दबाएँ।'; return e.message; }
+
+$('btnSave').onclick=async()=>{
+  S.set('repo',repo()); S.set('branch',br()); S.set('token',$('token').value.trim());
+  $('who').textContent='⏳ जाँच…';
+  try{ const r=await gh('/repos/'+repo()); const can=r.permissions&&r.permissions.push; $('who').innerHTML=can?'<span class="ok">✅ जुड़ गया — '+r.full_name+' में लिख सकते हैं</span>':'<span class="warn">⚠ repo दिख रहा है, पर लिखने की अनुमति नहीं</span>'; }
+  catch(e){ $('who').innerHTML='<span class="err">❌ '+friendly(e)+'</span>'; }
+};
+$('tPaste').onclick=()=>{ $('tPaste').classList.add('on'); $('tFile').classList.remove('on'); $('pasteBox').classList.remove('hidden'); $('fileBox').classList.add('hidden'); };
+$('tFile').onclick=()=>{ $('tFile').classList.add('on'); $('tPaste').classList.remove('on'); $('fileBox').classList.remove('hidden'); $('pasteBox').classList.add('hidden'); };
+$('files').onchange=()=>{ const b=$('fileList'); b.innerHTML=''; [...$('files').files].forEach(f=>{ const d=document.createElement('div'); d.className='file'; d.textContent='📄 '+f.name+' — '+(f.size/1024).toFixed(1)+' KB'; b.appendChild(d); }); };
+$('btnLoad').onclick=async()=>{
+  const p=$('pName').value.trim(); if(!p) return; $('pInfo').textContent='⏳';
+  try{ const j=await gh('/repos/'+repo()+'/contents/'+encPath(p)+'?ref='+encodeURIComponent(br())); $('pCode').value=textFromB64(j.content||''); $('pInfo').textContent='✅ '+p+' लोड हुआ ('+(j.size/1024).toFixed(1)+' KB) — बदलाव करके चढ़ाएँ'; }
+  catch(e){ $('pInfo').textContent=e.status===404?'यह फ़ाइल अभी repo में नहीं है (नई बनेगी)':'❌ '+friendly(e); }
+};
+async function putFile(path,b64,message){
+  let sha;
+  try{ const cur=await gh('/repos/'+repo()+'/contents/'+encPath(path)+'?ref='+encodeURIComponent(br())); sha=cur.sha; if(cur.content && cur.content.replace(/\n/g,'')===b64){ return 'same'; } }catch(e){ if(e.status!==404) throw e; }
+  await gh('/repos/'+repo()+'/contents/'+encPath(path),{method:'PUT',headers:Object.assign({'Content-Type':'application/json'},H()),body:JSON.stringify({message,content:b64,branch:br(),sha})});
+  return sha?'updated':'created';
+}
+$('btnUp').onclick=async()=>{
+  if(!$('token').value.trim()){ log('⚠ पहले ऊपर GitHub Token डालकर "सेव और जाँचें" दबाएँ','warn'); return; }
+  const note=$('msg').value.trim()||'अपडेट पैनल से बदलाव';
+  const items=[];
+  if(!$('pasteBox').classList.contains('hidden')){
+    const p=$('pName').value.trim(), c=$('pCode').value;
+    if(!p||!c.trim()){ log('⚠ फ़ाइल का नाम और कोड दोनों चाहिए','warn'); return; }
+    if(/\.html?$/i.test(p) && !/<html|<!doctype/i.test(c)){ if($('btnUp').dataset.sure!=='1'){ $('btnUp').dataset.sure='1'; log('⚠ यह पूरा HTML पेज नहीं लगता (<html> नहीं मिला)। फिर भी चढ़ाना है तो दोबारा दबाएँ।','warn'); return; } }
+    items.push({path:p, b64:b64FromText(c)});
+  } else {
+    const fs=[...$('files').files]; if(!fs.length){ log('⚠ पहले फ़ाइलें चुनें','warn'); return; }
+    const folder=$('folder').value.trim().replace(/^\/+|\/+$/g,'');
+    for(const f of fs){ const u8=new Uint8Array(await f.arrayBuffer()); items.push({path:(folder?folder+'/':'')+f.name, b64:b64FromBytes(u8)}); }
+  }
+  $('btnUp').dataset.sure=''; $('btnUp').disabled=true; $('log').innerHTML='';
+  let done=0;
+  for(const it of items){
+    log('⏳ '+it.path+' चढ़ रही है…');
+    try{ const r=await putFile(it.path,it.b64,note); done++; log(r==='same'?'➖ '+it.path+' — कोई बदलाव नहीं था':(r==='created'?'✅ '+it.path+' — नई फ़ाइल बनी':'✅ '+it.path+' — अपडेट हुई'),r==='same'?'warn':'ok'); }
+    catch(e){ log('❌ '+it.path+': '+friendly(e),'err'); }
+  }
+  $('btnUp').disabled=false;
+  if(done){ log('🎉 GitHub में पहुँच गया। Netlify 1–2 मिनट में ऐप अपडेट कर देगा, फिर APK खोलकर देखें।','ok'); }
+};
+$('btnHist').onclick=async()=>{
+  const p=$('rName').value.trim(), box=$('hist'); box.innerHTML='<div class="small">⏳</div>';
+  try{
+    const cs=await gh('/repos/'+repo()+'/commits?path='+encodeURIComponent(p)+'&sha='+encodeURIComponent(br())+'&per_page=8');
+    box.innerHTML=''; if(!cs.length){ box.innerHTML='<div class="small">कोई बदलाव नहीं मिला</div>'; return; }
+    cs.forEach((c,i)=>{ const d=document.createElement('div'); d.className='file';
+      const t=document.createElement('span'); t.textContent=(i===0?'🟢 अभी वाला · ':'')+new Date(c.commit.author.date).toLocaleString('hi-IN')+' — '+c.commit.message.split('\n')[0].slice(0,60); d.appendChild(t);
+      if(i>0){ const b=document.createElement('button'); b.className='sec'; b.style.padding='5px 9px'; b.textContent='↩ यह वापस लाएँ';
+        b.onclick=async()=>{ if(b.dataset.sure!=='1'){ b.dataset.sure='1'; b.textContent='पक्का? दबाएँ'; b.className='red'; return; }
+          b.disabled=true; b.textContent='⏳';
+          try{ const old=await gh('/repos/'+repo()+'/contents/'+encPath(p)+'?ref='+c.sha); await putFile(p,old.content.replace(/\n/g,''),'पिछला वर्ज़न वापस: '+c.sha.slice(0,7)); b.textContent='✅ वापस आ गया'; b.className='green'; }
+          catch(e){ b.textContent='❌ '+friendly(e); } };
+        d.appendChild(b); }
+      box.appendChild(d); });
+  }catch(e){ box.innerHTML='<div class="err">❌ '+friendly(e)+'</div>'; }
+};
+</script>
+</body>
+</html>

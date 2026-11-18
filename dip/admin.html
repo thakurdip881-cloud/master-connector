@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#17191c" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)">
+<title>DIP Master AI — Control Panel</title>
+<link rel="icon" href="icon-192.png">
+<style>
+/* ===== रंग: फ़ोन की Dark/Light सेटिंग के हिसाब से अपने आप बदलते हैं (आँखों के लिए नरम रंग) ===== */
+:root{
+  --bg:#17191c;--card:#202328;--tile:#2a2e34;--line:#363b43;--head:#1b1d21;
+  --txt:#e4e6e9;--mut:#9aa1ab;--inp:#262a30;--inpline:#4a515c;
+  --acc:#d9b25f;--accTxt:#1b1d21;--accSoft:rgba(217,178,95,.14);
+  --green:#4fae7e;--greenSoft:rgba(79,174,126,.16);--greenTxt:#8fdcb4;
+  --red:#d8686a;--redSoft:rgba(216,104,106,.16);--redTxt:#f0a9aa;
+  --amber:#d99a3d;--amberSoft:rgba(217,154,61,.16);--amberTxt:#f2c98a;
+  --blue:#5b93c9;--blueSoft:rgba(91,147,201,.16);--blueTxt:#a9cdf0;
+  --grey:#7d848e;--greySoft:rgba(125,132,142,.18);
+  --knob:#f2f3f5;--shadow:none;color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme=dark]){
+  --bg:#f4f1ea;--card:#fffdf9;--tile:#f7f3ec;--line:#e3ddd2;--head:#fffdf9;
+  --txt:#2b2620;--mut:#6f675d;--inp:#ffffff;--inpline:#cfc6b8;
+  --acc:#a8751f;--accTxt:#ffffff;--accSoft:rgba(168,117,31,.10);
+  --green:#2f8a5c;--greenSoft:rgba(47,138,92,.10);--greenTxt:#1f6b45;
+  --red:#c0474a;--redSoft:rgba(192,71,74,.09);--redTxt:#9e3336;
+  --amber:#b87412;--amberSoft:rgba(184,116,18,.11);--amberTxt:#8a560a;
+  --blue:#3a76b0;--blueSoft:rgba(58,118,176,.10);--blueTxt:#2a5d8f;
+  --grey:#8a8378;--greySoft:rgba(138,131,120,.14);
+  --knob:#ffffff;--shadow:0 1px 3px rgba(60,40,10,.08);color-scheme:light;}}
+:root[data-theme=light]{
+  --bg:#f4f1ea;--card:#fffdf9;--tile:#f7f3ec;--line:#e3ddd2;--head:#fffdf9;
+  --txt:#2b2620;--mut:#6f675d;--inp:#ffffff;--inpline:#cfc6b8;
+  --acc:#a8751f;--accTxt:#ffffff;--accSoft:rgba(168,117,31,.10);
+  --green:#2f8a5c;--greenSoft:rgba(47,138,92,.10);--greenTxt:#1f6b45;
+  --red:#c0474a;--redSoft:rgba(192,71,74,.09);--redTxt:#9e3336;
+  --amber:#b87412;--amberSoft:rgba(184,116,18,.11);--amberTxt:#8a560a;
+  --blue:#3a76b0;--blueSoft:rgba(58,118,176,.10);--blueTxt:#2a5d8f;
+  --grey:#8a8378;--greySoft:rgba(138,131,120,.14);
+  --knob:#ffffff;--shadow:0 1px 3px rgba(60,40,10,.08);color-scheme:light;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:Arial,Helvetica,sans-serif;padding-bottom:40px;font-size:15px;line-height:1.45}
+header{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--head);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;box-shadow:var(--shadow)}
+header img{width:36px;height:36px;border-radius:50%}
+header h1{margin:0;font-size:16px;color:var(--acc);letter-spacing:.3px;flex:1}
+header button{background:transparent;border:1px solid var(--line);color:var(--mut);border-radius:8px;padding:7px 10px;font-size:12px}
+main{max-width:520px;margin:0 auto;padding:12px}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs button{flex:1;background:var(--card);color:var(--mut);border:1px solid var(--line);border-radius:10px;padding:10px 2px;font-size:13px;font-weight:bold;box-shadow:var(--shadow)}
+.tabs button.on{background:var(--acc);color:var(--accTxt);border-color:var(--acc)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card h2{margin:0 0 10px;font-size:15px;color:var(--acc)}
+label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
+input,select,textarea{width:100%;padding:11px;background:var(--inp);border:1px solid var(--inpline);border-radius:9px;color:var(--txt);font-size:15px;font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accSoft);border-color:var(--acc)}
+input::placeholder,textarea::placeholder{color:var(--mut);opacity:.75}
+textarea{min-height:70px;resize:vertical}
+.btn{width:100%;border:0;border-radius:11px;padding:13px;font-weight:bold;font-size:15px;margin-top:12px;color:#fff;background:var(--blue)}
+.btn.gold{background:var(--acc);color:var(--accTxt)}.btn.green{background:var(--green)}.btn.red{background:var(--red)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--mut)}
+.btn:disabled{opacity:.5}
+.big{display:flex;flex-direction:column;align-items:center;gap:10px;padding:8px 0}
+.state{font-size:24px;font-weight:900;letter-spacing:.5px;padding:6px 16px;border-radius:12px}
+.state.on{color:var(--greenTxt);background:var(--greenSoft)}.state.off{color:var(--redTxt);background:var(--redSoft)}
+.sw{position:relative;width:120px;height:56px;border-radius:30px;background:var(--red);border:0;transition:.2s}
+.sw.on{background:var(--green)}
+.sw i{position:absolute;top:6px;left:6px;width:44px;height:44px;border-radius:50%;background:var(--knob);transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.sw.on i{left:70px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);gap:10px}
+.row:last-child{border-bottom:0}
+.row span{font-size:14px}.row small{display:block;color:var(--mut);font-size:11px;margin-top:2px}
+.tg{width:52px;height:30px;border-radius:16px;background:var(--grey);position:relative;flex:none;border:0}
+.tg::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:var(--knob);transition:.2s}
+.tg.on{background:var(--green)}.tg.on::after{left:25px}
+.msg{min-height:20px;font-size:13px;margin-top:10px;line-height:1.5}
+.ok{color:var(--greenTxt)}.err{color:var(--redTxt)}
+.note{font-size:12px;color:var(--mut);line-height:1.6;background:var(--tile);border-radius:9px;padding:9px 11px;margin-top:10px}
+.key{font-family:monospace;font-size:13px;word-break:break-all;background:var(--tile);border:1px dashed var(--acc);border-radius:9px;padding:10px;margin-top:10px;color:var(--txt)}
+.hist div{font-size:12px;padding:8px 0;border-bottom:1px solid var(--line);color:var(--mut)}
+.hist b{color:var(--txt)}
+a.lnk{display:block;text-align:center;text-decoration:none}
+.hide{display:none}
+.alert{background:var(--amberSoft);border:1px solid var(--amber);color:var(--amberTxt);border-radius:12px;padding:11px 13px;margin-bottom:12px;font-size:14px;line-height:1.6}
+.alert.info{background:var(--blueSoft);border-color:var(--blue);color:var(--blueTxt)}
+.cu{border:1px solid var(--line);border-left:5px solid var(--green);border-radius:12px;padding:11px;margin-top:10px;background:var(--tile)}
+.cu.warn{border-left-color:var(--amber);background:var(--amberSoft)}
+.cu.dead{border-left-color:var(--red);background:var(--redSoft)}
+.cu.blk{border-left-color:var(--grey);background:var(--greySoft)}
+.cu .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.cu b{font-size:15px}.cu .id{font-family:monospace;font-size:12px;color:var(--mut)}
+.badge{font-size:11px;font-weight:bold;border-radius:20px;padding:4px 9px;white-space:nowrap;border:1px solid transparent}
+.b-ok{background:var(--greenSoft);color:var(--greenTxt);border-color:var(--green)}
+.b-warn{background:var(--amberSoft);color:var(--amberTxt);border-color:var(--amber)}
+.b-dead{background:var(--redSoft);color:var(--redTxt);border-color:var(--red)}
+.b-blk{background:var(--greySoft);color:var(--mut);border-color:var(--grey)}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.acts button,.acts a{flex:1 1 30%;min-width:88px;background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 4px;font-size:12px;text-align:center;text-decoration:none}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 2px}
+</style>
+</head>
+<body>
+<header><img src="icon-192.png" alt=""><h1>DIP MASTER AI · Control Panel</h1><button id="thBtn" title="रंग">🌓 ऑटो</button><button id="outBtn" class="hide">लॉग आउट</button></header>
+<main>
+
+<!-- ===== पहली बार सेटअप ===== -->
+<section id="setup" class="hide">
+  <div class="card">
+    <h2>🔐 पहली बार सेटअप</h2>
+    <div class="note">यह जानकारी सिर्फ इसी फ़ोन/ब्राउज़र में सेव रहती है। किसी को न बताएँ।</div>
+    <label>GitHub Token (Contents: Read & write — Dip और dip-config दोनों repo)</label>
+    <input id="tokIn" type="password" placeholder="github_pat_..." autocomplete="off">
+    <a class="note lnk" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">➕ नया GitHub Token बनाएँ (यहाँ टैप करें)</a>
+    <label>पैनल पासवर्ड (ग्राहकों की लिस्ट को लॉक रखने के लिए — याद रखें)</label>
+    <input id="pwIn" type="password" placeholder="कम से कम 6 अक्षर" autocomplete="new-password">
+    <label>License Private Key (Key बनाने के लिए — license-private-key.txt का पूरा टेक्स्ट)</label>
+    <textarea id="prvIn" placeholder='{"kty":"EC", ... }'></textarea>
+    <button class="btn gold" id="setBtn">✅ सेव करें और आगे बढ़ें</button>
+    <div class="msg" id="setMsg"></div>
+  </div>
+</section>
+
+<!-- ===== पैनल ===== -->
+<section id="panel" class="hide">
+  <div id="remBox" class="alert hide"></div>
+  <div class="tabs">
+    <button data-t="tCtl" class="on">🔌 ऐप</button>
+    <button data-t="tCus">📋 ग्राहक</button>
+    <button data-t="tUsr">👥 यूज़र</button>
+    <button data-t="tLic">🔑 Key</button>
+    <button data-t="tSet">⚙ सेटिंग</button>
+    <button data-t="tWrk">👷 वर्कर</button>
+  </div>
+
+  <div id="tCtl" class="tab">
+    <div class="card">
+      <h2>ऐप चालू / बंद</h2>
+      <div class="big">
+        <div class="state" id="stTxt">…</div>
+        <button class="sw" id="swBtn" aria-label="ON/OFF"><i></i></button>
+      </div>
+      <label>बंद होने पर यूज़र को दिखने वाला मैसेज</label>
+      <textarea id="msgIn" placeholder="जैसे: अपडेट चल रहा है, 1 घंटे बाद खोलें।"></textarea>
+      <button class="btn gold" id="saveCtl">💾 सेव करें</button>
+      <div class="msg" id="ctlMsg"></div>
+      <div class="note">बदलाव सबके फ़ोन पर लगभग 5–10 मिनट में लागू होता है।</div>
+    </div>
+  </div>
+
+  <div id="tCus" class="tab hide">
+    <div class="card">
+      <h2>➕ नया ग्राहक / ID जोड़ें</h2>
+      <label>Device ID</label>
+      <input id="cDev" placeholder="DIP-XXXXXXXX" autocomplete="off" autocapitalize="characters">
+      <div class="f2">
+        <div><label>नाम</label><input id="cName" placeholder="नाम"></div>
+        <div><label>मोबाइल</label><input id="cMob" inputmode="numeric" placeholder="98xxxxxxxx"></div>
+      </div>
+      <div class="f2">
+        <div><label>प्लान</label><select id="cPlan"><option value="1">1 महीना</option><option value="3" selected>3 महीने</option><option value="6">6 महीने</option><option value="12">1 साल</option></select></div>
+        <div><label>शुरू होने की तारीख</label><input id="cStart" type="date"></div>
+      </div>
+      <div class="row"><div><span>अवधि खत्म होते ही ऐप अपने आप बंद</span><small>बंद रखें तो सिर्फ रिमाइंडर आएगा</small></div><button class="tg" id="cAuto"></button></div>
+      <button class="btn gold" id="cAdd">➕ जोड़ें और सेव करें</button>
+      <div class="msg" id="cMsg"></div>
+      <div class="note">खत्म होने से <b>3 दिन पहले</b> इस पैनल में सबसे ऊपर रिमाइंडर दिखेगा। फ़ोन पर रिमाइंडर के लिए हर ग्राहक में "📅 रिमाइंडर" दबाकर Google Calendar में जोड़ लें।</div>
+    </div>
+    <div class="card">
+      <h2>📋 ग्राहक लिस्ट <span id="cCount" style="color:var(--mut);font-size:12px"></span></h2>
+      <div class="legend"><span class="badge b-ok">🟢 चालू</span><span class="badge b-warn">🟠 3 दिन में खत्म</span><span class="badge b-dead">🔴 खत्म</span><span class="badge b-blk">⛔ बंद किया</span></div>
+      <input id="cFind" placeholder="🔍 नाम / मोबाइल / Device ID से खोजें">
+      <div id="cList"><div class="note">अभी कोई ग्राहक नहीं जोड़ा।</div></div>
+    </div>
+  </div>
+
+  <div id="tUsr" class="tab hide">
+    <div class="card">
+      <h2>👥 कितने लोग चला रहे हैं</h2>
+      <div class="note">रोज़ कितने लोगों ने ऐप खोली, किस देश/फ़ोन से — यह GoatCounter के पैनल में दिखता है। पहली बार वहाँ <b>dipmaster</b> कोड से फ़्री अकाउंट बनाना होगा।</div>
+      <a class="btn green lnk" href="https://dipmaster.goatcounter.com" target="_blank" rel="noopener">📊 यूज़र पैनल खोलें</a>
+      <a class="btn ghost lnk" href="https://www.goatcounter.com/signup" target="_blank" rel="noopener">GoatCounter अकाउंट बनाएँ</a>
+    </div>
+    <div class="card">
+      <h2>📝 रजिस्ट्रेशन</h2>
+      <div class="note">नए रजिस्ट्रेशन आपके Telegram (<b id="tgShow">—</b>) पर मैसेज के रूप में आते हैं।</div>
+    </div>
+  </div>
+
+  <div id="tLic" class="tab hide">
+    <div class="card">
+      <h2>🔑 License Key बनाएँ</h2>
+      <label>यूज़र की Device ID</label>
+      <input id="devIn" placeholder="DIP-XXXXXXXX" autocomplete="off" autocapitalize="characters">
+      <label>कितने दिन चलेगी</label>
+      <select id="durIn">
+        <option value="1">1 दिन</option><option value="7">7 दिन</option><option value="30" selected>30 दिन</option>
+        <option value="90">90 दिन</option><option value="180">180 दिन</option><option value="365">1 साल</option>
+        <option value="0">Lifetime (हमेशा)</option>
+      </select>
+      <label>नोट (नाम/मोबाइल — सिर्फ आपकी लिस्ट के लिए)</label>
+      <input id="noteIn" placeholder="जैसे: Ramesh 98xxxxxx">
+      <button class="btn gold" id="genBtn">⚡ Key बनाएँ</button>
+      <div class="msg" id="licMsg"></div>
+      <div id="keyBox" class="hide">
+        <div class="key" id="keyOut"></div>
+        <button class="btn" id="cpyBtn">📋 Key कॉपी करें</button>
+        <a class="btn green lnk" id="tgSend" href="#" target="_blank" rel="noopener">✈️ Telegram पर भेजें</a>
+      </div>
+      <div class="note">License लॉक तभी लागू होगा जब ⚙ सेटिंग में "License Key लॉक" चालू हो।</div>
+    </div>
+    <div class="card">
+      <h2>📜 बनाई गई Keys</h2>
+      <div class="hist" id="histBox"><div>अभी कोई Key नहीं बनाई।</div></div>
+    </div>
+  </div>
+
+  <div id="tSet" class="tab hide">
+    <div class="card">
+      <h2>⚙ ऐप की सेटिंग</h2>
+      <label>Telegram username (@ के बिना)</label>
+      <input id="tgIn" placeholder="myusername">
+      <label>WhatsApp नंबर (91 के साथ, जैसे 919876543210)</label>
+      <input id="waIn" inputmode="numeric" placeholder="खाली छोड़ें तो नहीं दिखेगा">
+      <div class="row"><div><span>रजिस्ट्रेशन</span><small>नए यूज़र से नाम/मोबाइल भरवाना</small></div><button class="tg" id="regTg"></button></div>
+      <div class="row"><div><span>License Key लॉक</span><small>बिना Key ऐप नहीं खुलेगी</small></div><button class="tg" id="licTg"></button></div>
+      <label>ON/OFF जाँच हर कितने मिनट में (ज़्यादा = कम डेटा)</label>
+      <select id="chkIn"><option value="5">5 मिनट</option><option value="10">10 मिनट</option><option value="15">15 मिनट</option><option value="30">30 मिनट</option><option value="60">1 घंटा</option><option value="360">6 घंटे</option><option value="720">12 घंटे</option><option value="1440" selected>24 घंटे</option></select>
+      <button class="btn gold" id="saveSet">💾 सेटिंग सेव करें</button>
+      <div class="msg" id="setMsg2"></div>
+    </div>
+  </div>
+  <div id="tWrk" class="tab hide"><div id="wrkBox"></div></div>
+</section>
+</main>
+<script src="mc-firebase.js"></script>
+<script type="module">
+// 👷 वर्कर हायरिंग + 📢 कमांड बोर्ड — टैब खोलते ही लोड होता है (बाकी पैनल पर कोई असर नहीं)
+let done=false;
+document.querySelector('[data-t="tWrk"]').addEventListener('click',async()=>{ if(done) return; done=true;
+  const m=await import('./workers.js'); m.mount(document.getElementById('wrkBox'),'admin'); });
+</script>
+
+<script>
+/* ON/OFF सेटिंग (कोई गुप्त चीज़ नहीं) → public repo dip-config; ग्राहक लिस्ट (ताले में) → private repo Dip */
+const REPO='thakurdip881-cloud/dip-config', BRANCH='main', FILE='config.json';
+const CREPO='thakurdip881-cloud/Dip', CBRANCH='panel-config';
+const DEF={on:true,msg:'',telegram:'WorkforhomeIndia',whatsapp:'',reg_on:true,license_on:false,check_min:1440};
+const $=id=>document.getElementById(id);
+/* ---- रंग: ऑटो (फ़ोन के हिसाब से) / डार्क / लाइट ---- */
+(function(){ const M=['auto','dark','light'], L={auto:'🌓 ऑटो',dark:'🌙 डार्क',light:'☀️ लाइट'};
+  let t='auto'; try{t=localStorage.getItem('dp_theme')||'auto';}catch(e){}
+  const ap=()=>{ if(t==='auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme',t); document.getElementById('thBtn').textContent=L[t]; };
+  ap(); document.getElementById('thBtn').onclick=()=>{ t=M[(M.indexOf(t)+1)%3]; try{localStorage.setItem('dp_theme',t);}catch(e){} ap(); };
+})();
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(e){return null;}}
+let TOK=ls('dp_tok')||'', PRV=ls('dp_prv')||'', PW=ls('dp_pw')||'', CFG={...DEF}, SHA=null, CUST=[], CSHA=null;
+const CFILE='customers.enc';
+/* ---- ग्राहक लिस्ट पासवर्ड से लॉक (AES-GCM) — GitHub पर सिर्फ उलटा-पुलटा टेक्स्ट दिखेगा ---- */
+const u8b64=u=>{let s='';u.forEach(x=>s+=String.fromCharCode(x));return btoa(s);}, b64u8=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function aesKey(salt){const b=await crypto.subtle.importKey('raw',new TextEncoder().encode(PW),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},b,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
+async function encJSON(o){const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},await aesKey(salt),new TextEncoder().encode(JSON.stringify(o))));
+  return JSON.stringify({v:1,salt:u8b64(salt),iv:u8b64(iv),data:u8b64(ct)});}
+async function decJSON(t){const j=JSON.parse(t);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64u8(j.iv)},await aesKey(b64u8(j.salt)),b64u8(j.data));
+  return JSON.parse(new TextDecoder().decode(pt));}
+async function idHash(dev){const d=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode('dipu|'+dev)));
+  return [...d].slice(0,8).map(x=>x.toString(16).padStart(2,'0')).join('');}
+
+function say(id,t,ok){ $(id).innerHTML='<span class="'+(ok?'ok':'err')+'">'+t+'</span>'; }
+function b64enc(s){ return btoa(unescape(encodeURIComponent(s))); }
+function b64dec(s){ return decodeURIComponent(escape(atob(s.replace(/\s/g,'')))); }
+
+async function gh(path,opt={},repo=REPO){
+  const r=await fetch('https://api.github.com/repos/'+repo+path,{...opt,headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+TOK,...(opt.headers||{})}});
+  if(r.status===401) throw new Error('Token गलत है या एक्सपायर हो गया।');
+  if(r.status===403) throw new Error('Token को Dip और dip-config दोनों repo में लिखने की अनुमति चाहिए (Contents: Read & write)।');
+  return r;
+}
+async function ensureBranch(){
+  let r=await gh('/branches/'+CBRANCH,{},CREPO); if(r.ok) return;
+  const m=await (await gh('/git/ref/heads/main',{},CREPO)).json();
+  r=await gh('/git/refs',{method:'POST',body:JSON.stringify({ref:'refs/heads/'+CBRANCH,sha:m.object.sha})},CREPO);
+  if(!r.ok) throw new Error('config branch नहीं बन पाया ('+r.status+')');
+}
+async function load(){
+  const r=await gh('/contents/'+FILE+'?ref='+BRANCH);
+  if(r.status===404){ SHA=null; CFG={...DEF}; return; }
+  if(!r.ok) throw new Error('config नहीं पढ़ पाया ('+r.status+')');
+  const j=await r.json(); SHA=j.sha; CFG={...DEF,...JSON.parse(b64dec(j.content))};
+}
+async function loadCust(){
+  const r=await gh('/contents/'+CFILE+'?ref='+CBRANCH,{},CREPO);
+  if(r.status===404){ CSHA=null; CUST=[]; return; }
+  if(!r.ok) throw new Error('ग्राहक लिस्ट नहीं पढ़ पाया ('+r.status+')');
+  const j=await r.json(); CSHA=j.sha;
+  try{ CUST=await decJSON(b64dec(j.content)); }catch(e){ throw new Error('पैनल पासवर्ड गलत है — ग्राहक लिस्ट नहीं खुली'); }
+}
+async function putFile(name,text,sha,msg,repo=REPO,branch=BRANCH){
+  const body={message:msg,content:b64enc(text),branch}; if(sha) body.sha=sha;
+  const r=await gh('/contents/'+name,{method:'PUT',body:JSON.stringify(body)},repo);
+  if(r.status===404) throw new Error(repo+' repo नहीं मिला — Token में Dip और dip-config दोनों repo चुनें।');
+  if(!r.ok) throw new Error('सेव नहीं हुआ ('+r.status+')'); return (await r.json()).content.sha;
+}
+/* ग्राहक लिस्ट + config दोनों सेव — config में सिर्फ ID का hash, तारीख और बंद/चालू जाता है */
+async function saveCust(list,msgId){
+  try{
+    if(!PW) throw new Error('पैनल पासवर्ड सेट नहीं है — लॉग आउट करके सेटअप दोबारा करें');
+    await ensureBranch(); await load(); await loadCustSafe();
+    const users={}; for(const c of list){ users[await idHash(c.dev)]={exp:c.exp,auto:!!c.auto,b:!!c.blocked}; }
+    CSHA=await putFile(CFILE,await encJSON(list),CSHA,'Control panel: customers update',CREPO,CBRANCH);
+    const next={...CFG,users};
+    SHA=await putFile(FILE,JSON.stringify(next,null,1)+'\n',SHA,'Control panel: user access update');
+    CUST=list; CFG=next; drawCust(); render();
+    say(msgId,'✅ सेव हो गया — 5–10 मिनट में उस फ़ोन पर लागू होगा।',true);
+    return true;
+  }catch(e){ say(msgId,'❌ '+e.message,false); return false; }
+}
+async function loadCustSafe(){ const r=await gh('/contents/'+CFILE+'?ref='+CBRANCH,{},CREPO); CSHA=r.ok?(await r.json()).sha:null; }
+
+async function save(patch,msgId){
+  const next={...CFG,...patch};
+  try{
+    await load();
+    const body={message:'Control panel: settings update',content:b64enc(JSON.stringify(next,null,1)+'\n'),branch:BRANCH};
+    if(SHA) body.sha=SHA;
+    const r=await gh('/contents/'+FILE,{method:'PUT',body:JSON.stringify(body)});
+    if(r.status===404) throw new Error('dip-config repo नहीं मिला — Token में Dip और dip-config दोनों repo चुनें।');
+    if(!r.ok) throw new Error('सेव नहीं हुआ ('+r.status+')');
+    const j=await r.json(); SHA=j.content.sha; CFG=next; render();
+    say(msgId,'✅ सेव हो गया — 5–10 मिनट में सबके फ़ोन पर लागू होगा।',true);
+  }catch(e){ say(msgId,'❌ '+e.message,false); }
+}
+function render(){
+  $('stTxt').textContent=CFG.on?'● चालू (ON)':'● बंद (OFF)'; $('stTxt').className='state '+(CFG.on?'on':'off');
+  $('swBtn').classList.toggle('on',!!CFG.on);
+  $('msgIn').value=CFG.msg||''; $('tgIn').value=CFG.telegram||''; $('waIn').value=CFG.whatsapp||'';
+  $('regTg').classList.toggle('on',!!CFG.reg_on); $('licTg').classList.toggle('on',!!CFG.license_on);
+  $('chkIn').value=String(CFG.check_min||1440); $('tgShow').textContent=CFG.telegram?'@'+CFG.telegram:'—';
+}
+
+/* ---- tabs ---- */
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('hide',t.id!==b.dataset.t));
+});
+
+/* ---- control ---- */
+let pendingOn=null;
+$('swBtn').onclick=()=>{ pendingOn=!(pendingOn===null?CFG.on:pendingOn); $('swBtn').classList.toggle('on',pendingOn);
+  $('stTxt').textContent=(pendingOn?'● चालू (ON)':'● बंद (OFF)')+' — सेव दबाएँ'; $('stTxt').className='state '+(pendingOn?'on':'off'); };
+$('saveCtl').onclick=async()=>{ $('saveCtl').disabled=true; await save({on:pendingOn===null?CFG.on:pendingOn,msg:$('msgIn').value.trim()},'ctlMsg'); pendingOn=null; $('saveCtl').disabled=false; };
+
+/* ---- settings ---- */
+$('regTg').onclick=()=>$('regTg').classList.toggle('on');
+$('licTg').onclick=()=>$('licTg').classList.toggle('on');
+$('saveSet').onclick=async()=>{ $('saveSet').disabled=true;
+  await save({telegram:$('tgIn').value.replace(/^@/,'').trim(),whatsapp:$('waIn').value.replace(/\D/g,''),
+    reg_on:$('regTg').classList.contains('on'),license_on:$('licTg').classList.contains('on'),check_min:+$('chkIn').value},'setMsg2');
+  $('saveSet').disabled=false; };
+
+/* ---- license ---- */
+function b64url(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function ymd(d){ return ''+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0'); }
+function fmt(e){ return e==='99991231'?'Lifetime':e.slice(6,8)+'-'+e.slice(4,6)+'-'+e.slice(0,4); }
+function hist(){ try{return JSON.parse(ls('dp_hist')||'[]');}catch(e){return [];} }
+function drawHist(){ const h=hist(); $('histBox').innerHTML=h.length?h.slice().reverse().map(x=>'<div><b>'+x.dev+'</b> · '+fmt(x.exp)+(x.note?' · '+x.note.replace(/</g,'&lt;'):'')+'<br>'+x.at+'</div>').join(''):'<div>अभी कोई Key नहीं बनाई।</div>'; }
+$('genBtn').onclick=async()=>{
+  const dev=$('devIn').value.trim().toUpperCase();
+  if(!/^DIP-[A-Z0-9]{8}$/.test(dev)) return say('licMsg','❌ Device ID सही नहीं है (जैसे DIP-AB12CD34)',false);
+  if(!PRV) return say('licMsg','❌ पहले लॉग आउट करके सेटअप में License Private Key डालें',false);
+  const days=+$('durIn').value; let exp='99991231';
+  if(days>0){ const d=new Date(); d.setDate(d.getDate()+days); exp=ymd(d); }
+  try{
+    const k=await crypto.subtle.importKey('jwk',JSON.parse(PRV),{name:'ECDSA',namedCurve:'P-256'},false,['sign']);
+    const sig=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},k,new TextEncoder().encode(dev+'|'+exp));
+    const key=exp+'.'+b64url(sig);
+    $('keyOut').textContent=key; $('keyBox').classList.remove('hide');
+    $('tgSend').href='https://t.me/share/url?url='+encodeURIComponent(key)+'&text='+encodeURIComponent('🔑 DIP Master AI Key\nDevice: '+dev+'\nValid: '+fmt(exp));
+    const h=hist(); h.push({dev,exp,note:$('noteIn').value.trim(),at:new Date().toLocaleString('en-IN')}); ls('dp_hist',JSON.stringify(h.slice(-200))); drawHist();
+    say('licMsg','✅ Key बन गई — वैधता: '+fmt(exp),true);
+  }catch(e){ say('licMsg','❌ Private Key गलत है — सेटअप दोबारा करें',false); }
+};
+$('cpyBtn').onclick=async()=>{ try{ await navigator.clipboard.writeText($('keyOut').textContent); say('licMsg','📋 कॉपी हो गई',true);}catch(e){ say('licMsg','कॉपी नहीं हुई — Key को देर तक दबाकर कॉपी करें',false);} };
+
+/* ---- ग्राहक / रिमाइंडर ---- */
+function dstr(d){ return ''+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0'); }
+function pdate(s){ return new Date(+s.slice(0,4),+s.slice(4,6)-1,+s.slice(6,8)); }
+function addMonths(s,m){ const d=pdate(s); const day=d.getDate(); d.setMonth(d.getMonth()+m); if(d.getDate()<day) d.setDate(0); return dstr(d); }
+function daysLeft(exp){ const t=new Date(); t.setHours(0,0,0,0); return Math.round((pdate(exp)-t)/864e5); }
+function esc(s){ return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function stat(c){ const dl=daysLeft(c.exp);
+  if(c.blocked) return ['blk','b-blk','⛔ बंद किया'];
+  if(dl<0) return ['dead','b-dead',c.auto?'🔴 खत्म — ऐप बंद':'🔴 खत्म ('+(-dl)+' दिन पहले)'];
+  if(dl<=3) return ['warn','b-warn','🟠 '+(dl===0?'आज':dl+' दिन में')+' खत्म — बात करें'];
+  return ['','b-ok','🟢 '+dl+' दिन बाकी']; }
+function calLink(c){ const d=pdate(c.exp); d.setDate(d.getDate()-3); const a=dstr(d); const e=new Date(d); e.setDate(e.getDate()+1);
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent('DIP: '+(c.name||c.dev)+' से बात करनी है')+
+    '&dates='+a+'/'+dstr(e)+'&details='+encodeURIComponent('Device: '+c.dev+'\nमोबाइल: '+(c.mob||'-')+'\nप्लान खत्म: '+fmt(c.exp)); }
+function drawCust(){
+  const q=($('cFind').value||'').toLowerCase().trim();
+  const list=CUST.map((c,i)=>({c,i})).filter(x=>!q||[x.c.name,x.c.mob,x.c.dev].join(' ').toLowerCase().includes(q))
+    .sort((a,b)=>a.c.exp.localeCompare(b.c.exp));
+  $('cCount').textContent=CUST.length?'('+CUST.length+')':'';
+  $('cList').innerHTML=list.length?list.map(({c,i})=>{ const [cls,bc,bt]=stat(c);
+    const wa=c.mob?'<a href="https://wa.me/91'+esc(c.mob.slice(-10))+'" target="_blank" rel="noopener">💬 WhatsApp</a>':'';
+    return '<div class="cu '+cls+'"><div class="top"><div><b>'+esc(c.name||'—')+'</b><div class="id">'+esc(c.dev)+(c.mob?' · '+esc(c.mob):'')+'</div>'+
+      '<div class="id">'+fmt(c.start)+' → '+fmt(c.exp)+(c.auto?' · अपने आप बंद':'')+'</div></div><span class="badge '+bc+'">'+bt+'</span></div>'+
+      '<div class="acts"><button data-a="r1" data-i="'+i+'">+1 महीना</button><button data-a="r3" data-i="'+i+'">+3 महीने</button>'+
+      '<button data-a="blk" data-i="'+i+'">'+(c.blocked?'✅ चालू करें':'⛔ बंद करें')+'</button>'+
+      '<a href="'+calLink(c)+'" target="_blank" rel="noopener">📅 रिमाइंडर</a>'+wa+
+      '<button data-a="del" data-i="'+i+'">🗑 हटाएँ</button></div></div>'; }).join(''):'<div class="note">'+(q?'कुछ नहीं मिला।':'अभी कोई ग्राहक नहीं जोड़ा।')+'</div>';
+  drawRem();
+}
+function drawRem(){
+  const due=CUST.filter(c=>!c.blocked && daysLeft(c.exp)<=3);
+  if(!due.length){ $('remBox').classList.add('hide'); return; }
+  $('remBox').classList.remove('hide');
+  $('remBox').innerHTML='⚠️ <b>'+due.length+' लोगों से बात करनी है</b> (प्लान 3 दिन में खत्म / खत्म हो चुका):<br>'+
+    due.sort((a,b)=>a.exp.localeCompare(b.exp)).map(c=>'• '+esc(c.name||c.dev)+(c.mob?' ('+esc(c.mob)+')':'')+' — '+(daysLeft(c.exp)<0?'खत्म':daysLeft(c.exp)===0?'आज खत्म':daysLeft(c.exp)+' दिन बाकी')).join('<br>');
+}
+$('cFind').oninput=drawCust;
+$('cAuto').onclick=()=>$('cAuto').classList.toggle('on');
+$('cAdd').onclick=async()=>{
+  const dev=$('cDev').value.trim().toUpperCase();
+  if(!/^DIP-[A-Z0-9]{8}$/.test(dev)) return say('cMsg','❌ Device ID सही नहीं है (जैसे DIP-AB12CD34)',false);
+  if(CUST.some(c=>c.dev===dev)) return say('cMsg','❌ यह Device ID पहले से लिस्ट में है — वहीं से +1/+3 महीना करें',false);
+  const st=$('cStart').value?$('cStart').value.replace(/-/g,''):dstr(new Date());
+  const c={dev,name:$('cName').value.trim(),mob:$('cMob').value.replace(/\D/g,''),start:st,exp:addMonths(st,+$('cPlan').value),auto:$('cAuto').classList.contains('on'),blocked:false};
+  $('cAdd').disabled=true;
+  if(await saveCust([...CUST,c],'cMsg')){ $('cDev').value=$('cName').value=$('cMob').value=''; }
+  $('cAdd').disabled=false;
+};
+$('cList').onclick=async e=>{
+  const b=e.target.closest('button[data-a]'); if(!b) return;
+  const i=+b.dataset.i, a=b.dataset.a, list=CUST.map(x=>({...x})), c=list[i];
+  if(a==='del'){ if(b.dataset.sure!=='1'){ b.dataset.sure='1'; b.textContent='पक्का हटाएँ?'; return; } list.splice(i,1); }
+  else if(a==='blk') c.blocked=!c.blocked;
+  else { const m=a==='r1'?1:3; const base=daysLeft(c.exp)<0?dstr(new Date()):c.exp; c.exp=addMonths(base,m); }
+  b.disabled=true; await saveCust(list,'cMsg');
+};
+
+/* ---- setup / login ---- */
+$('setBtn').onclick=async()=>{
+  const t=$('tokIn').value.trim(), p=$('prvIn').value.trim(), w=$('pwIn').value;
+  if(!t) return say('setMsg','❌ GitHub Token डालें',false);
+  if(w.length<6) return say('setMsg','❌ पैनल पासवर्ड कम से कम 6 अक्षर का रखें',false);
+  if(p){ try{ const j=JSON.parse(p); if(j.kty!=='EC'||!j.d) throw 0; }catch(e){ return say('setMsg','❌ Private Key का टेक्स्ट सही नहीं है',false); } }
+  TOK=t; PRV=p; PW=w; say('setMsg','जाँच हो रही है…',true);
+  try{ await load(); await loadCust(); ls('dp_tok',t); ls('dp_pw',w); if(p) ls('dp_prv',p); start(); }
+  catch(e){ TOK=''; PW=''; say('setMsg','❌ '+e.message,false); }
+};
+$('outBtn').onclick=()=>{ ls('dp_tok',null); ls('dp_prv',null); ls('dp_pw',null); location.reload(); };
+async function start(){
+  $('setup').classList.add('hide'); $('panel').classList.remove('hide'); $('outBtn').classList.remove('hide');
+  drawHist(); render(); $('cStart').value=new Date().toISOString().slice(0,10);
+  try{ await load(); render(); await loadCust(); drawCust(); }catch(e){ say('ctlMsg','❌ '+e.message,false); }
+}
+if(TOK) start(); else $('setup').classList.remove('hide');
+</script>
+</body>
+</html>

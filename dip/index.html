@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>DIP Master AI</title>
+<style>
+/* ============ ADD-1: रंग / थीम यहाँ बदलें ============ */
+:root{--gold:#8cc7bb;--gold2:#4a7f76;--bg:#172028;--card:#1f2b35;--tile:#1b2630;--green:#5fb38a;--red:#d98080;--blue:#6b9bd1;--violet:#a08ccf}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;overflow-x:hidden;background:var(--bg);color:#e6edf3;font-family:Arial,Helvetica,sans-serif;padding-bottom:30px}
+.top{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:#18212b;border-bottom:1px solid #33424f}
+.top h2{margin:0;color:var(--gold);font-size:20px;letter-spacing:1px}
+.demoTag{font-size:11px;background:#3a2a2e;color:#f0c4c4;border:1px solid #b77a7a;border-radius:8px;padding:3px 7px}
+.modes{display:flex;gap:6px;padding:10px}
+.modes div{flex:1;text-align:center;background:var(--card);border-radius:10px;padding:8px 0;font-size:11px;color:#9fb0bf;white-space:nowrap}
+.modes div.on{background:var(--gold);color:#0f2420;font-weight:bold}
+.timerBox{display:flex;justify-content:space-between;align-items:center;margin:0 10px;background:var(--card);border-radius:12px;padding:10px}
+.period{font-size:13px;color:#c3cfda}.period b{display:block;color:var(--gold);font-size:15px;margin-top:3px}
+.clock{display:flex;gap:4px}.clock span{background:#141c25;color:#e6edf3;font-size:22px;font-weight:bold;padding:6px 8px;border-radius:6px}
+.bigNum{text-align:center;font-size:90px;font-weight:bold;color:var(--gold);margin:6px 0 0;line-height:1}
+.bigTxt{text-align:center;color:#9fb0bf;font-size:13px;margin-bottom:6px}
+.balls{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;padding:0 10px}
+.ball{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:15px}
+.bs{display:flex;gap:8px;margin:10px}
+.bs div{flex:1;text-align:center;padding:10px;border-radius:20px;font-weight:bold}
+table{width:calc(100% - 20px);margin:10px;border-collapse:collapse;font-size:13px}
+th{background:var(--card);color:#9fb0bf;padding:8px 4px;font-weight:normal}
+td{text-align:center;padding:8px 4px;border-bottom:1px solid #2e3b48}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 1px}
+
+/* ===== Floating Panel ===== */
+#panel{position:fixed;left:8px;top:120px;width:190px;background:#18212b;border:2px solid var(--gold);border-radius:14px;padding:8px;z-index:50;box-shadow:0 6px 24px #0007}
+#panel .head{text-align:center;color:var(--gold);font-weight:bold;letter-spacing:1px;border:1px solid var(--gold2);border-radius:8px;padding:6px;margin-bottom:6px;touch-action:none;cursor:move}
+.pill{display:flex;justify-content:space-between;align-items:center;border-radius:8px;padding:6px 8px;font-size:12px;font-weight:bold;margin-bottom:6px}
+.pill.stop{background:#3a2a2e;color:#e6a3a3}.pill.run{background:#1f3a32;color:#9ad8bb}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:5px;width:100%}
+.t{background:var(--tile);border:1px solid #33424f;border-radius:8px;padding:4px 6px;min-height:36px;min-width:0;overflow:hidden}
+#panel{overflow:hidden}
+#panel .lvTxt{overflow-wrap:anywhere}
+.t small{display:block;font-size:9px;color:#9fb0bf;text-transform:uppercase}
+.t b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.pbtn{width:100%;border:0;border-radius:10px;padding:10px;font-weight:bold;font-size:14px;margin-top:6px;color:#fff}
+.startB{background:var(--green)}.pauseB{background:#d9b46e;color:#0f2420}
+.row2{display:flex;gap:5px}.row2 .pbtn{flex:1;font-size:12px}
+.readB{background:var(--blue)}.resetB{background:var(--red)}
+#panel.min .body,#panel.min .pill,#panel.min #pSmall,#panel.min #pBig,#panel.min #pCorner{display:none}
+#panel.min{width:176px}
+#panel .head{white-space:nowrap}
+.ptools button{min-height:32px}
+#panel{transform-origin:top left;transition:left .2s,top .2s}
+#panel.dragging{transition:none}
+.ptools{display:flex;gap:4px;margin-bottom:6px}
+.ptools button{flex:1;background:var(--tile);color:var(--gold);border:1px solid #33424f;border-radius:7px;padding:5px 0;font-size:15px;font-weight:bold;line-height:1}
+
+/* ===== Modals ===== */
+.modal{position:fixed;inset:0;background:#0b1118cc;display:none;align-items:center;justify-content:center;z-index:100;padding:12px}
+.modal.show{display:flex}
+.mbox{background:#18212b;border:2px solid var(--gold);border-radius:16px;width:100%;max-width:420px;max-height:90vh;overflow:auto;padding:14px}
+.mbox h3{margin:0 0 10px;color:var(--gold)}
+.sec{font-size:11px;color:var(--gold);letter-spacing:1px;margin:12px 0 4px;font-weight:bold}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mbox label{font-size:10px;color:#9fb0bf;text-transform:uppercase;display:block;margin-bottom:3px}
+.mbox input,.mbox select{width:100%;padding:10px;background:var(--tile);border:1px solid var(--gold2);border-radius:8px;color:#fff;font-size:15px}
+.mbtns{display:flex;gap:8px;margin-top:14px}
+.mbtns button{flex:1;padding:12px;border-radius:10px;font-weight:bold;font-size:15px}
+.cancel{background:transparent;border:1px solid #555;color:#fff}.save{background:var(--gold);border:0;color:#0f2420}
+.lv{display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:13px}
+.lv div{background:var(--tile);border-radius:6px;padding:5px 8px}
+.lv div.cur{border:1px solid var(--gold);color:var(--gold)}
+/* ===== Demo टैग: चलते समय हरी, रुके होने पर लाल लाइट ===== */
+.demoTag{display:inline-flex;align-items:center;gap:5px;background:#3a1a1e!important;color:#ffb3b3!important;border-color:#e04848!important;transition:all .3s}
+.demoTag:before{content:'';width:9px;height:9px;border-radius:50%;background:#ff3b3b;box-shadow:0 0 6px #ff3b3b,0 0 12px #ff3b3b88;flex:none}
+.demoTag.run{background:#123a24!important;color:#a8f0c6!important;border-color:#2fd47a!important}
+.demoTag.run:before{background:#2fff86;box-shadow:0 0 6px #2fff86,0 0 14px #2fff86aa;animation:dGlow 1s infinite alternate}
+@keyframes dGlow{from{opacity:1}to{opacity:.45}}
+/* ===== Base Bet लिस्ट (हरे चार्ट के साथ) ===== */
+.bbBtn{width:100%;padding:10px;background:var(--tile);border:1px solid var(--gold2);border-radius:8px;color:#fff;font-size:15px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.bbBtn:after{content:'▾';color:#9fb0bf}
+#bbSheet{position:fixed;inset:0;background:#000a;z-index:9999;display:none;align-items:center;justify-content:center}
+#bbSheet.show{display:flex}
+.bbList{width:min(92vw,420px);max-height:82vh;overflow:auto;background:#1a1f2b;border-radius:22px;padding:6px 0 10px}
+.bbRow{display:flex;justify-content:space-between;align-items:center;padding:15px 22px;font-size:22px;color:#fff;cursor:pointer}
+.bbRow .rd{width:24px;height:24px;border-radius:50%;border:2px solid #cfd6e0;flex:none}
+.bbRow.on .rd{background:#d6dcff;box-shadow:inset 0 0 0 4px #1a1f2b;border-color:#d6dcff}
+.bbRow.g{background:#2a6b55;margin:6px 12px;border-radius:12px;border:1px solid #4f9c80;font-weight:bold;font-size:17px;padding:14px 16px;gap:8px;white-space:nowrap}
+.bbRow.g.on .rd{box-shadow:inset 0 0 0 4px #1c7444}
+.apSheet{position:fixed;inset:0;background:#000a;z-index:9999;display:none;align-items:center;justify-content:center}
+.apSheet.show{display:flex}
+.apRow{color:#fff;font-weight:bold;font-size:19px;margin:7px 12px;border-radius:12px;padding:14px 16px;text-shadow:0 1px 2px #0008}
+.apRow.on .rd{background:#fff;box-shadow:inset 0 0 0 4px #0006;border-color:#fff}
+.bbSec{color:#6fe0a2;font-size:12px;padding:10px 22px 2px;letter-spacing:1px}
+/* (पुरानी लाल-हरी टेबल स्टाइल, अब इस्तेमाल नहीं) */
+.rg{width:100%;margin:12px 0 0;border-collapse:separate;border-spacing:4px;font-size:14px}
+.rg th{background:linear-gradient(#e04848,#a81f1f);color:#fff;font-weight:bold;border-radius:8px;padding:8px 4px;border:1px solid #ff8a8a}
+.rg td{background:linear-gradient(#2fa866,#1c7444);color:#fff;font-weight:bold;border-radius:8px;padding:7px 4px;border:1px solid #6fe0a2;text-align:center}
+.rg td.n{background:#3a2a2e;border-color:#b77a7a;color:#f0c4c4;width:28px}
+.rg td.cur{outline:2px solid #ffd58a;color:#ffe9a8}
+.rg tr.tot td{background:linear-gradient(#e04848,#a81f1f);border-color:#ff8a8a;color:#ffe9a8}
+.rgTitle{text-align:center;margin-top:14px;font-weight:bold;color:#fff;background:linear-gradient(90deg,#a81f1f,#1c7444);border-radius:8px;padding:7px}
+.lvBar{margin:6px 0}
+/* DIP Master AI: बैलेंस ग्राफ़ (डेमो बैलेंस) */
+.pgBox{margin:6px 0;background:#0f1720;border:1px solid #2a3846;border-radius:8px;padding:4px 6px}
+.pgBox .pgT{font-size:11px;color:#9fb0bf;display:flex;justify-content:space-between}
+.pgBox svg{display:block;width:100%;height:54px}
+.lvTxt{font-size:11px;color:#c3cfda;margin-bottom:3px;line-height:1.3}
+.lvTrack{height:7px;background:#141c25;border-radius:4px;overflow:hidden}
+.lvFill{height:100%;width:0;background:var(--gold);transition:width .3s}
+.lvFill.hot{background:#d98080}
+.gBtn{flex:1;padding:10px;border-radius:8px;border:1px solid var(--gold2);background:var(--tile);color:#e6edf3;font-size:15px}
+.gBtn.on{background:var(--gold);color:#0f2420;font-weight:bold;border-color:var(--gold)}
+@keyframes uidFlip{0%{transform:perspective(400px) rotateX(90deg);opacity:.2}60%{transform:perspective(400px) rotateX(-12deg);opacity:1}100%{transform:perspective(400px) rotateX(0)}}
+.t.flip{animation:uidFlip .7s ease-out}
+.repBan{text-align:center;border-radius:12px;padding:14px 8px;margin-bottom:10px}
+.repBan .big{font-size:26px;font-weight:900;letter-spacing:1px}
+.repBan .amt{font-size:30px;font-weight:900;margin-top:4px}
+#repModal.rWin .mbox{border-color:#2ecc71;background:linear-gradient(180deg,#0f2e1f,#18212b 55%);box-shadow:0 0 30px rgba(46,204,113,.45)}
+#repModal.rWin .repBan{background:rgba(46,204,113,.18);color:#2ecc71;border:2px solid #2ecc71}
+#repModal.rWin .rep{border-left:4px solid #2ecc71}
+#repModal.rWin #repClose{background:#2ecc71;color:#06210f}
+#repModal.rLoss .mbox{border-color:#ff4d4f;background:linear-gradient(180deg,#3a1215,#18212b 55%);box-shadow:0 0 30px rgba(255,77,79,.45)}
+#repModal.rLoss .repBan{background:rgba(255,77,79,.18);color:#ff4d4f;border:2px solid #ff4d4f}
+#repModal.rLoss .rep{border-left:4px solid #ff4d4f}
+#repModal.rLoss #repClose{background:#ff4d4f;color:#fff}
+.rep{white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.6;background:var(--tile);border-radius:8px;padding:10px;margin:0;color:#e6edf3}
+.log{font-size:12px;max-height:200px;overflow:auto;margin-top:8px}
+.log div{padding:4px 0;border-bottom:1px solid #2e3b48}
+.helpBtn{background:var(--tile);color:#fff;border:1px solid var(--gold2);border-radius:50%;width:34px;height:34px;font-size:16px;padding:0;flex:none}
+.help ol{margin:6px 0 0;padding-left:22px;line-height:1.7;font-size:14px;color:#e6edf3}
+.help li{margin-bottom:6px}
+.help .tip{background:var(--tile);border-radius:8px;padding:8px 10px;font-size:13px;color:#c3cfda;margin-top:10px;line-height:1.6}
+.supBtn{background:var(--gold);color:#0f2420;border:0;border-radius:16px;padding:7px 12px;font-weight:bold;font-size:13px}
+.sLink{display:flex;align-items:center;gap:10px;width:100%;padding:12px;border-radius:10px;margin-top:8px;color:#fff;text-decoration:none;font-weight:bold;font-size:15px}
+.faq{background:var(--tile);border-radius:8px;padding:9px;margin-top:6px;font-size:13px}
+.faq b{color:var(--gold);display:block;margin-bottom:3px}
+#lock{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px}
+#lock .mbox{text-align:center}
+#lock .devid{font-size:22px;font-weight:bold;color:var(--gold);letter-spacing:2px;background:var(--tile);border:1px dashed var(--gold);border-radius:10px;padding:12px;margin:8px 0}
+#lock textarea{width:100%;height:60px;text-align:center;font-size:22px;letter-spacing:2px;background:var(--tile);border:1px solid var(--gold2);border-radius:8px;color:#fff;font-size:13px;padding:8px;word-break:break-all}
+#lockMsg{min-height:18px;font-size:13px;margin-top:6px}
+.win{color:#8fd1ae}.loss{color:#e39a9a}
+.logoS svg{width:38px;height:38px;display:block}
+.logoB svg{width:110px;height:110px;display:block;margin:0 auto 6px}
+#reg{position:fixed;inset:0;background:var(--bg);z-index:1000;overflow:auto;padding:16px;display:none}
+#reg .mbox{margin:0 auto;max-height:none}
+.req{color:var(--red)}
+.consent{font-size:12px;color:#c3cfda;background:var(--tile);border-radius:8px;padding:8px;margin-top:10px;line-height:1.5}
+#offScr{position:fixed;inset:0;background:var(--bg);z-index:1002;overflow:auto;padding:16px;display:none}
+#offScr .mbox{margin:60px auto 0;max-height:none;border-color:#ff4d4f}
+#warnScr{position:fixed;inset:0;background:rgba(10,14,20,.96);z-index:1003;overflow:auto;padding:16px;display:none}
+.warnBox{margin:50px auto 0;max-height:none;border:3px solid #ff4d4f!important;box-shadow:0 0 30px rgba(255,77,79,.5)}
+.warnBox p{font-size:15px;line-height:1.65;color:#f3f6f9;margin:8px 0}
+.warnBox .gov{background:rgba(255,77,79,.15);border:1px solid #ff4d4f;border-radius:10px;padding:10px 12px;font-weight:bold;color:#ffd7d7}
+#pinLock{position:fixed;inset:0;background:var(--bg);z-index:1001;overflow:auto;padding:16px;display:none}
+#pinLock .mbox{margin:40px auto 0;max-height:none}
+#pinLock label{display:block;font-size:11px;color:#9fb0bf;margin-top:8px;text-transform:uppercase}
+.pinBig{text-align:center;font-size:30px!important;letter-spacing:14px;margin:6px 0 4px}
+#pinMsg{min-height:18px;font-size:13px;margin-top:8px;text-align:center}
+#regMsg{min-height:18px;font-size:13px;margin-top:6px;text-align:center}
+.langSel{background:var(--card);color:#e6edf3;border:1px solid var(--gold2);border-radius:8px;padding:5px 4px;font-size:12px;max-width:92px}
+</style>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#18212b">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+<div id="dipSplash" style="position:fixed;inset:0;z-index:99999;background:radial-gradient(circle at 50% 45%,#3b1d5e,#1a0b2e 60%,#0b0418);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s">
+  <img src="assets/icon-7rang/diya-7rang.gif" alt="" style="width:62vw;max-width:260px;border-radius:50%;box-shadow:0 0 60px rgba(255,179,71,.35)">
+  <div style="margin-top:18px;color:#f5c542;font:700 22px system-ui,sans-serif;letter-spacing:1px">DIP Master AI</div>
+</div>
+<script>(function(){var s=document.getElementById('dipSplash');function h(){if(!s)return;s.style.opacity='0';setTimeout(function(){s&&s.remove();s=null},550)}setTimeout(h,1800);s.addEventListener('click',h)})();</script>
+
+<div class="top"><div style="display:flex;align-items:center;gap:8px"><span class="logoS"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><defs>
+<radialGradient id="dp1bg" cx="50%" cy="38%" r="65%"><stop offset="0" stop-color="#4a2c1c"/><stop offset=".6" stop-color="#2a1a12"/><stop offset="1" stop-color="#140d0a"/></radialGradient>
+<linearGradient id="dp1ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0d488"/><stop offset=".5" stop-color="#9a7330"/><stop offset="1" stop-color="#e3bd62"/></linearGradient>
+<radialGradient id="dp1glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ffcf70" stop-opacity=".6"/><stop offset=".55" stop-color="#ff9a3c" stop-opacity=".18"/><stop offset="1" stop-color="#ff9a3c" stop-opacity="0"/></radialGradient>
+<linearGradient id="dp1fl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5a1f"/><stop offset=".35" stop-color="#ff9d2e"/><stop offset=".7" stop-color="#ffd76a"/><stop offset="1" stop-color="#fff4cc"/></linearGradient>
+<radialGradient id="dp1fi" cx="50%" cy="70%" r="60%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffe7a0"/></radialGradient>
+<linearGradient id="dp1clay" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c97a3e"/><stop offset=".55" stop-color="#9c4e24"/><stop offset="1" stop-color="#5e2a12"/></linearGradient>
+<linearGradient id="dp1lip" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9a868"/><stop offset="1" stop-color="#a65428"/></linearGradient>
+<linearGradient id="dp1brass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a87c2c"/><stop offset=".5" stop-color="#f3d68a"/><stop offset="1" stop-color="#a87c2c"/></linearGradient>
+</defs>
+<circle cx="100" cy="100" r="95" fill="url(#dp1bg)" stroke="url(#dp1ring)" stroke-width="6"/>
+<circle cx="100" cy="100" r="86" fill="none" stroke="#e8c872" stroke-opacity=".3" stroke-width="1"/>
+<circle cx="100" cy="66" r="50" fill="url(#dp1glow)"><animate attributeName="opacity" values=".75;1;.8;.95;.7;.75" dur="1.7s" repeatCount="indefinite"/></circle>
+<circle cx="97" cy="60" r="1.3" fill="#ffd27a"><animate attributeName="cy" values="62;30" dur="2.2s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur="2.2s" repeatCount="indefinite"/></circle>
+<circle cx="104" cy="60" r="1" fill="#ffe2a0"><animate attributeName="cy" values="64;34" dur="2.8s" begin="1s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur="2.8s" begin="1s" repeatCount="indefinite"/></circle>
+<g><animateTransform attributeName="transform" type="rotate" values="-2 100 88;2 100 88;-1 100 88;1.5 100 88;-2 100 88" dur="1s" repeatCount="indefinite"/>
+<path d="M100 30 C110 48 117 62 113 74 C110 83 105 88 100 88 C95 88 90 83 87 74 C83 62 90 48 100 30Z" fill="url(#dp1fl)"><animate attributeName="d" values="M100 30 C110 48 117 62 113 74 C110 83 105 88 100 88 C95 88 90 83 87 74 C83 62 90 48 100 30Z;M102 27 C113 46 118 62 114 74 C111 83 105 88 100 88 C95 88 89 83 86 74 C83 61 92 45 102 27Z;M98 31 C108 49 116 63 112 75 C109 83 104 88 100 88 C96 88 90 83 88 74 C85 62 89 49 98 31Z;M100 30 C110 48 117 62 113 74 C110 83 105 88 100 88 C95 88 90 83 87 74 C83 62 90 48 100 30Z" dur=".9s" repeatCount="indefinite"/></path>
+<path d="M100 52 C105 62 107 69 105 75 C103 80 101 82 100 82 C99 82 97 80 95 75 C93 69 95 62 100 52Z" fill="url(#dp1fi)"><animate attributeName="d" values="M100 52 C105 62 107 69 105 75 C103 80 101 82 100 82 C99 82 97 80 95 75 C93 69 95 62 100 52Z;M101 50 C106 61 108 69 106 75 C104 80 101 82 100 82 C99 82 96 80 95 75 C93 68 96 60 101 50Z;M100 52 C105 62 107 69 105 75 C103 80 101 82 100 82 C99 82 97 80 95 75 C93 69 95 62 100 52Z" dur=".7s" repeatCount="indefinite"/></path>
+<ellipse cx="100" cy="84" rx="4" ry="3" fill="#8cc4ff" opacity=".55"/></g>
+<rect x="99" y="84" width="2" height="8" rx="1" fill="#2a1508"/>
+<path d="M44 94 Q100 92 156 94 Q150 128 100 132 Q50 128 44 94Z" fill="url(#dp1clay)"/>
+<ellipse cx="100" cy="94" rx="56" ry="8" fill="url(#dp1lip)"/>
+<ellipse cx="100" cy="93.5" rx="46" ry="5" fill="#4a2008"/>
+<ellipse cx="100" cy="93" rx="16" ry="2" fill="#ffcf70" opacity=".4"><animate attributeName="opacity" values=".3;.5;.35;.45;.3" dur="1.7s" repeatCount="indefinite"/></ellipse>
+<path d="M54 107 Q100 117 146 107" stroke="url(#dp1brass)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<g fill="#f0d080"><circle cx="66" cy="112" r="2"/><circle cx="83" cy="115" r="2"/><circle cx="100" cy="116" r="2.3"/><circle cx="117" cy="115" r="2"/><circle cx="134" cy="112" r="2"/></g>
+<path d="M60 100 Q62 118 80 126" stroke="#f3c78a" stroke-opacity=".35" stroke-width="3" fill="none" stroke-linecap="round"/>
+<ellipse cx="100" cy="133" rx="22" ry="4" fill="#3e1c0c"/>
+<text x="100" y="163" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-weight="bold" font-size="19" fill="url(#dp1ring)" letter-spacing="1.5">DIP MASTER</text>
+</svg></span><h2 style="font-size:15px;white-space:nowrap">DIP MASTER AI</h2></div><div style="display:flex;gap:6px;align-items:center"><select id="langSel" class="langSel" aria-label="Language" style="display:none"></select><span class="demoTag" id="sysTag">बंद</span><button class="helpBtn" id="helpBtn" aria-label="कैसे चलाएँ">❓</button><button class="supBtn" id="supBtn">✈️ <span>Telegram</span></button></div></div>
+
+<div class="modes" id="modes"></div>
+
+<div class="timerBox">
+  <div class="period">Period<b id="periodTxt">—</b></div>
+  <div><div style="font-size:11px;color:#9fb0bf;text-align:right;margin-bottom:3px" data-i="timeRem">Time remaining</div><div class="clock" id="clock"></div></div>
+</div>
+
+<div class="bigNum" id="lastNum">–</div>
+<div class="bigTxt" id="lastTxt">पहला राउंड चल रहा है…</div>
+<div class="balls" id="balls"></div>
+<div class="bs"><div style="background:#b59a6a">Big</div><div style="background:var(--blue)">Small</div></div>
+
+<table>
+  <thead><tr><th data-i="thPeriod">Period</th><th data-i="thNumber">Number</th><th data-i="thBS">Big Small</th><th data-i="thColor">Color</th></tr></thead>
+  <tbody id="hist"></tbody>
+</table>
+
+<!-- ================= FLOATING PANEL ================= -->
+<div id="panel">
+  <div class="head" id="phead">DIP MASTER AI ⚙</div>
+  <div class="ptools"><button id="pSmall" title="छोटा">−</button><button id="pBig" title="बड़ा">+</button><button id="pCorner" title="कोना">⤢</button><button id="minBtn" title="समेटें">▲</button></div>
+<div class="pill stop" id="pill"><span id="pillTxt">● STOPPED</span></div>
+  <div class="body">
+    <div class="grid">
+      <div class="t" style="grid-column:1/-1;border-color:var(--gold2)"><small id="vUidLbl">UID</small><b id="vUid" style="color:var(--gold)">---</b></div>
+      <div class="t"><small data-i="tBal">Balance</small><b id="vBal">₹0</b></div>
+      <div class="t"><small data-i="tTgt">Target</small><b id="vTarget">₹0</b></div>
+      <div class="t"><small data-i="tPro">Profit</small><b id="vProfit">+₹0</b></div>
+      <div class="t"><small data-i="tTrd">Trade</small><b id="vTrade">0</b></div>
+      <div class="t"><small data-i="tStk">Stake</small><b id="vStake">₹0</b></div>
+      <div class="t"><small data-i="tSig">Signal</small><b id="vSignal">---</b></div>
+      <div class="t"><small data-i="tStr">Strategy</small><b id="vStrat">---</b></div>
+      <div class="t"><small data-i="tRes">Result</small><b id="vResult">---</b></div>
+      <div class="t"><small data-i="tWL">W / L</small><b id="vWL">0 / 0</b></div>
+      <div class="t"><small data-i="tCL">Cons. Loss</small><b id="vCL">0</b></div>
+      <div class="t"><small data-i="tStg">Staking</small><b id="vStaking">---</b></div>
+      <div class="t"><small data-i="tCW">Cons. Win</small><b id="vCW">0</b></div>
+      <div class="t" id="tMax" style="grid-column:1/-1"><small id="vMaxL">Max Level</small><b id="vMax">0</b></div>
+      <!-- ADD-2: नया टाइल जोड़ना हो तो यहाँ ऐसी लाइन डालें:
+           <div class="t"><small>Level</small><b id="vLevel">1</b></div>
+           फिर render() फंक्शन में उसका value सेट करें। -->
+    </div>
+    <div class="lvBar"><div class="lvTxt" id="lvTxt">L 1</div><div class="lvTrack"><div class="lvFill" id="lvFill"></div></div></div>
+    <div class="pgBox"><div class="pgT"><span id="pgLbl">📈 बैलेंस ग्राफ़ (डेमो)</span><span id="pgVal"></span></div><svg id="pgSvg" viewBox="0 0 300 54" preserveAspectRatio="none"></svg></div>
+    <button class="pbtn startB" id="startBtn">▶ START</button>
+    <div class="row2">
+      <button class="pbtn readB" id="readBtn" data-i="read">📖 READ</button>
+      <button class="pbtn resetB" id="resetBtn" data-i="reset">↺ RESET</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= SETTINGS ================= -->
+<div class="modal" id="setModal"><div class="mbox">
+  <h3 data-i="settings">Settings</h3>
+<label style="font-size:10px;color:#9fb0bf" data-i="sUidL">UID (किस आईडी से चल रहा है)</label><input id="sUid" type="text" inputmode="numeric" data-ip="sUidP" placeholder="अपनी UID डालें" style="width:100%;padding:10px;background:var(--tile);border:1px solid var(--gold2);border-radius:8px;color:#fff;font-size:15px;margin-bottom:8px">
+<label style="font-size:10px;color:#9fb0bf" data-i="lang">भाषा</label><select id="langSel2" style="width:auto;min-width:130px;padding:5px 8px;background:var(--tile);border:1px solid var(--gold2);border-radius:8px;color:#fff;font-size:13px;margin-left:6px"></select>
+  <div class="sec" data-i="secGame">GAME</div>
+  <div class="f2">
+    <div><label data-i="lMode">Mode</label><select id="sMode">
+      <option value="30">30S</option><option value="60">1M</option><option value="180">3M</option><option value="300">5M</option></select></div>
+    <div><label data-i="lSignal">Signal</label><select id="sSignal">
+      <option value="bot">Master Bot</option>
+      <option value="trend" data-i="sigTrend">Trend (पिछले जैसा)</option>
+      <option value="opp" data-i="sigRev">Reverse (पिछले का उल्टा)</option>
+      <option value="big" data-i="sigBig">Always Big</option>
+      <!-- ADD-3: नया Signal जोड़ने के लिए यहाँ option डालें और getSignal() में उसका नियम लिखें -->
+    </select></div>
+    <div><label data-i="lStaking">Staking</label><select id="sStaking">
+      <option value="level">Level Chart (×3,×2)</option>
+      <option value="tf1">DIP Master V1 (×2)</option>
+      <option value="x3">1 · 3 · 9 · 27 · 81 · 243 …</option>
+      <!-- ADD-4: नया Staking जोड़ने के लिए यहाँ option डालें और nextStake() में उसका नियम लिखें -->
+    </select></div>
+    <div><label data-i="lBase">Base Bet ₹</label><div id="bbBtn" class="bbBtn"></div><select id="sBase" style="display:none">
+      <option>1</option><option>3</option><option>5</option><option>10</option><option>50</option><option>100</option></select></div>
+    <div><label data-i="lSpeed">Speed</label><select id="sSpeed">
+      <option value="1" data-i="speedReal">Real (असली टाइम)</option><option value="10" selected>Turbo ×10</option><option value="30">Turbo ×30</option></select></div>
+    <div><label data-i="lApp">App</label><div id="apBtn" class="bbBtn"></div></div>
+  </div>
+  <div class="sec" data-i="secTgt">TARGETS</div>
+  <div class="f2">
+    <div><label data-i="lWallet">Wallet Balance ₹</label><input id="sStart" type="number" value="6220"></div>
+    <div><label data-i="lTgt">Target Bal ₹</label><input id="sTarget" type="number" value="6320"></div>
+    <div style="display:none"><label>Payout %</label><input id="sPayout" type="number" value="96"></div>
+  </div>
+  <div class="sec" data-i="secLim">LIMITS</div>
+  <div class="f2">
+    <div><label data-i="lTrades">Trades (इतने पर Stop)</label><input id="sTrades" type="number" value="100" min="1" inputmode="numeric"></div>
+    <div style="display:none"><label>गुणा (Wallet के हिसाब से)</label><select id="sMul"><option value="0">बंद</option><option value="3">×3</option><option value="4">×4</option><option value="5">×5</option><option value="6">×6</option><option value="7">×7</option><option value="8">×8</option><option value="9">×9</option></select><input id="sExp" type="hidden"></div>
+    <div><label data-i="lMaxL">Stop Loss (लगातार हार)</label><input id="sMaxL" type="number" value="10" min="1" inputmode="numeric"></div>
+    <div style="display:none"><label>Stop Loss ₹</label><input id="sSL" type="number" value="0" min="0"></div>
+    <div style="display:none"><label>Break (मिनट)</label><select id="sBrk"><option value="0">बंद</option><option value="15">15</option><option value="30">30</option><option value="45">45</option><option value="60">60</option></select></div>
+    <div><label data-i="lSnd">Sound / Vibrate</label><select id="sSnd"><option value="on" data-i="oOn">On</option><option value="off" data-i="oOff">Off</option></select></div>
+    <div style="display:none"><label>Max Level</label><select id="sSix">
+      <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option selected>6</option></select></div>
+    <div id="slHint" style="grid-column:1/-1;font-size:12px;line-height:1.5;border-radius:8px;padding:8px 10px;background:var(--tile)"></div>
+    <!-- ADD-5: नई सेटिंग (जैसे Stop Loss ₹) यहाँ जोड़ें, फिर readSettings() में पढ़ें -->
+  </div>
+  <div class="mbtns"><button class="cancel" id="sCancel" data-i="cancel">CANCEL</button><button class="save" id="sSave" data-i="save">SAVE</button></div>
+</div></div>
+
+<div id="bbSheet"><div class="bbList" id="bbList"></div></div>
+<div id="apSheet" class="apSheet"><div class="bbList" id="apList"></div></div>
+<div class="modal" id="repModal"><div class="mbox">
+  <div id="repBan" class="repBan"></div>
+  <pre id="repTxt" class="rep"></pre>
+  <div class="mbtns"><button class="cancel" id="repCopy">📋 Copy</button><button class="save" id="repClose">CLOSE</button></div>
+</div></div>
+
+<!-- ================= READ (Level chart + log) ================= -->
+<div class="modal" id="readModal"><div class="mbox">
+  <h3 data-i="readTitle">📖 Level Chart & Report</h3>
+  <div class="lv" id="lvBox"></div>
+  <div style="margin-top:8px"><span data-i="totalFund">Total Fund</span>: <b id="lvTotal" style="color:var(--gold)"></b></div>
+
+  <div class="sec" data-i="tradeLog">TRADE LOG</div>
+  <div class="log" id="logBox">अभी कोई ट्रेड नहीं</div>
+  <div class="sec" id="d24T">⏰ पिछले 24 घंटे</div>
+  <div class="log" id="d24Box" style="white-space:pre-wrap"></div>
+  <div class="sec" data-i="pastSess">पिछले सेशन</div>
+  <div class="log" id="histBox"></div>
+  <div class="mbtns" style="margin-top:8px"><button class="cancel" id="nowCopy" data-i="nowCopy">📋 अभी की रिपोर्ट</button><button class="cancel" id="histCopy" data-i="histCopy">📋 आखिरी सेशन</button></div>
+  <div class="mbtns"><button class="cancel" id="d24Copy">📋 24 घंटे की रिपोर्ट</button></div>
+  <div class="mbtns"><button class="save" id="rClose" data-i="close">CLOSE</button></div>
+</div></div>
+
+<!-- ================= चेतावनी (हर बार ऐप खुलने पर) ================= -->
+<div id="warnScr"><div class="mbox warnBox">
+  <div style="font-size:50px;text-align:center">⚠️</div>
+  <h3 id="wTitle" style="text-align:center;color:#ff6b6b">चेतावनी</h3>
+  <div id="wBody"></div>
+  <button class="pbtn startB" id="wOk" style="margin-top:12px"></button>
+</div></div>
+
+<!-- ================= RESET CONFIRM ================= -->
+<div class="modal" id="rsModal"><div class="mbox" style="text-align:center">
+  <div style="font-size:42px">↺</div>
+  <h3 data-i="rsT">पक्का RESET करें?</h3>
+  <div style="font-size:14px;color:#c3cfda" data-i="rsS"></div>
+  <div class="mbtns" style="margin-top:12px"><button class="cancel" id="rsNo" data-i="rsN">नहीं</button><button class="save" id="rsYes" data-i="rsY" style="background:#d98080;color:#fff">हाँ, RESET</button></div>
+</div></div>
+
+<!-- ================= HELP / कैसे चलाएँ ================= -->
+<div class="modal" id="helpModal"><div class="mbox help">
+  <h3 id="helpTitle"></h3>
+  <div id="helpBody"></div>
+  <div class="mbtns"><button class="save" id="helpClose"></button></div>
+</div></div>
+
+<!-- ================= SUPPORT ================= -->
+<div class="modal" id="supModal"><div class="mbox">
+  <h3 data-i="supTitle">🎧 Support</h3>
+  <div id="supValid" style="font-size:13px;color:#c3cfda;margin-bottom:4px"></div>
+  <div id="supLinks"></div>
+  <button class="pbtn readB" id="supReg" data-i="supReg">📝 रजिस्ट्रेशन करें</button>
+  <div class="sec" data-i="faqTitle">अक्सर पूछे जाने वाले सवाल</div>
+  <div class="faq"><b data-i="faq1q"></b><span data-i="faq1a"></span></div>
+  <div class="faq"><b data-i="faq2q"></b><span data-i="faq2a"></span></div>
+  <div class="faq"><b data-i="faq3q"></b><span data-i="faq3a"></span></div>
+  <div class="faq"><b data-i="faq4q"></b><span data-i="faq4a"></span></div>
+  <!-- ADD-7: नया सवाल-जवाब जोड़ने के लिए ऊपर जैसी faq लाइन कॉपी करें -->
+  <div class="mbtns"><button class="save" id="supClose" data-i="close">CLOSE</button></div>
+</div></div>
+
+<!-- ================= REGISTRATION ================= -->
+<div id="reg"><div class="mbox">
+  <div class="logoB"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><defs>
+<radialGradient id="dp2bg" cx="50%" cy="38%" r="65%"><stop offset="0" stop-color="#4a2c1c"/><stop offset=".6" stop-color="#2a1a12"/><stop offset="1" stop-color="#140d0a"/></radialGradient>
+<linearGradient id="dp2ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0d488"/><stop offset=".5" stop-color="#9a7330"/><stop offset="1" stop-color="#e3bd62"/></linearGradient>
+<radialGradient id="dp2glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ffcf70" stop-opacity=".6"/><stop offset=".55" stop-color="#ff9a3c" stop-opacity=".18"/><stop offset="1" stop-color="#ff9a3c" stop-opacity="0"/></radialGradient>
+<linearGradient id="dp2fl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5a1f"/><stop offset=".35" stop-color="#ff9d2e"/><stop offset=".7" stop-color="#ffd76a"/><stop offset="1" stop-color="#fff4cc"/></linearGradient>
+<radialGradient id="dp2fi" cx="50%" cy="70%" r="60%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ffe7a0"/></radialGradient>
+<linearGradient id="dp2clay" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c97a3e"/><stop offset=".55" stop-color="#9c4e24"/><stop offset="1" stop-color="#5e2a12"/></linearGradient>
+<linearGradient id="dp2lip" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9a868"/><stop offset="1" stop-color="#a65428"/></linearGradient>
+<linearGradient id="dp2brass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a87c2c"/><stop offset=".5" stop-color="#f3d68a"/><stop offset="1" stop-color="#a87c2c"/></linearGradient>
+</defs>
+<circle cx="100" cy="100" r="95" fill="url(#dp2bg)" stroke="url(#dp2ring)" stroke-width="6"/>
+<circle cx="100" cy="100" r="86" fill="none" stroke="#e8c872" stroke-opacity=".3" stroke-width="1"/>
+<circle cx="100" cy="66" r="50" fill="url(#dp2glow)"><animate attributeName="opacity" values=".75;1;.8;.95;.7;.75" dur="1.7s" repeatCount="indefinite"/></circle>
+<circle cx="97" cy="60" r="1.3" fill="#ffd27a"><animate attributeName="cy" values="62;30" dur="2.2s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur="2.2s" repeatCount="indefinite"/></circle>
+<circle cx="104" cy="60" r="1" fill="#ffe2a0"><animate attributeName="cy" values="64;34" dur="2.8s" begin="1s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur="2.8s" begin="1s" repeatCount="indefinite"/></circle>
+<g><animateTransform attributeName="transform" type="rotate" values="-2 100 88;2 100 88;-1 100 88;1.5 100 88;-2 100 88" dur="1s" repeatCount="indefinite"/>
+<path d="M100 30 C110 48 117 62 113 74 C110 83 105 88 100 88 C95 88 90 83 87 74 C83 62 90 48 100 30Z" fill="url(#dp2fl)"><animate attributeName="d" values="M100 30 C110 48 117 62 113 74 C110 83 105 88 100 88 C95 88 90 83 87 74 C83 62 90 48 100 30Z;M102 27 C113 46 118 62 114 74 C111 83 105 88 100 88 C95 88 89 83 86 74 C83 61 92 45 102 27Z;M98 31 C108 49 116 63 112 75 C109 83 104 88 100 88 C96 88 90 83 88 74 C85 62 89 49 98 31Z;M100 30 C110 48 117 62 113 74 C110 83 105 88 100 88 C95 88 90 83 87 74 C83 62 90 48 100 30Z" dur=".9s" repeatCount="indefinite"/></path>
+<path d="M100 52 C105 62 107 69 105 75 C103 80 101 82 100 82 C99 82 97 80 95 75 C93 69 95 62 100 52Z" fill="url(#dp2fi)"><animate attributeName="d" values="M100 52 C105 62 107 69 105 75 C103 80 101 82 100 82 C99 82 97 80 95 75 C93 69 95 62 100 52Z;M101 50 C106 61 108 69 106 75 C104 80 101 82 100 82 C99 82 96 80 95 75 C93 68 96 60 101 50Z;M100 52 C105 62 107 69 105 75 C103 80 101 82 100 82 C99 82 97 80 95 75 C93 69 95 62 100 52Z" dur=".7s" repeatCount="indefinite"/></path>
+<ellipse cx="100" cy="84" rx="4" ry="3" fill="#8cc4ff" opacity=".55"/></g>
+<rect x="99" y="84" width="2" height="8" rx="1" fill="#2a1508"/>
+<path d="M44 94 Q100 92 156 94 Q150 128 100 132 Q50 128 44 94Z" fill="url(#dp2clay)"/>
+<ellipse cx="100" cy="94" rx="56" ry="8" fill="url(#dp2lip)"/>
+<ellipse cx="100" cy="93.5" rx="46" ry="5" fill="#4a2008"/>
+<ellipse cx="100" cy="93" rx="16" ry="2" fill="#ffcf70" opacity=".4"><animate attributeName="opacity" values=".3;.5;.35;.45;.3" dur="1.7s" repeatCount="indefinite"/></ellipse>
+<path d="M54 107 Q100 117 146 107" stroke="url(#dp2brass)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<g fill="#f0d080"><circle cx="66" cy="112" r="2"/><circle cx="83" cy="115" r="2"/><circle cx="100" cy="116" r="2.3"/><circle cx="117" cy="115" r="2"/><circle cx="134" cy="112" r="2"/></g>
+<path d="M60 100 Q62 118 80 126" stroke="#f3c78a" stroke-opacity=".35" stroke-width="3" fill="none" stroke-linecap="round"/>
+<ellipse cx="100" cy="133" rx="22" ry="4" fill="#3e1c0c"/>
+<text x="100" y="163" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-weight="bold" font-size="19" fill="url(#dp2ring)" letter-spacing="1.5">DIP MASTER</text>
+</svg></div>
+  <h3 style="text-align:center" data-i="regTitle">रजिस्ट्रेशन</h3>
+  <div style="font-size:13px;color:#c3cfda;text-align:center" data-i="regSub"></div>
+  <div class="sec" data-i="regInfo">आपकी जानकारी</div>
+  <label><span data-i="fName"></span> <span class="req">*</span></label><input id="rName" data-ip="phName">
+  <label>Gender <span class="req">*</span></label><div id="rGen" style="display:flex;gap:8px;margin-bottom:4px"><button type="button" class="gBtn" data-g="Male">👨 Male</button><button type="button" class="gBtn" data-g="Female">👩 Female</button></div>
+  <label><span data-i="fMobile"></span> <span class="req">*</span></label><input id="rMobile" type="tel" maxlength="10" data-ip="phDigits">
+  <div style="display:none"><label><span data-i="fWa"></span></label><input id="rWa" type="tel" maxlength="10" data-ip="phDigits"></div>
+  <label><span data-i="fTg"></span> <span class="req">*</span></label><input id="rTg" placeholder="@username">
+  <label><span id="rAppL">गेम / App</span> <span class="req">*</span></label><select id="rApp"><option value="">चुनें</option></select>
+  <label>UID <span class="req">*</span></label><input id="rUid" inputmode="numeric" placeholder="गेम की UID">
+  <label><span data-i="fCity"></span> <span class="req">*</span></label><input id="rCity" data-ip="phCity">
+  <label><span id="rPinL">अपना PIN बनाएँ (4 अंक)</span> <span class="req">*</span></label><input id="rPin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="••••">
+  <label><span id="rPin2L">PIN दोबारा डालें</span> <span class="req">*</span></label><input id="rPin2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="••••">
+  <div class="consent" id="consentTxt"></div>
+  <button class="pbtn startB" id="regBtn" data-i="regSend"></button>
+  <button class="pbtn" id="regSkip" style="display:none" data-i="regSkip">बाद में करें</button>
+  <div id="regMsg"></div>
+</div></div>
+
+<!-- ================= ADMIN OFF SCREEN ================= -->
+<div id="offScr"><div class="mbox" style="text-align:center">
+  <div style="font-size:54px">⛔</div>
+  <h3 id="offTitle">ऐप अभी बंद है</h3>
+  <div id="offMsg" style="font-size:15px;color:#c3cfda;line-height:1.6"></div>
+  <button class="pbtn startB" id="offRetry" style="margin-top:14px">🔄 दोबारा देखें</button>
+  <button class="pbtn readB" id="offTg" style="margin-top:8px;display:none">✈️ एडमिन से बात करें</button>
+</div></div>
+
+<!-- ================= PIN LOCK ================= -->
+<div id="pinLock"><div class="mbox">
+  <div style="font-size:46px;text-align:center">🔐</div>
+  <h3 style="text-align:center" id="pinTitle"></h3>
+  <div style="font-size:13px;color:#c3cfda;text-align:center;margin-bottom:8px" id="pinSub"></div>
+  <div id="pinUnlock">
+    <input id="pinIn" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" placeholder="••••" class="pinBig">
+    <button class="pbtn startB" id="pinGo"></button>
+    <button class="pbtn" id="pinForgot" style="background:transparent;border:1px solid #4f5d6b;color:#c3cfda"></button>
+  </div>
+  <div id="pinReset" style="display:none">
+    <label id="pmL"></label><input id="pmIn" type="tel" maxlength="10" inputmode="numeric">
+    <label id="puL"></label><input id="puIn" inputmode="numeric">
+    <label id="pn1L"></label><input id="pn1" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="••••">
+    <label id="pn2L"></label><input id="pn2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="••••">
+    <button class="pbtn startB" id="pinSave"></button>
+    <button class="pbtn" id="pinBack" style="background:transparent;border:1px solid #4f5d6b;color:#c3cfda"></button>
+  </div>
+  <div id="pinMsg"></div>
+</div></div>
+
+<!-- ================= LICENSE LOCK ================= -->
+<div id="lock" style="display:none"><div class="mbox">
+  <h3>🔒 DIP Master AI Activation</h3>
+  <div style="font-size:13px;color:#c3cfda">ऐप चालू करने के लिए अपनी Device ID Telegram पर Support को भेजें और मिली हुई Key नीचे डालें।<br><span style="color:#9fb0bf;font-size:12px">Send your Device ID to Support on Telegram and enter the key you receive.</span></div>
+  <div class="devid" id="devId">…</div>
+  <div class="mbtns" style="margin-top:4px">
+    <button class="cancel" id="copyDev">📋 Copy ID</button>
+    <button class="save" id="sendDev" style="background:#5a92c4;color:#fff">✈️ Telegram पर भेजें</button>
+  </div>
+  <div class="sec" style="text-align:left">ACTIVATION KEY</div>
+  <textarea id="keyIn" placeholder="ABC-DEFG-HJKM" autocapitalize="characters"></textarea>
+  <button class="pbtn startB" id="actBtn">✅ ACTIVATE</button>
+  <div id="lockMsg"></div>
+</div></div>
+
+<script>
+/* ============ ADD-7: अपनी Support डिटेल यहाँ भरें (खाली छोड़ेंगे तो वो बटन नहीं दिखेगा) ============ */
+const SUPPORT={
+  whatsapp:'',   // जैसे '919876543210'  (देश कोड के साथ, + या स्पेस नहीं)
+  telegram:'WorkforhomeIndia',   // जैसे 'myusername'   (@ के बिना)
+  email:'',      // जैसे 'help@example.com'
+  phone:''       // जैसे '+919876543210'
+};
+
+const $=id=>document.getElementById(id);
+const I18N={"hi": {"demo": "सिर्फ डेमो", "support": "Support", "timeRem": "Time remaining", "firstRound": "पहला राउंड चल रहा है…", "thPeriod": "Period", "thNumber": "Number", "thBS": "Big Small", "thColor": "Color", "start": "▶ START", "pause": "❚❚ PAUSE", "read": "📖 READ", "reset": "↺ RESET", "stopped": "● STOPPED", "running": "● RUNNING", "settings": "Settings", "cancel": "CANCEL", "save": "SAVE", "close": "CLOSE", "sigTrend": "Trend (पिछले जैसा)", "sigRev": "Reverse (पिछले का उल्टा)", "sigBig": "Always Big", "speedReal": "Real (असली टाइम)", "readTitle": "📖 Level Chart और Report", "totalFund": "Total Fund", "tradeLog": "TRADE LOG", "noTrades": "अभी कोई ट्रेड नहीं", "supTitle": "🎧 Support", "supReg": "📝 रजिस्ट्रेशन करें", "faqTitle": "अक्सर पूछे जाने वाले सवाल", "faq1q": "पैनल कैसे छोटा-बड़ा करें?", "faq1a": "▲ बटन दबाएँ; ऊपर का हिस्सा पकड़कर पैनल खिसकाएँ।", "faq2q": "Settings कहाँ हैं?", "faq2a": "पैनल में ऊपर \"DIP MASTER AI ⚙\" दबाएँ।", "faq3q": "Level Chart कैसे देखें?", "faq3a": "READ बटन दबाएँ।", "faq4q": "क्या यह असली पैसे से खेलता है?", "faq4a": "नहीं। यह सिर्फ डेमो बैलेंस पर चलता है।", "tgTalk": "✈️ Telegram पर बात करें", "waTalk": "💬 WhatsApp पर बात करें", "regTitle": "रजिस्ट्रेशन", "regSub": "Support और अपडेट के लिए जानकारी भरें", "regInfo": "आपकी जानकारी", "fName": "पूरा नाम", "fMobile": "मोबाइल नंबर", "fWa": "WhatsApp नंबर", "fTg": "Telegram ID", "fCity": "शहर / राज्य", "phName": "जैसे: Rahul Kumar", "phDigits": "10 अंक", "phCity": "जैसे: Patna, Bihar", "consent": "\"भेजें\" दबाने पर Telegram खुलेगा और जानकारी Support (@{tg}) के लिए तैयार होगी — आप खुद भेजेंगे। लोकेशन (GPS) नहीं ली जाती।", "regSend": "✈️ Telegram पर भेजें और आगे बढ़ें", "regSkip": "बाद में करें", "eName": "नाम भरें", "eMobile": "सही 10 अंक का मोबाइल नंबर भरें", "eWa": "सही 10 अंक का WhatsApp नंबर भरें", "eTg": "सही Telegram ID भरें (कम से कम 5 अक्षर)", "eCity": "शहर / राज्य भरें", "rTrades": "Trades पूरे", "rTarget": "🎯 Target पूरा", "rBal": "💀 बैलेंस खत्म", "lang": "भाषा"}, "en": {"demo": "Demo only", "support": "Support", "timeRem": "Time remaining", "firstRound": "First round running…", "thPeriod": "Period", "thNumber": "Number", "thBS": "Big Small", "thColor": "Color", "start": "▶ START", "pause": "❚❚ PAUSE", "read": "📖 READ", "reset": "↺ RESET", "stopped": "● STOPPED", "running": "● RUNNING", "settings": "Settings", "cancel": "CANCEL", "save": "SAVE", "close": "CLOSE", "sigTrend": "Trend (same as last)", "sigRev": "Reverse (opposite of last)", "sigBig": "Always Big", "speedReal": "Real time", "readTitle": "📖 Level Chart & Report", "totalFund": "Total Fund", "tradeLog": "TRADE LOG", "noTrades": "No trades yet", "supTitle": "🎧 Support", "supReg": "📝 Register", "faqTitle": "Frequently asked questions", "faq1q": "How do I resize the panel?", "faq1a": "Tap ▲; drag the top bar to move the panel.", "faq2q": "Where are the Settings?", "faq2a": "Tap \"DIP MASTER AI ⚙\" at the top of the panel.", "faq3q": "How do I see the Level Chart?", "faq3a": "Tap READ.", "faq4q": "Does it play with real money?", "faq4a": "No. It runs only on a demo balance.", "tgTalk": "✈️ Chat on Telegram", "waTalk": "💬 Chat on WhatsApp", "regTitle": "Registration", "regSub": "Fill in your details for support and updates", "regInfo": "Your details", "fName": "Full name", "fMobile": "Mobile number", "fWa": "WhatsApp number", "fTg": "Telegram ID", "fCity": "City / State", "phName": "e.g. Rahul Kumar", "phDigits": "10 digits", "phCity": "e.g. Patna, Bihar", "consent": "Pressing Send opens Telegram with your details ready for Support (@{tg}) — you send it yourself. Location (GPS) is not collected.", "regSend": "✈️ Send on Telegram & continue", "regSkip": "Later", "eName": "Enter your name", "eMobile": "Enter a valid 10-digit mobile number", "eWa": "Enter a valid 10-digit WhatsApp number", "eTg": "Enter a valid Telegram ID (min 5 characters)", "eCity": "Enter your city / state", "rTrades": "Trades done", "rTarget": "🎯 Target reached", "rBal": "💀 Balance over", "lang": "Language"}, "bn": {"demo": "শুধু ডেমো", "support": "সাপোর্ট", "timeRem": "বাকি সময়", "firstRound": "প্রথম রাউন্ড চলছে…", "thPeriod": "পিরিয়ড", "thNumber": "নম্বর", "thBS": "বড় ছোট", "thColor": "রঙ", "start": "▶ শুরু", "pause": "❚❚ থামুন", "read": "📖 রিপোর্ট", "reset": "↺ রিসেট", "stopped": "● বন্ধ", "running": "● চলছে", "settings": "সেটিংস", "cancel": "বাতিল", "save": "সেভ", "close": "বন্ধ করুন", "sigTrend": "ট্রেন্ড (আগের মতো)", "sigRev": "রিভার্স (আগের উল্টো)", "sigBig": "সবসময় Big", "speedReal": "আসল সময়", "readTitle": "📖 লেভেল চার্ট ও রিপোর্ট", "totalFund": "মোট ফান্ড", "tradeLog": "ট্রেড লগ", "noTrades": "এখনও কোনো ট্রেড নেই", "supTitle": "🎧 সাপোর্ট", "supReg": "📝 রেজিস্ট্রেশন করুন", "faqTitle": "সাধারণ প্রশ্ন", "faq1q": "প্যানেল ছোট-বড় কীভাবে করব?", "faq1a": "▲ চাপুন; উপরের অংশ ধরে প্যানেল সরান।", "faq2q": "সেটিংস কোথায়?", "faq2a": "প্যানেলের উপরে \"DIP MASTER AI ⚙\" চাপুন।", "faq3q": "লেভেল চার্ট কীভাবে দেখব?", "faq3a": "READ চাপুন।", "faq4q": "এটা কি আসল টাকায় চলে?", "faq4a": "না। এটা শুধু ডেমো ব্যালেন্সে চলে।", "tgTalk": "✈️ Telegram-এ কথা বলুন", "waTalk": "💬 WhatsApp-এ কথা বলুন", "regTitle": "রেজিস্ট্রেশন", "regSub": "সাপোর্ট ও আপডেটের জন্য তথ্য দিন", "regInfo": "আপনার তথ্য", "fName": "পুরো নাম", "fMobile": "মোবাইল নম্বর", "fWa": "WhatsApp নম্বর", "fTg": "Telegram ID", "fCity": "শহর / রাজ্য", "phName": "যেমন: Rahul Kumar", "phDigits": "১০ সংখ্যা", "phCity": "যেমন: Kolkata, WB", "consent": "পাঠান চাপলে Telegram খুলবে এবং তথ্য সাপোর্টের (@{tg}) জন্য তৈরি থাকবে — আপনি নিজে পাঠাবেন। লোকেশন (GPS) নেওয়া হয় না।", "regSend": "✈️ Telegram-এ পাঠান ও এগিয়ে যান", "regSkip": "পরে করব", "eName": "নাম লিখুন", "eMobile": "সঠিক ১০ সংখ্যার মোবাইল নম্বর দিন", "eWa": "সঠিক ১০ সংখ্যার WhatsApp নম্বর দিন", "eTg": "সঠিক Telegram ID দিন (কমপক্ষে ৫ অক্ষর)", "eCity": "শহর / রাজ্য লিখুন", "rTrades": "ট্রেড শেষ", "rTarget": "🎯 টার্গেট পূর্ণ", "rBal": "💀 ব্যালেন্স শেষ", "lang": "ভাষা"}, "ur": {"demo": "صرف ڈیمو", "support": "سپورٹ", "timeRem": "باقی وقت", "firstRound": "پہلا راؤنڈ چل رہا ہے…", "thPeriod": "پیریڈ", "thNumber": "نمبر", "thBS": "بڑا چھوٹا", "thColor": "رنگ", "start": "▶ شروع", "pause": "❚❚ روکیں", "read": "📖 رپورٹ", "reset": "↺ ری سیٹ", "stopped": "● بند", "running": "● چل رہا ہے", "settings": "سیٹنگز", "cancel": "منسوخ", "save": "محفوظ", "close": "بند کریں", "sigTrend": "ٹرینڈ (پچھلے جیسا)", "sigRev": "ریورس (پچھلے کا الٹا)", "sigBig": "ہمیشہ Big", "speedReal": "اصل وقت", "readTitle": "📖 لیول چارٹ اور رپورٹ", "totalFund": "کل فنڈ", "tradeLog": "ٹریڈ لاگ", "noTrades": "ابھی کوئی ٹریڈ نہیں", "supTitle": "🎧 سپورٹ", "supReg": "📝 رجسٹریشن کریں", "faqTitle": "عام سوالات", "faq1q": "پینل چھوٹا بڑا کیسے کریں؟", "faq1a": "▲ دبائیں؛ اوپر کا حصہ پکڑ کر پینل کھسکائیں۔", "faq2q": "سیٹنگز کہاں ہیں؟", "faq2a": "پینل کے اوپر \"DIP MASTER AI ⚙\" دبائیں۔", "faq3q": "لیول چارٹ کیسے دیکھیں؟", "faq3a": "READ دبائیں۔", "faq4q": "کیا یہ اصلی پیسوں سے چلتا ہے؟", "faq4a": "نہیں۔ یہ صرف ڈیمو بیلنس پر چلتا ہے۔", "tgTalk": "✈️ Telegram پر بات کریں", "waTalk": "💬 WhatsApp پر بات کریں", "regTitle": "رجسٹریشن", "regSub": "سپورٹ اور اپڈیٹس کے لیے معلومات بھریں", "regInfo": "آپ کی معلومات", "fName": "پورا نام", "fMobile": "موبائل نمبر", "fWa": "WhatsApp نمبر", "fTg": "Telegram ID", "fCity": "شہر / صوبہ", "phName": "جیسے: Rahul Kumar", "phDigits": "10 ہندسے", "phCity": "جیسے: Lucknow, UP", "consent": "بھیجیں دبانے پر Telegram کھلے گا اور معلومات سپورٹ (@{tg}) کے لیے تیار ہوں گی — آپ خود بھیجیں گے۔ لوکیشن (GPS) نہیں لی جاتی۔", "regSend": "✈️ Telegram پر بھیجیں اور آگے بڑھیں", "regSkip": "بعد میں", "eName": "نام لکھیں", "eMobile": "درست 10 ہندسوں کا موبائل نمبر دیں", "eWa": "درست 10 ہندسوں کا WhatsApp نمبر دیں", "eTg": "درست Telegram ID دیں (کم از کم 5 حروف)", "eCity": "شہر / صوبہ لکھیں", "rTrades": "ٹریڈز مکمل", "rTarget": "🎯 ٹارگٹ پورا", "rBal": "💀 بیلنس ختم", "lang": "زبان"}, "ta": {"demo": "டெமோ மட்டும்", "support": "உதவி", "timeRem": "மீதமுள்ள நேரம்", "firstRound": "முதல் சுற்று நடக்கிறது…", "thPeriod": "பீரியட்", "thNumber": "எண்", "thBS": "பெரிது சிறிது", "thColor": "நிறம்", "start": "▶ தொடங்கு", "pause": "❚❚ நிறுத்து", "read": "📖 அறிக்கை", "reset": "↺ மீட்டமை", "stopped": "● நிறுத்தப்பட்டது", "running": "● இயங்குகிறது", "settings": "அமைப்புகள்", "cancel": "ரத்து", "save": "சேமி", "close": "மூடு", "sigTrend": "டிரெண்ட் (முந்தையது போல)", "sigRev": "ரிவர்ஸ் (முந்தையதின் எதிர்)", "sigBig": "எப்போதும் Big", "speedReal": "உண்மையான நேரம்", "readTitle": "📖 லெவல் சார்ட் & அறிக்கை", "totalFund": "மொத்த நிதி", "tradeLog": "டிரேட் பதிவு", "noTrades": "இன்னும் டிரேட் இல்லை", "supTitle": "🎧 உதவி", "supReg": "📝 பதிவு செய்", "faqTitle": "அடிக்கடி கேட்கப்படும் கேள்விகள்", "faq1q": "பேனலை எப்படி சிறிதாக்குவது?", "faq1a": "▲ அழுத்தவும்; மேல் பகுதியை இழுத்து நகர்த்தவும்.", "faq2q": "அமைப்புகள் எங்கே?", "faq2a": "பேனல் மேலே \"DIP MASTER AI ⚙\" அழுத்தவும்.", "faq3q": "லெவல் சார்ட் எப்படி பார்ப்பது?", "faq3a": "READ அழுத்தவும்.", "faq4q": "இது உண்மையான பணத்தில் இயங்குமா?", "faq4a": "இல்லை. டெமோ இருப்பில் மட்டுமே இயங்கும்.", "tgTalk": "✈️ Telegram-ல் பேசுங்கள்", "waTalk": "💬 WhatsApp-ல் பேசுங்கள்", "regTitle": "பதிவு", "regSub": "உதவி மற்றும் அப்டேட்டுக்கு விவரங்களை நிரப்புங்கள்", "regInfo": "உங்கள் விவரங்கள்", "fName": "முழு பெயர்", "fMobile": "மொபைல் எண்", "fWa": "WhatsApp எண்", "fTg": "Telegram ID", "fCity": "நகரம் / மாநிலம்", "phName": "எ.கா: Rahul Kumar", "phDigits": "10 இலக்கங்கள்", "phCity": "எ.கா: Chennai, TN", "consent": "அனுப்பு அழுத்தினால் Telegram திறக்கும், விவரங்கள் உதவிக்கு (@{tg}) தயாராக இருக்கும் — நீங்களே அனுப்புவீர்கள். இருப்பிடம் (GPS) எடுக்கப்படாது.", "regSend": "✈️ Telegram-ல் அனுப்பி தொடரவும்", "regSkip": "பிறகு", "eName": "பெயரை உள்ளிடவும்", "eMobile": "சரியான 10 இலக்க மொபைல் எண் உள்ளிடவும்", "eWa": "சரியான 10 இலக்க WhatsApp எண் உள்ளிடவும்", "eTg": "சரியான Telegram ID உள்ளிடவும் (குறைந்தது 5 எழுத்து)", "eCity": "நகரம் / மாநிலம் உள்ளிடவும்", "rTrades": "டிரேட்கள் முடிந்தன", "rTarget": "🎯 இலக்கு அடைந்தது", "rBal": "💀 இருப்பு தீர்ந்தது", "lang": "மொழி"}, "te": {"demo": "డెమో మాత్రమే", "support": "సపోర్ట్", "timeRem": "మిగిలిన సమయం", "firstRound": "మొదటి రౌండ్ జరుగుతోంది…", "thPeriod": "పీరియడ్", "thNumber": "సంఖ్య", "thBS": "పెద్దది చిన్నది", "thColor": "రంగు", "start": "▶ ప్రారంభం", "pause": "❚❚ ఆపు", "read": "📖 రిపోర్ట్", "reset": "↺ రీసెట్", "stopped": "● ఆగింది", "running": "● నడుస్తోంది", "settings": "సెట్టింగ్స్", "cancel": "రద్దు", "save": "సేవ్", "close": "మూసివేయి", "sigTrend": "ట్రెండ్ (గతంలా)", "sigRev": "రివర్స్ (గతానికి వ్యతిరేకం)", "sigBig": "ఎప్పుడూ Big", "speedReal": "అసలు సమయం", "readTitle": "📖 లెవల్ చార్ట్ & రిపోర్ట్", "totalFund": "మొత్తం ఫండ్", "tradeLog": "ట్రేడ్ లాగ్", "noTrades": "ఇంకా ట్రేడ్‌లు లేవు", "supTitle": "🎧 సపోర్ట్", "supReg": "📝 రిజిస్టర్ చేయండి", "faqTitle": "తరచుగా అడిగే ప్రశ్నలు", "faq1q": "ప్యానెల్ చిన్నది-పెద్దది ఎలా?", "faq1a": "▲ నొక్కండి; పై భాగం పట్టుకుని జరపండి.", "faq2q": "సెట్టింగ్స్ ఎక్కడ?", "faq2a": "ప్యానెల్ పైన \"DIP MASTER AI ⚙\" నొక్కండి.", "faq3q": "లెవల్ చార్ట్ ఎలా చూడాలి?", "faq3a": "READ నొక్కండి.", "faq4q": "ఇది నిజమైన డబ్బుతో ఆడుతుందా?", "faq4a": "లేదు. డెమో బ్యాలెన్స్‌పై మాత్రమే నడుస్తుంది.", "tgTalk": "✈️ Telegram లో మాట్లాడండి", "waTalk": "💬 WhatsApp లో మాట్లాడండి", "regTitle": "రిజిస్ట్రేషన్", "regSub": "సపోర్ట్ మరియు అప్‌డేట్స్ కోసం వివరాలు నింపండి", "regInfo": "మీ వివరాలు", "fName": "పూర్తి పేరు", "fMobile": "మొబైల్ నంబర్", "fWa": "WhatsApp నంబర్", "fTg": "Telegram ID", "fCity": "నగరం / రాష్ట్రం", "phName": "ఉదా: Rahul Kumar", "phDigits": "10 అంకెలు", "phCity": "ఉదా: Hyderabad, TS", "consent": "పంపు నొక్కితే Telegram తెరుచుకుంటుంది, వివరాలు సపోర్ట్ (@{tg}) కోసం సిద్ధంగా ఉంటాయి — మీరే పంపుతారు. లొకేషన్ (GPS) తీసుకోబడదు.", "regSend": "✈️ Telegram లో పంపి కొనసాగండి", "regSkip": "తర్వాత", "eName": "పేరు నమోదు చేయండి", "eMobile": "సరైన 10 అంకెల మొబైల్ నంబర్ ఇవ్వండి", "eWa": "సరైన 10 అంకెల WhatsApp నంబర్ ఇవ్వండి", "eTg": "సరైన Telegram ID ఇవ్వండి (కనీసం 5 అక్షరాలు)", "eCity": "నగరం / రాష్ట్రం ఇవ్వండి", "rTrades": "ట్రేడ్‌లు పూర్తి", "rTarget": "🎯 టార్గెట్ చేరింది", "rBal": "💀 బ్యాలెన్స్ అయిపోయింది", "lang": "భాష"}, "mr": {"demo": "फक्त डेमो", "support": "सपोर्ट", "timeRem": "उरलेला वेळ", "firstRound": "पहिली फेरी सुरू आहे…", "thPeriod": "पीरियड", "thNumber": "नंबर", "thBS": "मोठा लहान", "thColor": "रंग", "start": "▶ सुरू", "pause": "❚❚ थांबवा", "read": "📖 रिपोर्ट", "reset": "↺ रीसेट", "stopped": "● बंद", "running": "● चालू", "settings": "सेटिंग्ज", "cancel": "रद्द", "save": "सेव्ह", "close": "बंद करा", "sigTrend": "ट्रेंड (मागील सारखे)", "sigRev": "रिव्हर्स (मागीलच्या उलट)", "sigBig": "नेहमी Big", "speedReal": "खरी वेळ", "readTitle": "📖 लेव्हल चार्ट आणि रिपोर्ट", "totalFund": "एकूण फंड", "tradeLog": "ट्रेड लॉग", "noTrades": "अजून कोणताही ट्रेड नाही", "supTitle": "🎧 सपोर्ट", "supReg": "📝 नोंदणी करा", "faqTitle": "वारंवार विचारले जाणारे प्रश्न", "faq1q": "पॅनेल लहान-मोठे कसे करायचे?", "faq1a": "▲ दाबा; वरचा भाग धरून पॅनेल हलवा.", "faq2q": "सेटिंग्ज कुठे आहेत?", "faq2a": "पॅनेलच्या वर \"DIP MASTER AI ⚙\" दाबा.", "faq3q": "लेव्हल चार्ट कसा पाहायचा?", "faq3a": "READ दाबा.", "faq4q": "हे खऱ्या पैशाने चालते का?", "faq4a": "नाही. हे फक्त डेमो बॅलन्सवर चालते.", "tgTalk": "✈️ Telegram वर बोला", "waTalk": "💬 WhatsApp वर बोला", "regTitle": "नोंदणी", "regSub": "सपोर्ट आणि अपडेटसाठी माहिती भरा", "regInfo": "तुमची माहिती", "fName": "पूर्ण नाव", "fMobile": "मोबाइल नंबर", "fWa": "WhatsApp नंबर", "fTg": "Telegram ID", "fCity": "शहर / राज्य", "phName": "उदा: Rahul Kumar", "phDigits": "10 अंक", "phCity": "उदा: Pune, Maharashtra", "consent": "पाठवा दाबल्यावर Telegram उघडेल आणि माहिती सपोर्टसाठी (@{tg}) तयार असेल — तुम्ही स्वतः पाठवाल. लोकेशन (GPS) घेतले जात नाही.", "regSend": "✈️ Telegram वर पाठवा आणि पुढे जा", "regSkip": "नंतर करा", "eName": "नाव भरा", "eMobile": "योग्य 10 अंकी मोबाइल नंबर भरा", "eWa": "योग्य 10 अंकी WhatsApp नंबर भरा", "eTg": "योग्य Telegram ID भरा (किमान 5 अक्षरे)", "eCity": "शहर / राज्य भरा", "rTrades": "ट्रेड पूर्ण", "rTarget": "🎯 टार्गेट पूर्ण", "rBal": "💀 बॅलन्स संपला", "lang": "भाषा"}, "gu": {"demo": "ફક્ત ડેમો", "support": "સપોર્ટ", "timeRem": "બાકી સમય", "firstRound": "પ્રથમ રાઉન્ડ ચાલુ છે…", "thPeriod": "પીરિયડ", "thNumber": "નંબર", "thBS": "મોટું નાનું", "thColor": "રંગ", "start": "▶ શરૂ", "pause": "❚❚ રોકો", "read": "📖 રિપોર્ટ", "reset": "↺ રીસેટ", "stopped": "● બંધ", "running": "● ચાલુ", "settings": "સેટિંગ્સ", "cancel": "રદ", "save": "સેવ", "close": "બંધ કરો", "sigTrend": "ટ્રેન્ડ (છેલ્લા જેવું)", "sigRev": "રિવર્સ (છેલ્લાથી ઊલટું)", "sigBig": "હંમેશા Big", "speedReal": "સાચો સમય", "readTitle": "📖 લેવલ ચાર્ટ અને રિપોર્ટ", "totalFund": "કુલ ફંડ", "tradeLog": "ટ્રેડ લોગ", "noTrades": "હજી કોઈ ટ્રેડ નથી", "supTitle": "🎧 સપોર્ટ", "supReg": "📝 રજિસ્ટ્રેશન કરો", "faqTitle": "વારંવાર પૂછાતા પ્રશ્નો", "faq1q": "પેનલ નાની-મોટી કેવી રીતે કરવી?", "faq1a": "▲ દબાવો; ઉપરનો ભાગ પકડીને પેનલ ખસેડો.", "faq2q": "સેટિંગ્સ ક્યાં છે?", "faq2a": "પેનલની ઉપર \"DIP MASTER AI ⚙\" દબાવો.", "faq3q": "લેવલ ચાર્ટ કેવી રીતે જોવો?", "faq3a": "READ દબાવો.", "faq4q": "શું આ સાચા પૈસાથી ચાલે છે?", "faq4a": "ના. આ ફક્ત ડેમો બેલેન્સ પર ચાલે છે.", "tgTalk": "✈️ Telegram પર વાત કરો", "waTalk": "💬 WhatsApp પર વાત કરો", "regTitle": "રજિસ્ટ્રેશન", "regSub": "સપોર્ટ અને અપડેટ માટે માહિતી ભરો", "regInfo": "તમારી માહિતી", "fName": "પૂરું નામ", "fMobile": "મોબાઇલ નંબર", "fWa": "WhatsApp નંબર", "fTg": "Telegram ID", "fCity": "શહેર / રાજ્ય", "phName": "દા.ત.: Rahul Kumar", "phDigits": "10 અંક", "phCity": "દા.ત.: Surat, Gujarat", "consent": "મોકલો દબાવતાં Telegram ખુલશે અને માહિતી સપોર્ટ (@{tg}) માટે તૈયાર હશે — તમે જાતે મોકલશો. લોકેશન (GPS) લેવાતું નથી.", "regSend": "✈️ Telegram પર મોકલો અને આગળ વધો", "regSkip": "પછી કરો", "eName": "નામ ભરો", "eMobile": "સાચો 10 અંકનો મોબાઇલ નંબર ભરો", "eWa": "સાચો 10 અંકનો WhatsApp નંબર ભરો", "eTg": "સાચું Telegram ID ભરો (ઓછામાં ઓછા 5 અક્ષર)", "eCity": "શહેર / રાજ્ય ભરો", "rTrades": "ટ્રેડ પૂરા", "rTarget": "🎯 ટાર્ગેટ પૂરું", "rBal": "💀 બેલેન્સ પૂરું", "lang": "ભાષા"}, "es": {"demo": "Solo demo", "support": "Soporte", "timeRem": "Tiempo restante", "firstRound": "Primera ronda en curso…", "thPeriod": "Periodo", "thNumber": "Número", "thBS": "Grande Pequeño", "thColor": "Color", "start": "▶ INICIAR", "pause": "❚❚ PAUSA", "read": "📖 INFORME", "reset": "↺ REINICIAR", "stopped": "● DETENIDO", "running": "● EN MARCHA", "settings": "Ajustes", "cancel": "CANCELAR", "save": "GUARDAR", "close": "CERRAR", "sigTrend": "Tendencia (igual al anterior)", "sigRev": "Inverso (contrario al anterior)", "sigBig": "Siempre Big", "speedReal": "Tiempo real", "readTitle": "📖 Tabla de niveles e informe", "totalFund": "Fondo total", "tradeLog": "REGISTRO DE OPERACIONES", "noTrades": "Aún no hay operaciones", "supTitle": "🎧 Soporte", "supReg": "📝 Registrarse", "faqTitle": "Preguntas frecuentes", "faq1q": "¿Cómo cambio el tamaño del panel?", "faq1a": "Toca ▲; arrastra la parte superior para moverlo.", "faq2q": "¿Dónde están los ajustes?", "faq2a": "Toca \"DIP MASTER AI ⚙\" arriba del panel.", "faq3q": "¿Cómo veo la tabla de niveles?", "faq3a": "Toca READ.", "faq4q": "¿Juega con dinero real?", "faq4a": "No. Solo funciona con saldo de demostración.", "tgTalk": "✈️ Hablar por Telegram", "waTalk": "💬 Hablar por WhatsApp", "regTitle": "Registro", "regSub": "Completa tus datos para soporte y novedades", "regInfo": "Tus datos", "fName": "Nombre completo", "fMobile": "Número de móvil", "fWa": "Número de WhatsApp", "fTg": "ID de Telegram", "fCity": "Ciudad / Estado", "phName": "p. ej. Juan Pérez", "phDigits": "10 dígitos", "phCity": "p. ej. Madrid", "consent": "Al pulsar Enviar se abre Telegram con tus datos listos para Soporte (@{tg}); tú mismo los envías. No se recoge la ubicación (GPS).", "regSend": "✈️ Enviar por Telegram y continuar", "regSkip": "Más tarde", "eName": "Escribe tu nombre", "eMobile": "Escribe un móvil válido de 10 dígitos", "eWa": "Escribe un WhatsApp válido de 10 dígitos", "eTg": "Escribe un ID de Telegram válido (mín. 5 caracteres)", "eCity": "Escribe tu ciudad / estado", "rTrades": "Operaciones completadas", "rTarget": "🎯 Objetivo alcanzado", "rBal": "💀 Saldo agotado", "lang": "Idioma"}, "pt": {"demo": "Só demonstração", "support": "Suporte", "timeRem": "Tempo restante", "firstRound": "Primeira rodada em andamento…", "thPeriod": "Período", "thNumber": "Número", "thBS": "Grande Pequeno", "thColor": "Cor", "start": "▶ INICIAR", "pause": "❚❚ PAUSAR", "read": "📖 RELATÓRIO", "reset": "↺ REINICIAR", "stopped": "● PARADO", "running": "● RODANDO", "settings": "Configurações", "cancel": "CANCELAR", "save": "SALVAR", "close": "FECHAR", "sigTrend": "Tendência (igual ao anterior)", "sigRev": "Reverso (oposto ao anterior)", "sigBig": "Sempre Big", "speedReal": "Tempo real", "readTitle": "📖 Tabela de níveis e relatório", "totalFund": "Fundo total", "tradeLog": "REGISTRO DE OPERAÇÕES", "noTrades": "Nenhuma operação ainda", "supTitle": "🎧 Suporte", "supReg": "📝 Cadastrar", "faqTitle": "Perguntas frequentes", "faq1q": "Como redimensiono o painel?", "faq1a": "Toque ▲; arraste a parte de cima para mover.", "faq2q": "Onde ficam as configurações?", "faq2a": "Toque \"DIP MASTER AI ⚙\" no topo do painel.", "faq3q": "Como vejo a tabela de níveis?", "faq3a": "Toque READ.", "faq4q": "Joga com dinheiro real?", "faq4a": "Não. Funciona só com saldo de demonstração.", "tgTalk": "✈️ Falar no Telegram", "waTalk": "💬 Falar no WhatsApp", "regTitle": "Cadastro", "regSub": "Preencha seus dados para suporte e novidades", "regInfo": "Seus dados", "fName": "Nome completo", "fMobile": "Celular", "fWa": "WhatsApp", "fTg": "ID do Telegram", "fCity": "Cidade / Estado", "phName": "ex.: João Silva", "phDigits": "10 dígitos", "phCity": "ex.: São Paulo", "consent": "Ao tocar Enviar, o Telegram abre com seus dados prontos para o Suporte (@{tg}); você mesmo envia. A localização (GPS) não é coletada.", "regSend": "✈️ Enviar no Telegram e continuar", "regSkip": "Depois", "eName": "Digite seu nome", "eMobile": "Digite um celular válido de 10 dígitos", "eWa": "Digite um WhatsApp válido de 10 dígitos", "eTg": "Digite um ID do Telegram válido (mín. 5 caracteres)", "eCity": "Digite sua cidade / estado", "rTrades": "Operações concluídas", "rTarget": "🎯 Meta atingida", "rBal": "💀 Saldo esgotado", "lang": "Idioma"}, "ar": {"demo": "تجريبي فقط", "support": "الدعم", "timeRem": "الوقت المتبقي", "firstRound": "الجولة الأولى جارية…", "thPeriod": "الفترة", "thNumber": "الرقم", "thBS": "كبير صغير", "thColor": "اللون", "start": "▶ ابدأ", "pause": "❚❚ إيقاف مؤقت", "read": "📖 تقرير", "reset": "↺ إعادة", "stopped": "● متوقف", "running": "● يعمل", "settings": "الإعدادات", "cancel": "إلغاء", "save": "حفظ", "close": "إغلاق", "sigTrend": "الاتجاه (مثل السابق)", "sigRev": "عكسي (عكس السابق)", "sigBig": "دائمًا Big", "speedReal": "الوقت الحقيقي", "readTitle": "📖 جدول المستويات والتقرير", "totalFund": "إجمالي الرصيد", "tradeLog": "سجل الصفقات", "noTrades": "لا توجد صفقات بعد", "supTitle": "🎧 الدعم", "supReg": "📝 التسجيل", "faqTitle": "الأسئلة الشائعة", "faq1q": "كيف أصغّر اللوحة أو أكبرها؟", "faq1a": "اضغط ▲؛ واسحب الجزء العلوي لتحريكها.", "faq2q": "أين الإعدادات؟", "faq2a": "اضغط \"DIP MASTER AI ⚙\" أعلى اللوحة.", "faq3q": "كيف أرى جدول المستويات؟", "faq3a": "اضغط READ.", "faq4q": "هل يعمل بأموال حقيقية؟", "faq4a": "لا. يعمل على رصيد تجريبي فقط.", "tgTalk": "✈️ تحدث عبر Telegram", "waTalk": "💬 تحدث عبر WhatsApp", "regTitle": "التسجيل", "regSub": "املأ بياناتك للدعم والتحديثات", "regInfo": "بياناتك", "fName": "الاسم الكامل", "fMobile": "رقم الجوال", "fWa": "رقم WhatsApp", "fTg": "معرّف Telegram", "fCity": "المدينة / المنطقة", "phName": "مثال: أحمد علي", "phDigits": "10 أرقام", "phCity": "مثال: دبي", "consent": "عند الضغط على إرسال يُفتح Telegram وبياناتك جاهزة للدعم (@{tg}) — وأنت من يرسلها. لا يتم جمع الموقع (GPS).", "regSend": "✈️ أرسل عبر Telegram وتابع", "regSkip": "لاحقًا", "eName": "اكتب اسمك", "eMobile": "اكتب رقم جوال صحيحًا من 10 أرقام", "eWa": "اكتب رقم WhatsApp صحيحًا من 10 أرقام", "eTg": "اكتب معرّف Telegram صحيحًا (5 أحرف على الأقل)", "eCity": "اكتب المدينة / المنطقة", "rTrades": "اكتملت الصفقات", "rTarget": "🎯 تم بلوغ الهدف", "rBal": "💀 نفد الرصيد", "lang": "اللغة"}, "id": {"demo": "Hanya demo", "support": "Bantuan", "timeRem": "Sisa waktu", "firstRound": "Ronde pertama berjalan…", "thPeriod": "Periode", "thNumber": "Angka", "thBS": "Besar Kecil", "thColor": "Warna", "start": "▶ MULAI", "pause": "❚❚ JEDA", "read": "📖 LAPORAN", "reset": "↺ ATUR ULANG", "stopped": "● BERHENTI", "running": "● BERJALAN", "settings": "Pengaturan", "cancel": "BATAL", "save": "SIMPAN", "close": "TUTUP", "sigTrend": "Tren (sama dengan sebelumnya)", "sigRev": "Kebalikan (lawan sebelumnya)", "sigBig": "Selalu Big", "speedReal": "Waktu nyata", "readTitle": "📖 Tabel Level & Laporan", "totalFund": "Total Dana", "tradeLog": "LOG TRANSAKSI", "noTrades": "Belum ada transaksi", "supTitle": "🎧 Bantuan", "supReg": "📝 Daftar", "faqTitle": "Pertanyaan umum", "faq1q": "Bagaimana mengubah ukuran panel?", "faq1a": "Ketuk ▲; seret bagian atas untuk memindahkan.", "faq2q": "Di mana Pengaturan?", "faq2a": "Ketuk \"DIP MASTER AI ⚙\" di atas panel.", "faq3q": "Bagaimana melihat Tabel Level?", "faq3a": "Ketuk READ.", "faq4q": "Apakah ini memakai uang asli?", "faq4a": "Tidak. Hanya berjalan dengan saldo demo.", "tgTalk": "✈️ Chat di Telegram", "waTalk": "💬 Chat di WhatsApp", "regTitle": "Pendaftaran", "regSub": "Isi data Anda untuk bantuan dan info terbaru", "regInfo": "Data Anda", "fName": "Nama lengkap", "fMobile": "Nomor HP", "fWa": "Nomor WhatsApp", "fTg": "ID Telegram", "fCity": "Kota / Provinsi", "phName": "mis. Budi Santoso", "phDigits": "10 digit", "phCity": "mis. Jakarta", "consent": "Menekan Kirim membuka Telegram dengan data siap untuk Bantuan (@{tg}) — Anda sendiri yang mengirim. Lokasi (GPS) tidak diambil.", "regSend": "✈️ Kirim via Telegram & lanjut", "regSkip": "Nanti", "eName": "Masukkan nama", "eMobile": "Masukkan nomor HP 10 digit yang valid", "eWa": "Masukkan nomor WhatsApp 10 digit yang valid", "eTg": "Masukkan ID Telegram yang valid (min. 5 karakter)", "eCity": "Masukkan kota / provinsi", "rTrades": "Transaksi selesai", "rTarget": "🎯 Target tercapai", "rBal": "💀 Saldo habis", "lang": "Bahasa"}, "as": {"demo": "কেৱল ডেমো", "support": "সহায়", "start": "▶ আৰম্ভ", "pause": "❚❚ ৰখাওক", "read": "📖 প্ৰতিবেদন", "reset": "↺ পুনৰ আৰম্ভ", "stopped": "● বন্ধ", "running": "● চলি আছে", "settings": "ছেটিংছ", "cancel": "বাতিল", "save": "ছেভ", "close": "বন্ধ কৰক", "noTrades": "এতিয়ালৈকে কোনো ট্ৰেড নাই", "supReg": "📝 পঞ্জীয়ন কৰক", "regTitle": "পঞ্জীয়ন", "regSub": "সহায় আৰু আপডেটৰ বাবে তথ্য দিয়ক", "fName": "সম্পূৰ্ণ নাম", "fMobile": "মোবাইল নম্বৰ", "fCity": "চহৰ / ৰাজ্য", "regSend": "✈️ Telegram-ত পঠিয়াওক", "regSkip": "পিছত", "eName": "নাম লিখক", "faq4q": "এইটো আচল টকাৰে চলে নেকি?", "faq4a": "নহয়। ই কেৱল ডেমো বেলেন্সত চলে।", "lang": "ভাষা", "consent": "পঠিয়াওক টিপিলে Telegram খোল খাব; আপুনি নিজে সহায়ক (@{tg})লৈ তথ্য পঠিয়াব। GPS লোৱা নহয়।"}, "brx": {"demo": "सिर्फ डेमो", "support": "मदद", "start": "▶ जागायजेनाय", "pause": "❚❚ थाद", "read": "📖 रिपर्ट", "reset": "↺ गोदान", "stopped": "● थादों", "running": "● खावलायो", "settings": "सेटिं", "cancel": "नेवसि", "save": "सेभ", "close": "बन्द खालाम", "noTrades": "दानोसिम ट्रेड गैया", "supReg": "📝 रेजिस्टार खालाम", "regTitle": "रेजिस्ट्रेसन", "regSub": "मदद आरो आपडेटनि थाखाय मोनसे फरम आखु", "fName": "आबुं मुं", "fMobile": "मबाइल नम्बर", "fCity": "नगर / राज्य", "regSend": "✈️ Telegram आव दैथाय", "regSkip": "उनाव", "eName": "मुं लिर", "faq4q": "बे थार रांजों खावलायो नामा?", "faq4a": "नंखाय। बे डेमो बेलेन्सजों खावलायो।", "lang": "राव", "consent": "दैथाय नारखोर Telegram खेवगोन; नों गावनो मदद (@{tg}) आव दैथायगोन। GPS लानाय जाया।"}, "doi": {"demo": "सिर्फ डेमो", "support": "सहायता", "start": "▶ शुरू", "pause": "❚❚ रोको", "read": "📖 रिपोर्ट", "reset": "↺ रीसेट", "stopped": "● बंद", "running": "● चल्ला दा", "settings": "सेटिंग्ज़", "cancel": "रद्द", "save": "सेव", "close": "बंद करो", "noTrades": "हुनै तगर कोई ट्रेड नेईं", "supReg": "📝 रजिस्ट्रेशन करो", "regTitle": "रजिस्ट्रेशन", "regSub": "सहायता ते अपडेट आस्तै जानकारी भरो", "fName": "पूरा नां", "fMobile": "मोबाइल नंबर", "fCity": "शैहर / राज्य", "regSend": "✈️ Telegram पर भेजो", "regSkip": "बाद च", "eName": "नां भरो", "faq4q": "क्या एह असली पैसें कन्नै चलदा ऐ?", "faq4a": "नेईं। एह सिर्फ डेमो बैलेंस पर चलदा ऐ।", "lang": "भाशा", "consent": "भेजो दबाने पर Telegram खुलग; तुस आपूं सहायता (@{tg}) गी जानकारी भेजगे। GPS नेईं लैता जंदा।"}, "kn": {"demo": "ಡೆಮೋ ಮಾತ್ರ", "support": "ಸಹಾಯ", "start": "▶ ಪ್ರಾರಂಭ", "pause": "❚❚ ವಿರಾಮ", "read": "📖 ವರದಿ", "reset": "↺ ಮರುಹೊಂದಿಸು", "stopped": "● ನಿಂತಿದೆ", "running": "● ಚಾಲನೆಯಲ್ಲಿದೆ", "settings": "ಸೆಟ್ಟಿಂಗ್ಸ್", "cancel": "ರದ್ದು", "save": "ಉಳಿಸು", "close": "ಮುಚ್ಚು", "noTrades": "ಇನ್ನೂ ಯಾವುದೇ ಟ್ರೇಡ್ ಇಲ್ಲ", "supReg": "📝 ನೋಂದಾಯಿಸಿ", "regTitle": "ನೋಂದಣಿ", "regSub": "ಸಹಾಯ ಮತ್ತು ಅಪ್‌ಡೇಟ್‌ಗಾಗಿ ವಿವರಗಳನ್ನು ತುಂಬಿ", "fName": "ಪೂರ್ಣ ಹೆಸರು", "fMobile": "ಮೊಬೈಲ್ ಸಂಖ್ಯೆ", "fCity": "ನಗರ / ರಾಜ್ಯ", "regSend": "✈️ Telegram ನಲ್ಲಿ ಕಳುಹಿಸಿ", "regSkip": "ನಂತರ", "eName": "ಹೆಸರು ನಮೂದಿಸಿ", "faq4q": "ಇದು ನಿಜವಾದ ಹಣದಿಂದ ಆಡುತ್ತದೆಯೇ?", "faq4a": "ಇಲ್ಲ. ಇದು ಡೆಮೋ ಬ್ಯಾಲೆನ್ಸ್‌ನಲ್ಲಿ ಮಾತ್ರ ಚಲಿಸುತ್ತದೆ.", "lang": "ಭಾಷೆ", "consent": "ಕಳುಹಿಸಿ ಒತ್ತಿದರೆ Telegram ತೆರೆಯುತ್ತದೆ; ನೀವೇ ಸಹಾಯಕ್ಕೆ (@{tg}) ವಿವರ ಕಳುಹಿಸುತ್ತೀರಿ. GPS ತೆಗೆದುಕೊಳ್ಳುವುದಿಲ್ಲ."}, "ks": {"demo": "صرف ڈیمو", "support": "مدد", "start": "▶ شروٗع", "pause": "❚❚ رُکاو", "read": "📖 رپورٹ", "reset": "↺ ری سیٹ", "stopped": "● بند", "running": "● چلان", "settings": "سیٹنگز", "cancel": "منسوخ", "save": "محفوظ", "close": "بند کٔرِو", "noTrades": "وُنی تام کانہہ ٹریڈ نہٕ", "supReg": "📝 رجسٹریشن کٔرِو", "regTitle": "رجسٹریشن", "regSub": "مدد تہٕ اپڈیٹ خٲطرٕ معلومات بٔرِو", "fName": "پوٗرٕ ناو", "fMobile": "موبائل نمبر", "fCity": "شہر / ریاست", "regSend": "✈️ Telegram پیٹھ سوزِو", "regSkip": "پتہٕ", "eName": "ناو لیکھِو", "faq4q": "کیا یہِ چھُ اصلی پیسن سٟتؠ چلان؟", "faq4a": "نہ۔ یہِ چھُ صرف ڈیمو بیلنسس پیٹھ چلان۔", "lang": "زبان", "consent": "سوزِو دبٲوِتھ کھُلہِ Telegram؛ تُہؠ سوزِو پانہٕ مدد (@{tg}) کُن معلومات۔ GPS چھُنہٕ ہیواں۔"}, "kok": {"demo": "फकत डेमो", "support": "आदार", "start": "▶ सुरू", "pause": "❚❚ थांबय", "read": "📖 अहवाल", "reset": "↺ रिसेट", "stopped": "● बंद", "running": "● चालू", "settings": "सेटिंग्ज", "cancel": "रद्द", "save": "सेव", "close": "बंद कर", "noTrades": "अजून खंयचोच ट्रेड ना", "supReg": "📝 नोंदणी कर", "regTitle": "नोंदणी", "regSub": "आदार आनी अपडेटां खातीर म्हायती भर", "fName": "पुराय नांव", "fMobile": "मोबायल नंबर", "fCity": "शार / राज्य", "regSend": "✈️ Telegram चेर धाड", "regSkip": "मागीर", "eName": "नांव भर", "faq4q": "हें खऱ्या पयशांनी चलता काय?", "faq4a": "ना. हें फकत डेमो बॅलन्सार चलता.", "lang": "भास", "consent": "धाड दाबल्यार Telegram उगडटलें; तुमी स्वता आदाराक (@{tg}) म्हायती धाडटले. GPS घेनात."}, "mai": {"demo": "मात्र डेमो", "support": "सहायता", "start": "▶ शुरू", "pause": "❚❚ रोकू", "read": "📖 रिपोर्ट", "reset": "↺ रीसेट", "stopped": "● बन्द", "running": "● चलि रहल अछि", "settings": "सेटिंग्स", "cancel": "रद्द", "save": "सेव", "close": "बन्द करू", "noTrades": "एखन धरि कोनो ट्रेड नहि", "supReg": "📝 पंजीकरण करू", "regTitle": "पंजीकरण", "regSub": "सहायता आ अपडेट लेल जानकारी भरू", "fName": "पूरा नाम", "fMobile": "मोबाइल नंबर", "fCity": "शहर / राज्य", "regSend": "✈️ Telegram पर पठाउ", "regSkip": "बादमे", "eName": "नाम भरू", "faq4q": "की ई असली पाइसा सँ चलैत अछि?", "faq4a": "नहि। ई मात्र डेमो बैलेंस पर चलैत अछि।", "lang": "भाषा", "consent": "पठाउ दबेलापर Telegram खुजत; अहाँ स्वयं सहायता (@{tg}) केँ जानकारी पठायब। GPS नहि लेल जाइत अछि।"}, "ml": {"demo": "ഡെമോ മാത്രം", "support": "സഹായം", "start": "▶ ആരംഭിക്കുക", "pause": "❚❚ നിർത്തുക", "read": "📖 റിപ്പോർട്ട്", "reset": "↺ റീസെറ്റ്", "stopped": "● നിർത്തി", "running": "● പ്രവർത്തിക്കുന്നു", "settings": "ക്രമീകരണങ്ങൾ", "cancel": "റദ്ദാക്കുക", "save": "സേവ്", "close": "അടയ്ക്കുക", "noTrades": "ഇതുവരെ ട്രേഡുകളൊന്നുമില്ല", "supReg": "📝 രജിസ്റ്റർ ചെയ്യുക", "regTitle": "രജിസ്ട്രേഷൻ", "regSub": "സഹായത്തിനും അപ്ഡേറ്റിനും വിവരങ്ങൾ നൽകുക", "fName": "മുഴുവൻ പേര്", "fMobile": "മൊബൈൽ നമ്പർ", "fCity": "നഗരം / സംസ്ഥാനം", "regSend": "✈️ Telegram-ൽ അയയ്ക്കുക", "regSkip": "പിന്നീട്", "eName": "പേര് നൽകുക", "faq4q": "ഇത് യഥാർത്ഥ പണത്തിൽ കളിക്കുമോ?", "faq4a": "ഇല്ല. ഇത് ഡെമോ ബാലൻസിൽ മാത്രം പ്രവർത്തിക്കുന്നു.", "lang": "ഭാഷ", "consent": "അയയ്ക്കുക അമർത്തിയാൽ Telegram തുറക്കും; നിങ്ങൾ തന്നെ സഹായത്തിന് (@{tg}) വിവരങ്ങൾ അയയ്ക്കും. GPS എടുക്കില്ല."}, "mni": {"demo": "ডেমো খক্তা", "support": "মতেং", "start": "▶ হৌদোকউ", "pause": "❚❚ লেপউ", "read": "📖 রিপোর্ট", "reset": "↺ অনৌবা হৌদোকউ", "stopped": "● লেপ্লে", "running": "● চৎলি", "settings": "সেত্তিংস", "cancel": "কেনথহনবা", "save": "সেভ তৌ", "close": "থিংবা", "noTrades": "হৌজিক ফাওবা ট্রেড অমত্তা লৈতে", "supReg": "📝 রেজিস্ট্রেসন তৌ", "regTitle": "রেজিস্ট্রেসন", "regSub": "মতেং অমসুং অপডেটকী মরমদা ইনফর্মেসন থাদোকউ", "fName": "মিংচাং পুম্বা", "fMobile": "মোবাইল নম্বর", "fCity": "শহর / ষ্টেট", "regSend": "✈️ Telegramদা থাদোকউ", "regSkip": "মতুংদা", "eName": "মিং ইবিয়ু", "faq4q": "মসি অচুম্বা সেনদা চৎলিব্রা?", "faq4a": "নত্তে। মসি ডেমো বেলেন্সতা চৎলি।", "lang": "লোন", "consent": "থাদোকউ নমলবদা Telegram হাংগনি; নহাক মশাগী মতেং (@{tg})দা থাদোকগনি। GPS লৌদে।"}, "ne": {"demo": "डेमो मात्र", "support": "सहयोग", "start": "▶ सुरु", "pause": "❚❚ रोक्नुहोस्", "read": "📖 रिपोर्ट", "reset": "↺ रिसेट", "stopped": "● बन्द", "running": "● चलिरहेको", "settings": "सेटिङ", "cancel": "रद्द", "save": "सेभ", "close": "बन्द गर्नुहोस्", "noTrades": "अहिलेसम्म कुनै ट्रेड छैन", "supReg": "📝 दर्ता गर्नुहोस्", "regTitle": "दर्ता", "regSub": "सहयोग र अपडेटका लागि विवरण भर्नुहोस्", "fName": "पूरा नाम", "fMobile": "मोबाइल नम्बर", "fCity": "सहर / प्रदेश", "regSend": "✈️ Telegram मा पठाउनुहोस्", "regSkip": "पछि", "eName": "नाम लेख्नुहोस्", "faq4q": "के यो साँचो पैसामा चल्छ?", "faq4a": "होइन। यो डेमो ब्यालेन्समा मात्र चल्छ।", "lang": "भाषा", "consent": "पठाउनुहोस् थिच्दा Telegram खुल्छ; तपाईं आफैं सहयोग (@{tg}) लाई विवरण पठाउनुहुन्छ। GPS लिइँदैन।"}, "or": {"demo": "କେବଳ ଡେମୋ", "support": "ସହାୟତା", "start": "▶ ଆରମ୍ଭ", "pause": "❚❚ ବିରତି", "read": "📖 ରିପୋର୍ଟ", "reset": "↺ ରିସେଟ୍", "stopped": "● ବନ୍ଦ", "running": "● ଚାଲୁଛି", "settings": "ସେଟିଂସ୍", "cancel": "ବାତିଲ୍", "save": "ସେଭ୍", "close": "ବନ୍ଦ କରନ୍ତୁ", "noTrades": "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଟ୍ରେଡ୍ ନାହିଁ", "supReg": "📝 ପଞ୍ଜୀକରଣ କରନ୍ତୁ", "regTitle": "ପଞ୍ଜୀକରଣ", "regSub": "ସହାୟତା ଓ ଅପଡେଟ୍ ପାଇଁ ବିବରଣୀ ଦିଅନ୍ତୁ", "fName": "ପୂରା ନାମ", "fMobile": "ମୋବାଇଲ୍ ନମ୍ବର", "fCity": "ସହର / ରାଜ୍ୟ", "regSend": "✈️ Telegram ରେ ପଠାନ୍ତୁ", "regSkip": "ପରେ", "eName": "ନାମ ଲେଖନ୍ତୁ", "faq4q": "ଏହା ପ୍ରକୃତ ଟଙ୍କାରେ ଚାଲେ କି?", "faq4a": "ନା। ଏହା କେବଳ ଡେମୋ ବାଲାନ୍ସରେ ଚାଲେ।", "lang": "ଭାଷା", "consent": "ପଠାନ୍ତୁ ଦବାଇଲେ Telegram ଖୋଲିବ; ଆପଣ ନିଜେ ସହାୟତା (@{tg}) କୁ ବିବରଣୀ ପଠାଇବେ। GPS ନିଆଯାଏ ନାହିଁ।"}, "pa": {"demo": "ਸਿਰਫ਼ ਡੈਮੋ", "support": "ਸਹਾਇਤਾ", "start": "▶ ਸ਼ੁਰੂ", "pause": "❚❚ ਰੋਕੋ", "read": "📖 ਰਿਪੋਰਟ", "reset": "↺ ਰੀਸੈੱਟ", "stopped": "● ਬੰਦ", "running": "● ਚੱਲ ਰਿਹਾ", "settings": "ਸੈਟਿੰਗਾਂ", "cancel": "ਰੱਦ", "save": "ਸੇਵ", "close": "ਬੰਦ ਕਰੋ", "noTrades": "ਹਾਲੇ ਕੋਈ ਟ੍ਰੇਡ ਨਹੀਂ", "supReg": "📝 ਰਜਿਸਟਰ ਕਰੋ", "regTitle": "ਰਜਿਸਟ੍ਰੇਸ਼ਨ", "regSub": "ਸਹਾਇਤਾ ਅਤੇ ਅੱਪਡੇਟ ਲਈ ਜਾਣਕਾਰੀ ਭਰੋ", "fName": "ਪੂਰਾ ਨਾਮ", "fMobile": "ਮੋਬਾਈਲ ਨੰਬਰ", "fCity": "ਸ਼ਹਿਰ / ਰਾਜ", "regSend": "✈️ Telegram 'ਤੇ ਭੇਜੋ", "regSkip": "ਬਾਅਦ ਵਿੱਚ", "eName": "ਨਾਮ ਭਰੋ", "faq4q": "ਕੀ ਇਹ ਅਸਲੀ ਪੈਸਿਆਂ ਨਾਲ ਚੱਲਦਾ ਹੈ?", "faq4a": "ਨਹੀਂ। ਇਹ ਸਿਰਫ਼ ਡੈਮੋ ਬੈਲੇਂਸ 'ਤੇ ਚੱਲਦਾ ਹੈ।", "lang": "ਭਾਸ਼ਾ", "consent": "ਭੇਜੋ ਦਬਾਉਣ 'ਤੇ Telegram ਖੁੱਲ੍ਹੇਗਾ; ਤੁਸੀਂ ਆਪ ਸਹਾਇਤਾ (@{tg}) ਨੂੰ ਜਾਣਕਾਰੀ ਭੇਜੋਗੇ। GPS ਨਹੀਂ ਲਿਆ ਜਾਂਦਾ।"}, "sa": {"demo": "केवलं प्रदर्शनम्", "support": "सहायता", "start": "▶ आरभताम्", "pause": "❚❚ विरम्यताम्", "read": "📖 विवरणम्", "reset": "↺ पुनः आरभताम्", "stopped": "● स्थगितम्", "running": "● प्रचलति", "settings": "विन्यासाः", "cancel": "निरस्यताम्", "save": "रक्ष्यताम्", "close": "पिधीयताम्", "noTrades": "अद्यावधि व्यापारः नास्ति", "supReg": "📝 पञ्जीकरणं करोतु", "regTitle": "पञ्जीकरणम्", "regSub": "सहायतायै सूचनायै च विवरणं ददातु", "fName": "पूर्णं नाम", "fMobile": "दूरवाणी सङ्ख्या", "fCity": "नगरम् / राज्यम्", "regSend": "✈️ Telegram द्वारा प्रेषयतु", "regSkip": "पश्चात्", "eName": "नाम लिखतु", "faq4q": "किम् एतत् वास्तविकधनेन चलति?", "faq4a": "न। एतत् केवलं प्रदर्शन-धनेन चलति।", "lang": "भाषा", "consent": "प्रेषयतु इति नोदिते Telegram उद्घाट्यते; भवान् स्वयं सहायतायै (@{tg}) प्रेषयति। GPS न गृह्यते।"}, "sat": {"demo": "ᱥᱩᱢᱩᱝ ᱰᱮᱢᱚ", "support": "ᱜᱚᱲᱚ", "start": "▶ ᱮᱦᱚᱵ", "pause": "❚❚ ᱛᱤᱝᱜᱩ", "read": "📖 ᱨᱤᱯᱚᱨᱴ", "reset": "↺ ᱨᱤᱥᱮᱴ", "stopped": "● ᱵᱚᱸᱫᱚ", "running": "● ᱪᱟᱞᱟᱜ ᱠᱟᱱᱟ", "settings": "ᱥᱮᱴᱤᱝ", "cancel": "ᱵᱟᱹᱛᱤᱞ", "save": "ᱥᱮᱵᱷ", "close": "ᱵᱚᱸᱫᱚ ᱢᱮ", "noTrades": "ᱱᱤᱛ ᱦᱟᱹᱵᱤᱡ ᱡᱟᱦᱟᱸ ᱴᱨᱮᱰ ᱵᱟᱹᱱᱩᱜᱼᱟ", "supReg": "📝 ᱧᱩᱛᱩᱢ ᱚᱞ ᱢᱮ", "regTitle": "ᱧᱩᱛᱩᱢ ᱚᱞ", "regSub": "ᱜᱚᱲᱚ ᱟᱨ ᱟᱯᱰᱮᱴ ᱞᱟᱹᱜᱤᱫ ᱵᱤᱵᱨᱚᱬ ᱮᱢ ᱢᱮ", "fName": "ᱯᱩᱨᱟᱹ ᱧᱩᱛᱩᱢ", "fMobile": "ᱢᱚᱵᱟᱭᱤᱞ ᱱᱚᱢᱵᱚᱨ", "fCity": "ᱥᱟᱦᱟᱨ / ᱯᱚᱱᱚᱛ", "regSend": "✈️ Telegram ᱛᱮ ᱵᱷᱮᱡᱟ ᱢᱮ", "regSkip": "ᱛᱟᱭᱚᱢ", "eName": "ᱧᱩᱛᱩᱢ ᱚᱞ ᱢᱮ", "faq4q": "ᱱᱚᱶᱟ ᱥᱟᱹᱨᱤ ᱴᱟᱠᱟ ᱛᱮ ᱪᱟᱞᱟᱜᱼᱟ ᱥᱮ?", "faq4a": "ᱵᱟᱝ᱾ ᱱᱚᱶᱟ ᱥᱩᱢᱩᱝ ᱰᱮᱢᱚ ᱵᱮᱞᱮᱱᱥ ᱛᱮ ᱪᱟᱞᱟᱜᱼᱟ᱾", "lang": "ᱯᱟᱹᱨᱥᱤ", "consent": "ᱵᱷᱮᱡᱟ ᱚᱛᱟ ᱠᱷᱟᱱ Telegram ᱡᱷᱤᱡᱽᱚᱜᱼᱟ; ᱟᱢ ᱟᱡᱮ ᱜᱚᱲᱚ (@{tg}) ᱴᱷᱮᱱ ᱵᱷᱮᱡᱟᱭᱮᱢ᱾ GPS ᱵᱟᱝ ᱦᱟᱛᱟᱣᱜᱼᱟ᱾"}, "sd": {"demo": "صرف ڊيمو", "support": "مدد", "start": "▶ شروع", "pause": "❚❚ روڪيو", "read": "📖 رپورٽ", "reset": "↺ ري سيٽ", "stopped": "● بند", "running": "● هلي رهيو آهي", "settings": "سيٽنگون", "cancel": "رد", "save": "محفوظ", "close": "بند ڪريو", "noTrades": "اڃا ڪا ٽريڊ ناهي", "supReg": "📝 رجسٽريشن ڪريو", "regTitle": "رجسٽريشن", "regSub": "مدد ۽ اپڊيٽ لاءِ معلومات ڀريو", "fName": "پورو نالو", "fMobile": "موبائل نمبر", "fCity": "شهر / صوبو", "regSend": "✈️ Telegram تي موڪليو", "regSkip": "پوءِ", "eName": "نالو لکو", "faq4q": "ڇا هي اصلي پئسن سان هلي ٿو؟", "faq4a": "نه. هي صرف ڊيمو بيلنس تي هلي ٿو.", "lang": "ٻولي", "consent": "موڪليو دٻائڻ سان Telegram کلندو؛ توهان پاڻ مدد (@{tg}) کي معلومات موڪليندا. GPS نه ورتو ويندو."}, "fil": {"demo": "Demo lang", "support": "Suporta", "start": "▶ SIMULAN", "pause": "❚❚ IHINTO", "read": "📖 ULAT", "reset": "↺ I-RESET", "stopped": "● HUMINTO", "running": "● TUMATAKBO", "settings": "Mga Setting", "cancel": "KANSELAHIN", "save": "I-SAVE", "close": "ISARA", "noTrades": "Wala pang trade", "supReg": "📝 Magrehistro", "regTitle": "Pagpaparehistro", "regSub": "Punan ang detalye para sa suporta at update", "fName": "Buong pangalan", "fMobile": "Numero ng mobile", "fCity": "Lungsod / Probinsya", "regSend": "✈️ Ipadala sa Telegram", "regSkip": "Mamaya", "eName": "Ilagay ang pangalan", "faq4q": "Gumagamit ba ito ng totoong pera?", "faq4a": "Hindi. Demo balance lang ang gamit nito.", "lang": "Wika", "consent": "Pag pinindot ang Ipadala, bubukas ang Telegram; ikaw mismo ang magpapadala sa Suporta (@{tg}). Hindi kinukuha ang GPS."}, "vi": {"demo": "Chỉ demo", "support": "Hỗ trợ", "start": "▶ BẮT ĐẦU", "pause": "❚❚ TẠM DỪNG", "read": "📖 BÁO CÁO", "reset": "↺ ĐẶT LẠI", "stopped": "● ĐÃ DỪNG", "running": "● ĐANG CHẠY", "settings": "Cài đặt", "cancel": "HỦY", "save": "LƯU", "close": "ĐÓNG", "noTrades": "Chưa có giao dịch", "supReg": "📝 Đăng ký", "regTitle": "Đăng ký", "regSub": "Điền thông tin để được hỗ trợ và cập nhật", "fName": "Họ và tên", "fMobile": "Số điện thoại", "fCity": "Thành phố / Tỉnh", "regSend": "✈️ Gửi qua Telegram", "regSkip": "Để sau", "eName": "Nhập tên", "faq4q": "Ứng dụng có dùng tiền thật không?", "faq4a": "Không. Chỉ chạy với số dư demo.", "lang": "Ngôn ngữ", "consent": "Nhấn Gửi sẽ mở Telegram; bạn tự gửi thông tin cho Hỗ trợ (@{tg}). Không thu thập GPS."}, "th": {"demo": "เดโมเท่านั้น", "support": "ช่วยเหลือ", "start": "▶ เริ่ม", "pause": "❚❚ หยุดชั่วคราว", "read": "📖 รายงาน", "reset": "↺ รีเซ็ต", "stopped": "● หยุดแล้ว", "running": "● กำลังทำงาน", "settings": "ตั้งค่า", "cancel": "ยกเลิก", "save": "บันทึก", "close": "ปิด", "noTrades": "ยังไม่มีการเทรด", "supReg": "📝 ลงทะเบียน", "regTitle": "ลงทะเบียน", "regSub": "กรอกข้อมูลเพื่อรับความช่วยเหลือและอัปเดต", "fName": "ชื่อ-นามสกุล", "fMobile": "เบอร์มือถือ", "fCity": "เมือง / จังหวัด", "regSend": "✈️ ส่งทาง Telegram", "regSkip": "ภายหลัง", "eName": "กรอกชื่อ", "faq4q": "ใช้เงินจริงหรือไม่?", "faq4a": "ไม่ใช่ ใช้ยอดเงินเดโมเท่านั้น", "lang": "ภาษา", "consent": "กดส่งแล้ว Telegram จะเปิดขึ้น คุณส่งข้อมูลถึงฝ่ายช่วยเหลือ (@{tg}) เอง ไม่มีการเก็บ GPS"}, "my": {"demo": "ဒီမိုသာ", "support": "အကူအညီ", "start": "▶ စတင်", "pause": "❚❚ ခဏရပ်", "read": "📖 အစီရင်ခံစာ", "reset": "↺ ပြန်စ", "stopped": "● ရပ်ထားသည်", "running": "● လည်ပတ်နေသည်", "settings": "ဆက်တင်", "cancel": "မလုပ်တော့", "save": "သိမ်းမည်", "close": "ပိတ်မည်", "noTrades": "ကုန်သွယ်မှု မရှိသေးပါ", "supReg": "📝 မှတ်ပုံတင်ရန်", "regTitle": "မှတ်ပုံတင်ခြင်း", "regSub": "အကူအညီနှင့် အပ်ဒိတ်အတွက် အချက်အလက်ဖြည့်ပါ", "fName": "အမည်အပြည့်", "fMobile": "ဖုန်းနံပါတ်", "fCity": "မြို့ / ပြည်နယ်", "regSend": "✈️ Telegram ဖြင့်ပို့ရန်", "regSkip": "နောက်မှ", "eName": "အမည်ထည့်ပါ", "faq4q": "ဒါ ငွေအစစ်နဲ့ ကစားတာလား?", "faq4a": "မဟုတ်ပါ။ ဒီမိုလက်ကျန်ငွေနဲ့သာ လည်ပတ်ပါတယ်။", "lang": "ဘာသာစကား", "consent": "ပို့ရန် နှိပ်လျှင် Telegram ပွင့်မည်၊ သင်ကိုယ်တိုင် အကူအညီ (@{tg}) ထံ ပို့ပါမည်။ GPS မယူပါ။"}, "ms": {"demo": "Demo sahaja", "support": "Sokongan", "start": "▶ MULA", "pause": "❚❚ JEDA", "read": "📖 LAPORAN", "reset": "↺ SET SEMULA", "stopped": "● BERHENTI", "running": "● BERJALAN", "settings": "Tetapan", "cancel": "BATAL", "save": "SIMPAN", "close": "TUTUP", "noTrades": "Belum ada dagangan", "supReg": "📝 Daftar", "regTitle": "Pendaftaran", "regSub": "Isi butiran untuk sokongan dan kemas kini", "fName": "Nama penuh", "fMobile": "Nombor telefon", "fCity": "Bandar / Negeri", "regSend": "✈️ Hantar melalui Telegram", "regSkip": "Nanti", "eName": "Masukkan nama", "faq4q": "Adakah ia guna wang sebenar?", "faq4a": "Tidak. Ia hanya guna baki demo.", "lang": "Bahasa", "consent": "Tekan Hantar untuk buka Telegram; anda sendiri hantar butiran kepada Sokongan (@{tg}). GPS tidak diambil."}, "si": {"demo": "ඩෙමෝ පමණයි", "support": "සහාය", "start": "▶ අරඹන්න", "pause": "❚❚ නවත්වන්න", "read": "📖 වාර්තාව", "reset": "↺ යළි සකසන්න", "stopped": "● නැවතුණා", "running": "● ක්‍රියාත්මකයි", "settings": "සැකසුම්", "cancel": "අවලංගු", "save": "සුරකින්න", "close": "වසන්න", "noTrades": "තවම වෙළඳාමක් නැත", "supReg": "📝 ලියාපදිංචි වන්න", "regTitle": "ලියාපදිංචිය", "regSub": "සහාය සහ යාවත්කාලීන සඳහා විස්තර පුරවන්න", "fName": "සම්පූර්ණ නම", "fMobile": "ජංගම අංකය", "fCity": "නගරය / පළාත", "regSend": "✈️ Telegram හරහා යවන්න", "regSkip": "පසුව", "eName": "නම ඇතුළත් කරන්න", "faq4q": "මෙය සැබෑ මුදලින් ක්‍රියා කරනවාද?", "faq4a": "නැත. මෙය ඩෙමෝ ශේෂයෙන් පමණක් ක්‍රියා කරයි.", "lang": "භාෂාව", "consent": "යවන්න එබූ විට Telegram විවෘත වේ; ඔබම සහාය (@{tg}) වෙත විස්තර යවයි. GPS ලබා නොගනී."}, "ru": {"demo": "Только демо", "support": "Поддержка", "start": "▶ СТАРТ", "pause": "❚❚ ПАУЗА", "read": "📖 ОТЧЁТ", "reset": "↺ СБРОС", "stopped": "● ОСТАНОВЛЕН", "running": "● РАБОТАЕТ", "settings": "Настройки", "cancel": "ОТМЕНА", "save": "СОХРАНИТЬ", "close": "ЗАКРЫТЬ", "noTrades": "Сделок пока нет", "supReg": "📝 Регистрация", "regTitle": "Регистрация", "regSub": "Заполните данные для поддержки и обновлений", "fName": "Полное имя", "fMobile": "Номер телефона", "fCity": "Город / Регион", "regSend": "✈️ Отправить в Telegram", "regSkip": "Позже", "eName": "Введите имя", "faq4q": "Играет ли это на реальные деньги?", "faq4a": "Нет. Работает только на демо-балансе.", "lang": "Язык", "consent": "Кнопка «Отправить» откроет Telegram; вы сами отправите данные в поддержку (@{tg}). GPS не собирается."}, "tr": {"demo": "Sadece demo", "support": "Destek", "start": "▶ BAŞLAT", "pause": "❚❚ DURAKLAT", "read": "📖 RAPOR", "reset": "↺ SIFIRLA", "stopped": "● DURDU", "running": "● ÇALIŞIYOR", "settings": "Ayarlar", "cancel": "İPTAL", "save": "KAYDET", "close": "KAPAT", "noTrades": "Henüz işlem yok", "supReg": "📝 Kayıt ol", "regTitle": "Kayıt", "regSub": "Destek ve güncellemeler için bilgilerinizi girin", "fName": "Ad soyad", "fMobile": "Telefon numarası", "fCity": "Şehir / İl", "regSend": "✈️ Telegram ile gönder", "regSkip": "Sonra", "eName": "Adınızı girin", "faq4q": "Gerçek parayla mı çalışıyor?", "faq4a": "Hayır. Yalnızca demo bakiyesiyle çalışır.", "lang": "Dil", "consent": "Gönder'e basınca Telegram açılır; bilgileri Desteğe (@{tg}) kendiniz gönderirsiniz. GPS alınmaz."}, "zh": {"demo": "仅演示", "support": "客服", "start": "▶ 开始", "pause": "❚❚ 暂停", "read": "📖 报告", "reset": "↺ 重置", "stopped": "● 已停止", "running": "● 运行中", "settings": "设置", "cancel": "取消", "save": "保存", "close": "关闭", "noTrades": "暂无交易", "supReg": "📝 注册", "regTitle": "注册", "regSub": "填写信息以获得客服支持和更新", "fName": "姓名", "fMobile": "手机号", "fCity": "城市 / 省份", "regSend": "✈️ 通过 Telegram 发送", "regSkip": "稍后", "eName": "请输入姓名", "faq4q": "这会使用真钱吗？", "faq4a": "不会。仅使用演示余额。", "lang": "语言", "consent": "点击发送会打开 Telegram，由你自己把信息发给客服 (@{tg})。不会收集 GPS 定位。"}, "fr": {"demo": "Démo uniquement", "support": "Assistance", "start": "▶ DÉMARRER", "pause": "❚❚ PAUSE", "read": "📖 RAPPORT", "reset": "↺ RÉINITIALISER", "stopped": "● ARRÊTÉ", "running": "● EN COURS", "settings": "Paramètres", "cancel": "ANNULER", "save": "ENREGISTRER", "close": "FERMER", "noTrades": "Aucune opération pour l'instant", "supReg": "📝 S'inscrire", "regTitle": "Inscription", "regSub": "Remplissez vos informations pour l'assistance et les mises à jour", "fName": "Nom complet", "fMobile": "Numéro de mobile", "fCity": "Ville / Région", "regSend": "✈️ Envoyer sur Telegram", "regSkip": "Plus tard", "eName": "Saisissez votre nom", "faq4q": "Est-ce que ça joue avec de l'argent réel ?", "faq4a": "Non. Il fonctionne uniquement avec un solde de démo.", "lang": "Langue", "consent": "Appuyer sur Envoyer ouvre Telegram ; vous envoyez vous-même vos informations à l'assistance (@{tg}). Aucune donnée GPS n'est collectée."}};
+Object.assign(I18N.hi,{settings:'⚙ सेटिंग',save:'सेव करें',cancel:'रद्द करें',close:'बंद करें',totalFund:'कुल फ़ंड',tradeLog:'दाँव का हिसाब',
+ timeRem:'बचा समय',thPeriod:'पीरियड',thNumber:'नंबर',thBS:'बड़ा-छोटा',thColor:'रंग',running:'● चल रहा है',stopped:'● रुका हुआ',
+ tBal:'बैलेंस',tTgt:'लक्ष्य',tPro:'नफ़ा',tTrd:'दाँव',tStk:'दाँव राशि',tSig:'सिग्नल',tStr:'रणनीति',tRes:'नतीजा',tWL:'जीत-हार',tCL:'लगातार हार',tStg:'चार्ट',tCW:'लगातार जीत',
+ sUidL:'UID (किस आईडी से चल रहा है)',sUidP:'अपनी UID डालें',secGame:'गेम',secTgt:'लक्ष्य',secLim:'सीमाएँ',lMode:'मोड',lSignal:'सिग्नल',lStaking:'स्टेकिंग चार्ट',lBase:'पहला दाँव ₹',lSpeed:'स्पीड',lApp:'ऐप',
+ lWallet:'वॉलेट बैलेंस ₹',lTgt:'लक्ष्य बैलेंस ₹',lTrades:'कुल दाँव (इतने पर रुके)',lMaxL:'लगातार हार (इतने पर रुके)',lSnd:'आवाज़ / कंपन',oOn:'चालू',oOff:'बंद',
+ pastSess:'पिछले सेशन',nowCopy:'📋 अभी की रिपोर्ट',histCopy:'📋 आखिरी सेशन',noSess:'अभी कोई सेशन सेव नहीं',
+ hNeed:'{n} लगातार हार तक के लिए चाहिए:',hBal:'वॉलेट',hLow:'बैलेंस कम है — बोर्ड {n} हार से पहले ही रुक जाएगा। वॉलेट बैलेंस बढ़ाएँ या पहला दाँव / हार की गिनती घटाएँ।',hTgt:'🎯 लक्ष्य {t} (मुनाफ़ा {p}) पूरा होते ही भी बोर्ड रुकेगा।',
+ lvL:'लेवल',lvNext:'अगला',lvLoss:'हार',rsT:'पक्का RESET करें?',rsS:'चल रहा सेशन और उसका हिसाब मिट जाएगा।',rsY:'हाँ, RESET',rsN:'नहीं'});
+Object.assign(I18N.en,{tBal:'Balance',tTgt:'Target',tPro:'Profit',tTrd:'Trade',tStk:'Stake',tSig:'Signal',tStr:'Strategy',tRes:'Result',tWL:'W / L',tCL:'Cons. Loss',tStg:'Staking',tCW:'Cons. Win',
+ sUidL:'UID (which ID is playing)',sUidP:'Enter your UID',secGame:'GAME',secTgt:'TARGETS',secLim:'LIMITS',lMode:'Mode',lSignal:'Signal',lStaking:'Staking',lBase:'Base Bet ₹',lSpeed:'Speed',lApp:'App',
+ lWallet:'Wallet Balance ₹',lTgt:'Target Bal ₹',lTrades:'Trades (stop at)',lMaxL:'Stop Loss (losses in a row)',lSnd:'Sound / Vibrate',oOn:'On',oOff:'Off',
+ pastSess:'PAST SESSIONS',nowCopy:'📋 Current report',histCopy:'📋 Last session',noSess:'No saved sessions yet',
+ hNeed:'Needed for {n} losses in a row:',hBal:'Wallet',hLow:'Balance is low — the board will stop before {n} losses. Raise the wallet balance or lower the base bet / loss count.',hTgt:'🎯 The board also stops when the target {t} (profit {p}) is reached.',
+ lvL:'Level',lvNext:'next',lvLoss:'losses',rsT:'Reset for sure?',rsS:'The running session and its record will be cleared.',rsY:'Yes, RESET',rsN:'No'});
+const LNAMES={"hi": "हिंदी", "en": "English", "bn": "বাংলা", "ur": "اردو", "ta": "தமிழ்", "te": "తెలుగు", "mr": "मराठी", "gu": "ગુજરાતી", "es": "Español", "pt": "Português", "ar": "العربية", "id": "Bahasa Indonesia", "as": "অসমীয়া", "brx": "बड़ो", "doi": "डोगरी", "kn": "ಕನ್ನಡ", "ks": "کٲشُر", "kok": "कोंकणी", "mai": "मैथिली", "ml": "മലയാളം", "mni": "মৈতৈলোন্", "ne": "नेपाली", "or": "ଓଡ଼ିଆ", "pa": "ਪੰਜਾਬੀ", "sa": "संस्कृतम्", "sat": "ᱥᱟᱱᱛᱟᱲᱤ", "sd": "سنڌي", "fil": "Filipino", "vi": "Tiếng Việt", "th": "ไทย", "my": "မြန်မာ", "ms": "Bahasa Melayu", "si": "සිංහල", "ru": "Русский", "tr": "Türkçe", "zh": "中文", "fr": "Français"};
+const LGROUPS=[["भाषा / Language", ["hi", "en"]]];
+const LFB={"as": "hi", "brx": "hi", "doi": "hi", "kn": "hi", "ks": "ur", "kok": "hi", "mai": "hi", "ml": "hi", "mni": "hi", "ne": "hi", "or": "hi", "pa": "hi", "sa": "hi", "sat": "hi", "sd": "ur"};
+let LANG='';
+try{ LANG=localStorage.getItem('dip_lang')||''; }catch(e){}
+if(!I18N[LANG]){ let n=(navigator.language||'hi').split('-')[0].toLowerCase(); if(n==='tl') n='fil'; LANG=I18N[n]?n:'hi'; }
+if(LANG!=='hi'&&LANG!=='en') LANG='hi';
+const L=k=>(I18N[LANG]&&I18N[LANG][k])||(LFB[LANG]&&I18N[LFB[LANG]][k])||I18N.en[k]||k;
+function applyLang(){
+  document.documentElement.lang=LANG;
+  document.querySelectorAll('[data-i]').forEach(el=>{ el.textContent=L(el.dataset.i); });
+  document.querySelectorAll('[data-ip]').forEach(el=>{ el.placeholder=L(el.dataset.ip); });
+  if(typeof G!=='undefined'&&!G.history.length) document.getElementById('lastTxt').textContent=L('firstRound');
+  const c=document.getElementById('consentTxt'); if(c) c.textContent='ℹ️ '+L('consent').replace('{tg}',SUPPORT.telegram);
+  const rtl=['ar','ur','ks','sd'].includes(LANG);
+  ['reg','supModal','readModal'].forEach(id=>{const e=document.getElementById(id); if(e) e.dir=rtl?'rtl':'ltr';});
+  ['langSel','langSel2'].forEach(id=>{const e=document.getElementById(id); if(e) e.value=LANG;});
+  if(typeof B!=='undefined'&&B) render();
+  try{ slHint(); }catch(e){}
+  try{ apLabel(); }catch(e){}
+}
+function setLang(l){ LANG=l; try{localStorage.setItem('dip_lang',l);}catch(e){} applyLang(); tagUpd(); }
+function tagUpd(){ const d=$('sysTag'); if(!d) return; let on=false; try{ on=!!(B&&B.running); }catch(e){} d.classList.toggle('run',on); d.textContent=LANG==='en'?(on?'ON':'OFF'):(on?'चालू':'बंद'); }
+['langSel','langSel2'].forEach(id=>{ const e=document.getElementById(id);
+  e.innerHTML=LGROUPS.map(([g,ls])=>`<optgroup label="${g}">`+ls.map(k=>`<option value="${k}">🌐 ${LNAMES[k]}</option>`).join('')+'</optgroup>').join('');
+  e.onchange=()=>setLang(e.value); });
+
+const LV=[1,3,6,18,36,108,216,648,1296,3888];   // Level Chart
+const X3=[1,3,9,27,81,243,729,2187,6561,19683,59049,177147,531441,1594323,4782969];   // ×3 वाला चार्ट
+const PH=[1,2,5,12,25,55,120,250,1150,2450,5100,5100,10300,22700,49600];   // फोटो वाला चार्ट (फोटो जैसा ही)
+const CH={level:LV,x3:X3,photo:PH};
+const inr=n=>'₹'+Number(n).toLocaleString('en-IN',{maximumFractionDigits:2});
+
+/* ---------- Settings ---------- */
+let S={mode:30,signal:'bot',staking:'level',base:1,speed:10,start:6220,target:6320,payout:96,trades:100,maxL:10,maxLv:99,sl:0,brk:0,snd:'on',mul:0};
+function readSettings(){
+  S={mode:+$('sMode').value,signal:$('sSignal').value,staking:$('sStaking').value,base:+$('sBase').value,
+     speed:+$('sSpeed').value,start:+$('sStart').value||0,target:+$('sTarget').value||0,
+     payout:+$('sPayout').value||0,trades:Math.max(1,+$('sTrades').value||1),maxL:Math.max(1,+$('sMaxL').value||1),maxLv:99,sl:Math.max(0,+$('sSL').value||0),brk:0,snd:$('sSnd').value,mul:0};
+}
+function fillSettings(){
+  $('sMode').value=S.mode;$('sSignal').value=S.signal;$('sStaking').value=S.staking;$('sBase').value=S.base;
+  $('sSpeed').value=S.speed;$('sStart').value=S.start;$('sTarget').value=S.target;$('sPayout').value=S.payout;
+  $('sTrades').value=S.trades;$('sMaxL').value=S.maxL;$('sSix').value=S.maxLv||6;$('sSL').value=S.sl||0;$('sBrk').value=S.brk||0;$('sSnd').value=S.snd||'on';$('sMul').value=S.mul||0;mulOpts();bbLabel();$('sExp').value=Math.round(S.trades*0.5);
+}
+$('sTrades').oninput=$('sTrades').onchange=()=>$('sExp').value=Math.round((+$('sTrades').value||0)*0.5);
+
+/* ---------- Base Bet लिस्ट: नंबर + हरे चार्ट ---------- */
+const BB_CH=[['x3',X3.slice(0,6).join(' · ')+' …']];
+function lvFor(m,base,bal){ let n=0,s=0,st=base; while(s+st<=bal&&n<60){ s+=st; n++; st*=m; } return Math.max(1,n); }
+function mulCap(){ return lvFor(S.mul||3,S.base,S.start); }
+function mulOpts(){ const base=+$('sBase').value||1, bal=+$('sStart').value||0;
+  [...$('sMul').options].forEach(o=>{ const m=+o.value; o.textContent=m?('×'+m+' · '+lvFor(m,base,bal)+' लेवल'):'बंद'; }); }
+$('sMul').addEventListener('change',()=>{ const m=+$('sMul').value; if(m) $('sStaking').value='mul'; else if($('sStaking').value==='mul') $('sStaking').value='level'; bbLabel(); });
+['sStart'].forEach(id=>$(id).addEventListener('input',mulOpts));
+/* बैलेंस से अधिकतम कितने लगातार लेवल चल सकते हैं */
+function maxLevels(st,base,bal){ const A=CH[st]; let s=0,n=0;
+  while(n<60){ const x=base*(A?A[n%A.length]:st==='tf1'?Math.pow(2,n):1); if(s+x>bal) break; s+=x; n++; if(!A&&st!=='tf1'&&n>=60) break; }
+  return n; }
+function slHint(){ const h=$('slHint'); if(!h) return; const n=Math.max(1,+$('sMaxL').value||1), st=$('sStaking').value, base=+$('sBase').value||1, A=CH[st], bal=+$('sStart').value||0, tg=+$('sTarget').value||0;
+  const mm=+$('sMul').value||3;
+  let need=0; for(let i=0;i<n;i++){ need+=base*(A?A[i%A.length]:st==='tf1'?Math.pow(2,i):st==='mul'?Math.pow(mm,i%lvFor(mm,base,bal)):1); }
+  if(st==='mul'){ const L2=lvFor(mm,base,bal); let s=0; for(let i=0,x=base;i<L2;i++,x*=mm) s+=x;
+    h.style.border='1px solid var(--gold2)';
+    h.innerHTML='💰 Wallet '+inr(bal)+' · Base '+inr(base)+' · <b style="color:var(--gold)">×'+mm+' → '+L2+' लेवल</b> (कुल '+inr(s)+')<br>'+L2+' लेवल लगातार हारने पर बोर्ड रुक जाएगा।'+(n<=L2?'':'<br>(Stop Loss '+n+' से पहले, '+L2+' लेवल पर ही रुकेगा)'); return; }
+  const mx=maxLevels(st,base,bal), en=LANG==='en';
+  const top='<div style="font-size:14px;margin-bottom:4px">📊 '+(en?'Max levels with this balance: ':'इस बैलेंस से अधिकतम: ')+'<b style="color:'+(mx>=n?'#2ecc71':'#ff6b6b')+';font-size:16px">'+mx+(en?' levels':' लेवल')+'</b></div>';
+  const ok=need<=bal;
+  h.style.border='1px solid '+(ok?'var(--gold2)':'#d98080');
+  h.innerHTML=top+(ok?'✅':'⚠️')+' '+L('hNeed').replace('{n}',n)+' <b style="color:'+(ok?'var(--gold)':'#e39a9a')+'">'+inr(need)+'</b> ('+L('hBal')+' '+inr(bal)+')'+
+    (ok?'':'<br>'+L('hLow').replace('{n}',n))+
+    (tg>bal?'<br>'+L('hTgt').replace('{t}',inr(tg)).replace('{p}',inr(tg-bal)):''); }
+['sMaxL','sStart','sTarget'].forEach(id=>$(id).addEventListener('input',slHint)); $('sStaking').addEventListener('change',slHint);
+function bbLabel(){ mulOpts(); slHint(); const b=$('bbBtn'); if(!b) return; const st=$('sStaking').value, c=BB_CH.find(x=>x[0]===st);
+  b.innerHTML='<span>₹'+$('sBase').value+(c?' · <b style="color:#6fe0a2">'+c[1]+'</b>':'')+'</span>'; }
+function bbOpen(){ const st=$('sStaking').value, bv=$('sBase').value; let h='';
+  ['1','3','5','10','50','100'].forEach(v=>{ h+=`<div class="bbRow${v===bv?' on':''}" data-b="${v}">${v}<span class="rd"></span></div>`; });
+  BB_CH.forEach(([k,n])=>{ h+=`<div class="bbRow g${st===k?' on':''}" data-s="${k}">${n}<span class="rd"></span></div>`; });
+  $('bbList').innerHTML=h; $('bbSheet').classList.add('show'); }
+$('bbBtn').onclick=bbOpen;
+$('bbSheet').onclick=e=>{ const r=e.target.closest('.bbRow');
+  if(r){ if(r.dataset.b) $('sBase').value=r.dataset.b; if(r.dataset.s) $('sStaking').value=r.dataset.s; bbLabel(); }
+  $('bbSheet').classList.remove('show'); };
+$('sStaking').addEventListener('change',bbLabel);
+/* ---------- App चुनें (रंग के साथ) ---------- */
+const APPS=[['Demo 1','linear-gradient(90deg,#e53935,#b71c1c)'],['Demo 2','linear-gradient(90deg,#fb8c00,#e65100)'],['Demo 3','linear-gradient(90deg,#8e24aa,#4a148c)'],['Demo 4','linear-gradient(90deg,#1e88e5,#0d47a1)'],['Demo 5','linear-gradient(90deg,#00897b,#004d40)'],['Demo 6','linear-gradient(90deg,#8d6e63,#4e342e)'],['Demo 7','linear-gradient(90deg,#fdd835,#f57f17)'],['Demo 8','linear-gradient(90deg,#ec407a,#880e4f)'],['Demo 9','linear-gradient(90deg,#43a047,#1b5e20)']];
+function apGet(){ try{return localStorage.getItem('dip_app')||'';}catch(e){return '';} }
+function apLabel(){ const a=APPS.find(x=>x[0]===apGet()); const b=$('apBtn');
+  b.innerHTML=a?`<span style="background:${a[1]};padding:2px 10px;border-radius:6px;font-weight:bold;text-shadow:0 1px 2px #000a">${a[0]}</span>`:'<span style="color:#9fb0bf">'+(LANG==='en'?'Select':'चुनें')+'</span>';
+  const s=$('vUidLbl'); if(s){ const nh=a?'UID · <span style="background:'+a[1]+';color:#fff;padding:1px 6px;border-radius:5px;font-weight:bold;text-shadow:0 1px 2px #000a">'+a[0]+'</span>':'UID';
+    if(s.innerHTML!==nh){ s.innerHTML=nh; const tile=s.parentNode; tile.classList.remove('flip'); void tile.offsetWidth; tile.classList.add('flip'); } } }
+$('apBtn').onclick=()=>{ const cur=apGet();
+  $('apList').innerHTML=APPS.map(([n,c])=>`<div class="bbRow apRow${n===cur?' on':''}" data-a="${n}" style="background:${c}">${n}<span class="rd"></span></div>`).join('');
+  $('apSheet').classList.add('show'); };
+$('apSheet').onclick=e=>{ const r=e.target.closest('.apRow'); if(r){ try{localStorage.setItem('dip_app',r.dataset.a);}catch(x){} apLabel(); } $('apSheet').classList.remove('show'); };
+/* ---------- UID ---------- */
+function uidGet(){ try{return localStorage.getItem('dip_uid')||'';}catch(e){return '';} }
+function uidShow(){ const u=uidGet(); $('vUid').textContent=u||'---'; $('sUid').value=u; }
+$('sUid').oninput=()=>{ const u=$('sUid').value.trim(); try{localStorage.setItem('dip_uid',u);}catch(e){} $('vUid').textContent=u||'---'; };
+uidShow(); apLabel();
+bbLabel();
+
+/* ---------- Bot state ---------- */
+let B;
+function resetBot(){ try{ wakeOff(); }catch(e){}
+  B={pts:[S.start],running:false,bal:S.start,trade:0,w:0,l:0,cl:0,cw:0,lvl:0,stake:S.base,signal:'---',result:'---',bet:null,log:[]};
+  render();
+}
+
+/* ---------- Game (demo random) ---------- */
+let G={period:51700,left:S.mode,history:[]};
+function colorOf(n){ if(n===0)return['red','violet']; if(n===5)return['green','violet']; return n%2?['green']:['red']; }
+const COL={red:'var(--red)',green:'var(--green)',violet:'var(--violet)'};
+
+function getSignal(){
+  const last=G.history[0];
+  if(S.signal==='big') return 'BIG';
+  if(S.signal==='trend'&&last) return last.n>=5?'BIG':'SMALL';
+  if(S.signal==='opp'&&last) return last.n>=5?'SMALL':'BIG';
+  // ADD-3: यहाँ अपना Signal नियम लिखें, जैसे:
+  // if(S.signal==='mine') return ... 'BIG' या 'SMALL';
+  return Math.random()<.5?'BIG':'SMALL';   // Master Bot = रैंडम (कोई भी ऐप असली रिज़ल्ट नहीं जान सकता)
+}
+
+function nextStake(won){
+  if(won){ B.lvl=0; return S.base; }
+  // Max Level: इतने लेवल के बाद स्टेक वापस Base Bet पर
+  const ML=S.maxLv||6;
+  if(CH[S.staking]){ const A=CH[S.staking]; B.lvl=(B.lvl+1)%Math.min(A.length,ML); return S.base*A[B.lvl]; }
+  if(S.staking==='mul'){ const cap=mulCap(); if(B.lvl+1>=cap){ B.allDone=cap; B.lvl=0; return S.base; } B.lvl++; return S.base*Math.pow(S.mul||3,B.lvl); }
+  if(S.staking==='tf1'){ B.lvl=(B.lvl+1)%ML; return B.lvl?B.stake*2:S.base; }
+  // ADD-4: यहाँ अपना Staking नियम लिखें
+  return S.base;
+}
+
+function placeBet(){
+  if(!B.running) return;
+  if(B.trade>=S.trades) return stopBot(RS('trades'));
+  if(S.brk>0&&B.t0&&Date.now()-B.t0>=S.brk*60000) return stopBot(RS('brk',S.brk));
+  if(B.bal>=S.target) return stopBot(RS('target'));
+  if(B.bal<S.base) return stopBot(RS('bal'));
+  if(B.stake>B.bal) return stopBot(RS('low',inr(B.stake),inr(B.bal),B.cl));
+  let amt=B.stake;
+  B.signal=getSignal(); B.bet={side:B.signal,amt}; B.bal-=amt;
+  render();
+}
+
+function settle(n){
+  if(!B.bet) return;
+  const side=n>=5?'BIG':'SMALL', won=side===B.bet.side, amt=B.bet.amt;
+  B.trade++;
+  if(won){ B.bal+=amt+amt*S.payout/100; B.w++; B.cw++; B.cl=0; B.result='WIN'; }
+  else { B.l++; B.cl++; B.cw=0; B.result='LOSS'; }
+  B.bal=Math.round(B.bal*100)/100;
+  B.log.unshift(`#${B.trade} ${B.bet.side} ₹${amt} → ${n} ${side} <span class="${won?'win':'loss'}">${B.result}</span> · ${inr(B.bal)}`);
+  t24Add(won, won?amt*S.payout/100:-amt);
+  B.pts.push(B.bal); if(B.pts.length>60) B.pts.shift();
+  B.stake=nextStake(won);
+  B.maxCL=Math.max(B.maxCL||0,B.cl); B.maxStake=Math.max(B.maxStake||0,amt);
+  B.bet=null;
+  fx(won?'win':'loss');
+  if(B.allDone){ const k=B.allDone; B.allDone=0; B.cl=0; stopBot(RS('all',S.mul||3,k)); return; }
+  if(B.cl>=S.maxL){ const k=B.cl; B.cl=0; B.lvl=0; B.stake=S.base; stopBot(RS('maxl',k)); return; }
+  if(S.sl>0&&S.start-B.bal>=S.sl){ B.cl=0; B.lvl=0; B.stake=S.base; stopBot(RS('sl',S.sl)); return; }
+  if(B.bal>=S.target) stopBot(RS('target'));
+  render();
+}
+
+function newRound(){
+  const n=Math.floor(Math.random()*10);
+  const rec={p:'20261018100'+G.period,n};
+  settle(n);
+  G.history.unshift(rec); if(G.history.length>30) G.history.pop();
+  G.period++; G.left=S.mode;
+  drawGame(); placeBet();
+}
+
+/* ---------- Render ---------- */
+function drawGame(){
+  $('periodTxt').textContent='20261018100'+G.period;
+  const m=Math.floor(G.left/60),s=G.left%60;
+  $('clock').innerHTML=[...String(m).padStart(2,'0')+String(s).padStart(2,'0')].map(c=>`<span>${c}</span>`).join('');
+  const last=G.history[0];
+  if(last){ $('lastNum').textContent=last.n; $('lastTxt').textContent=(last.n>=5?'Big':'Small')+' · '+colorOf(last.n).join('+'); }
+  $('balls').innerHTML=[...Array(10).keys()].map(i=>{const c=colorOf(i);
+    const bg=c.length>1?`linear-gradient(135deg,${COL[c[0]]} 50%,${COL[c[1]]} 50%)`:COL[c[0]];
+    return `<div class="ball" style="background:${bg}">${i}</div>`}).join('');
+  $('hist').innerHTML=G.history.slice(0,10).map(r=>`<tr><td>${r.p}</td><td style="color:${COL[colorOf(r.n)[0]]};font-size:18px;font-weight:bold">${r.n}</td><td>${r.n>=5?'Big':'Small'}</td><td>${colorOf(r.n).map(c=>`<span class="dot" style="background:${COL[c]}"></span>`).join('')}</td></tr>`).join('');
+  $('modes').innerHTML=[['30','DIP 30s'],['60','DIP 1Min'],['180','DIP 3Min'],['300','DIP 5Min']]
+    .map(([v,t])=>`<div class="${+v===S.mode?'on':''}">${t}</div>`).join('');
+}
+/* DIP Master AI: पिछले 60 दाँव का बैलेंस ग्राफ़ — हरी लाइन = शुरुआती बैलेंस से ऊपर, लाल = नीचे */
+function pgDraw(){ const sv=$('pgSvg'); if(!sv||!B) return; const P=B.pts&&B.pts.length?B.pts:[S.start];
+  const lo=Math.min(S.start,...P), hi=Math.max(S.start,...P), r=(hi-lo)||1, W=300, H=54;
+  const x=i=>P.length<2?W:i*W/(P.length-1), y=v=>H-3-(v-lo)/r*(H-6);
+  const d=P.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)).join(' ');
+  const last=P[P.length-1], col=last>=S.start?'#2ecc71':'#ff6b6b', yb=y(S.start).toFixed(1);
+  sv.innerHTML=`<line x1="0" y1="${yb}" x2="${W}" y2="${yb}" stroke="#4a5a6a" stroke-dasharray="4 4" stroke-width="1"/>`+
+    (P.length>1?`<path d="${d}" fill="none" stroke="${col}" stroke-width="2" vector-effect="non-scaling-stroke"/>`:'');
+  const en=LANG==='en'; $('pgLbl').textContent=en?'📈 Balance graph (demo)':'📈 बैलेंस ग्राफ़ (डेमो)';
+  const ch=last-S.start; $('pgVal').textContent=(ch>=0?'+':'')+inr(ch)+' · '+(P.length-1)+(en?' bets':' दाँव'); $('pgVal').style.color=col; }
+function render(){
+  $('vBal').textContent=inr(B.bal); $('vTarget').textContent=inr(S.target);
+  const p=B.bal+(B.bet?B.bet.amt:0)-S.start;
+  $('vProfit').textContent=(p>=0?'+':'')+inr(p); $('vProfit').style.color=p>=0?'#8fd1ae':'#e39a9a';
+  $('vTrade').textContent=B.trade; $('vStake').textContent=inr(B.bet?B.bet.amt:B.stake);
+  $('vSignal').textContent=B.signal; $('vStrat').textContent=$('sSignal').selectedOptions[0].text.split(' ')[0];
+  $('vResult').textContent=B.result; $('vResult').style.color=B.result==='WIN'?'#8fd1ae':B.result==='LOSS'?'#e39a9a':'#fff';
+  $('vWL').textContent=B.w+' / '+B.l; $('vCL').textContent=B.cl; $('vCW').textContent=B.cw;
+  $('vStaking').textContent=$('sStaking').selectedOptions[0].text.split(' (')[0];
+  { const mx=maxLevels(S.staking,S.base,S.start), en=LANG==='en'; $('vMaxL').textContent=en?'Max Level':'अधिकतम लेवल';
+    $('vMax').textContent=mx+' / '+S.maxL; $('vMax').style.color=mx>=S.maxL?'#2ecc71':'#ff6b6b'; }
+  // ADD-2: नए टाइल का value यहाँ सेट करें, जैसे: $('vLevel').textContent=B.lvl+1;
+  $('pill').className='pill '+(B.running?'run':'stop');
+  if(S.staking==='mul') $('vStaking').textContent='×'+(S.mul||3)+' · '+mulCap()+'L';
+  { const A=CH[S.staking]||(S.staking==='mul'?{length:mulCap()}:null), n=B.lvl+1;
+    $('lvTxt').textContent=(A?L('lvL')+' '+n+' / '+A.length:L('lvL')+' '+n)+' · '+L('lvNext')+' '+inr(B.bet?B.bet.amt:B.stake)+' · '+L('lvLoss')+' '+B.cl+'/'+S.maxL;
+    $('lvFill').style.width=(A?n/A.length*100:Math.min(100,B.cl/S.maxL*100))+'%'; $('lvFill').classList.toggle('hot',B.cl>=S.maxL-1); }
+  pgDraw();
+  tagUpd();
+  $('pillTxt').textContent=B.running?L('running'):L('stopped');
+  const sb=$('startBtn'); sb.className='pbtn '+(B.running?'pauseB':'startB'); sb.textContent=B.running?L('pause'):L('start');
+}
+/* ---------- स्क्रीन जगी रहे (Wake Lock): बॉट चलते समय स्क्रीन बंद नहीं होगी, रुकते ही छूट जाएगी ---------- */
+let WL=null;
+async function wakeOn(){ try{ if('wakeLock' in navigator && !WL){ WL=await navigator.wakeLock.request('screen'); WL.addEventListener('release',()=>{ WL=null; }); } }catch(e){ WL=null; } }
+function wakeOff(){ try{ if(WL){ WL.release(); WL=null; } }catch(e){ WL=null; } }
+document.addEventListener('visibilitychange',()=>{ try{ if(!document.hidden && B && B.running) wakeOn(); }catch(e){} });
+function stopBot(msg){ wakeOff(); B.running=false; if(B.bet){B.bal+=B.bet.amt;B.bet=null;} if(msg)B.result=msg; render();
+  if(msg){ fx(msg===L('rTarget')?'target':'stop');
+    if(B.trade>0){ const t=repText(msg); histSave(t); repShow(t); }
+    B.t0=0; } }
+/* ---------- आवाज़ + वाइब्रेशन ---------- */
+let ACX=null;
+function fx(k){ if(S.snd==='off') return;
+  try{ ACX=ACX||new (window.AudioContext||window.webkitAudioContext)();
+    const seq={win:[[880,.08],[1320,.12]],loss:[[300,.15]],stop:[[660,.12],[440,.12],[330,.25]],target:[[660,.1],[880,.1],[1100,.25]]}[k]||[];
+    let tt=ACX.currentTime; seq.forEach(([f,d])=>{ const o=ACX.createOscillator(),g=ACX.createGain(); o.type='sine'; o.frequency.value=f;
+      g.gain.setValueAtTime(.15,tt); g.gain.exponentialRampToValueAtTime(.001,tt+d); o.connect(g); g.connect(ACX.destination); o.start(tt); o.stop(tt+d); tt+=d; });
+  }catch(e){}
+  try{ if(navigator.vibrate) navigator.vibrate({win:80,loss:[60,40,60],stop:[200,80,200],target:[100,50,100,50,300]}[k]||0); }catch(e){} }
+/* ---------- रिपोर्ट कार्ड + हिस्ट्री ---------- */
+const RT={hi:{title:'📊 DIP मास्टर रिपोर्ट',app:'ऐप',uid:'यूआईडी',why:'कारण',running:'चल रहा है',trades:'कुल दाँव',w:'जीत',l:'हार',wr:'जीत दर',maxl:'सबसे ज़्यादा लगातार हार',maxs:'सबसे बड़ा दाँव',profit:'नफ़ा',loss:'नुकसान',bal:'बैलेंस',time:'समय',min:'मिनट',winBan:'🏆 जीत',lossBan:'📉 हार',copy:'📋 कॉपी',close:'बंद करें',copied:'✅ कॉपी हो गया'},
+ en:{title:'📊 DIP Master AI Report',app:'App',uid:'UID',why:'Reason',running:'Running',trades:'Total trades',w:'Wins',l:'Losses',wr:'Win rate',maxl:'Longest losing streak',maxs:'Biggest bet',profit:'Profit',loss:'Loss',bal:'Balance',time:'Time',min:'min',winBan:'🏆 WIN',lossBan:'📉 LOSS',copy:'📋 Copy',close:'CLOSE',copied:'✅ Copied'}};
+const RSM={hi:{trades:()=>'सारे दाँव पूरे',brk:m=>'⏰ '+m+' मिनट पूरे — आराम करें',target:()=>'🎯 लक्ष्य पूरा',bal:()=>'💀 बैलेंस खत्म',low:(s,b,c)=>'💀 बैलेंस कम: अगला दाँव '+s+', बैलेंस सिर्फ '+b+' ('+c+' हार के बाद)',all:(m,k)=>'🛑 ×'+m+' के सारे '+k+' लेवल पूरे — रुका',maxl:k=>'🛑 '+k+' लगातार हार पर रुका',sl:s=>'🛑 नुकसान सीमा ₹'+s+' पूरी'},
+ en:{trades:()=>'All trades done',brk:m=>'⏰ '+m+' minutes done — take a break',target:()=>'🎯 Target reached',bal:()=>'💀 Balance over',low:(s,b,c)=>'💀 Low balance: next bet '+s+', balance only '+b+' (after '+c+' losses)',all:(m,k)=>'🛑 All '+k+' levels of ×'+m+' done — stopped',maxl:k=>'🛑 Stopped after '+k+' losses in a row',sl:s=>'🛑 Stop loss ₹'+s+' reached'}};
+const RL=()=>RT[LANG]?LANG:'hi';
+function RS(k,...a){ return RSM[RL()][k](...a); }
+function repText(msg){ const T=RT[RL()], p=B.bal-S.start, wr=B.trade?Math.round(B.w*100/B.trade):0, u=uidGet(), a=apGet(), mins=B.t0?Math.round((Date.now()-B.t0)/60000):0;
+  const pl=p>=0?(T.profit+': +'+inr(p)):(T.loss+': -'+inr(-p));
+  return T.title+'\n'+(a?T.app+': '+a+'\n':'')+(u?T.uid+': '+u+'\n':'')+T.why+': '+(msg||T.running)+'\n'+T.trades+': '+B.trade+
+    '\n'+T.w+': '+B.w+'\n'+T.l+': '+B.l+'\n'+T.wr+': '+wr+'%\n'+T.maxl+': '+(B.maxCL||0)+'\n'+T.maxs+': '+inr(B.maxStake||0)+
+    '\n'+pl+'\n'+T.bal+': '+inr(B.bal)+'\n'+T.time+': '+mins+' '+T.min+'\n'+new Date().toLocaleString('en-IN'); }
+function repShow(t){ const T=RT[RL()], p=B.bal-S.start, win=p>=0, m=$('repModal');
+  m.classList.remove('rWin','rLoss'); m.classList.add(win?'rWin':'rLoss');
+  $('repBan').innerHTML='<div class="big">'+(win?T.winBan:T.lossBan)+'</div><div class="amt">'+(win?'+'+inr(p):'-'+inr(-p))+'</div><div style="font-size:14px;margin-top:2px">'+(win?T.profit:T.loss)+'</div>';
+  $('repTxt').textContent=t; $('repCopy').textContent=T.copy; $('repClose').textContent=T.close; m.classList.add('show'); }
+function histAll(){ try{return JSON.parse(localStorage.getItem('dip_hist')||'[]');}catch(e){return [];} }
+function histSave(t){ const h=histAll(); h.unshift(t); try{localStorage.setItem('dip_hist',JSON.stringify(h.slice(0,20)));}catch(e){} }
+function copyTxt(t,btn){ const old=btn.textContent, done=()=>{btn.textContent=RT[RL()].copied; setTimeout(()=>btn.textContent=old,1500);};
+  const fb=()=>{ const x=document.createElement('textarea'); x.value=t; document.body.appendChild(x); x.select(); try{document.execCommand('copy'); done();}catch(e){} x.remove(); };
+  try{ navigator.clipboard.writeText(t).then(done,fb); }catch(e){ fb(); } }
+
+/* ---------- पिछले 24 घंटे का हिसाब ---------- */
+function t24All(){ let a=[]; try{ a=JSON.parse(localStorage.getItem('dip_t24')||'[]'); }catch(e){} const cut=Date.now()-864e5; return a.filter(x=>x&&x.t>=cut); }
+function t24Add(won,pnl){ const a=t24All(); a.push({t:Date.now(),w:won?1:0,p:Math.round(pnl*100)/100}); try{ localStorage.setItem('dip_t24',JSON.stringify(a.slice(-3000))); }catch(e){} }
+function t24Text(){ const a=t24All(), en=RL()==='en';
+  if(!a.length) return en?'No trades in the last 24 hours':'पिछले 24 घंटे में कोई दाँव नहीं';
+  const w=a.filter(x=>x.w).length, l=a.length-w, net=a.reduce((s,x)=>s+x.p,0);
+  let cl=0,mx=0; a.forEach(x=>{ if(x.w) cl=0; else { cl++; mx=Math.max(mx,cl); } });
+  const from=new Date(a[0].t).toLocaleString('en-IN',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const pl=net>=0?'+'+inr(net):'-'+inr(-net);
+  return en
+    ? '📊 Last 24 hours (since '+from+')\nTotal trades: '+a.length+'\nWins: '+w+'\nLosses: '+l+'\nWin rate: '+Math.round(w*100/a.length)+'%\nNet: '+pl+'\nLongest losing streak: '+mx+'\n(Demo balance only)'
+    : '📊 पिछले 24 घंटे ('+from+' से)\nकुल दाँव: '+a.length+'\nजीत: '+w+'\nहार: '+l+'\nजीत दर: '+Math.round(w*100/a.length)+'%\nकुल: '+pl+'\nसबसे ज़्यादा लगातार हार: '+mx+'\n(सिर्फ़ डेमो बैलेंस)'; }
+
+/* ---------- Timer loop ---------- */
+let tick=null;
+function startLoop(){ clearInterval(tick); tick=setInterval(()=>{ G.left--; if(G.left<=0) newRound(); else drawGame(); },1000/S.speed); }
+
+/* ---------- Buttons ---------- */
+const startFn=()=>{ if(B.running) stopBot(); else { B.running=true; wakeOn(); if(!B.t0) B.t0=Date.now(); B.result='---'; placeBet(); render(); } };
+$('resetBtn').onclick=()=>{ if(B.trade>0||B.running) $('rsModal').classList.add('show'); else resetBot(); };
+$('rsNo').onclick=()=>$('rsModal').classList.remove('show');
+$('rsYes').onclick=()=>{ $('rsModal').classList.remove('show'); resetBot(); };
+$('readBtn').onclick=()=>{
+  let t=0;const AC=CH[S.staking]||LV;$('lvBox').innerHTML=AC.map((m,i)=>{const v=m*S.base;t+=v;return `<div class="${CH[S.staking]&&i===B.lvl?'cur':''}">${i+1}. <b>${inr(v)}</b></div>`}).join('');
+  if(0){ let t3=0,tp=0,rows='';
+  for(let i=0;i<X3.length;i++){ const a=X3[i]*S.base,b=PH[i]*S.base; t3+=a; tp+=b;
+    rows+=`<tr><td class="n">${i+1}</td><td class="${S.staking==='x3'&&i===B.lvl?'cur':''}">${a.toLocaleString('en-IN')}</td><td class="${S.staking==='photo'&&i===B.lvl?'cur':''}">${b.toLocaleString('en-IN')}</td></tr>`; }
+  $('rgBox').innerHTML=`<table class="rg"><tr><th>#</th><th>×3 वाला चार्ट</th><th>फोटो वाला चार्ट</th></tr>${rows}<tr class="tot"><td class="n">Σ</td><td>${t3.toLocaleString('en-IN')}</td><td>${tp.toLocaleString('en-IN')}</td></tr></table><div style="font-size:11px;color:#9fb0bf;text-align:center;margin-top:4px">Base Bet ₹${S.base} के हिसाब से · आखिरी लाइन = सभी लेवल का कुल जोड़</div>`; }
+  $('lvTotal').textContent=inr(t);
+  $('logBox').innerHTML=B.log.length?B.log.map(x=>`<div>${x}</div>`).join(''):L('noTrades');
+  $('d24Box').textContent=t24Text(); $('d24T').textContent=RL()==='en'?'⏰ Last 24 hours':'⏰ पिछले 24 घंटे'; $('d24Copy').textContent=RL()==='en'?'📋 24-hour report':'📋 24 घंटे की रिपोर्ट';
+  { const h=histAll(); $('histBox').innerHTML=h.length?h.map(x=>`<div style="white-space:pre-wrap">${x.replace(/</g,'&lt;')}</div>`).join(''):L('noSess'); }
+  $('readModal').classList.add('show');
+};
+$('rClose').onclick=()=>$('readModal').classList.remove('show');
+$('d24Copy').onclick=e=>copyTxt(t24Text(),e.target);
+$('repClose').onclick=()=>$('repModal').classList.remove('show');
+$('repCopy').onclick=e=>copyTxt($('repTxt').textContent,e.target);
+$('nowCopy').onclick=e=>copyTxt(repText(B.running?'':(RL()==='hi'?'रोका गया':'Stopped')),e.target);
+$('histCopy').onclick=e=>{ const h=histAll(); if(h.length) copyTxt(h[0],e.target); };
+let setTimer=null;
+$('phead').onclick=()=>{ if(dragged) return; clearTimeout(setTimer); if(Date.now()-lastHeadTap<350){ lastHeadTap=0; return; } lastHeadTap=Date.now(); setTimer=setTimeout(()=>{ if(lastHeadTap){ fillSettings(); $('setModal').classList.add('show'); } },360); };
+let lastHeadTap=0;
+$('sCancel').onclick=()=>$('setModal').classList.remove('show');
+$('sSave').onclick=()=>{ readSettings(); try{ localStorage.setItem('dip_set',JSON.stringify(S)); }catch(e){} $('setModal').classList.remove('show'); if(!B.running) resetBot(); G.left=Math.min(G.left,S.mode); startLoop(); drawGame(); render(); };
+/* ---------- Panel: छोटा/बड़ा, कोना, किनारे पर चिपकना ---------- */
+let PS={sc:1,x:8,y:120,min:false,c:0};
+try{ Object.assign(PS,JSON.parse(localStorage.getItem('dip_panel')||'{}')); }catch(e){}
+function savePS(){ try{ localStorage.setItem('dip_panel',JSON.stringify(PS)); }catch(e){} }
+function pSize(){ const p=$('panel'); return {w:p.offsetWidth*PS.sc,h:p.offsetHeight*PS.sc}; }
+function placePanel(){
+  const p=$('panel'); p.style.transform='scale('+PS.sc+')';
+  p.classList.toggle('min',!!PS.min); $('minBtn').textContent=PS.min?'▼':'▲';
+  const {w,h}=pSize(), m=6;
+  PS.x=Math.max(m,Math.min(innerWidth-w-m,PS.x)); PS.y=Math.max(m,Math.min(innerHeight-h-m,PS.y));
+  p.style.left=PS.x+'px'; p.style.top=PS.y+'px'; savePS();
+}
+function toCorner(c){ const {w,h}=pSize(), m=6, top=60;
+  PS.x=(c===1||c===3)?innerWidth-w-m:m; PS.y=(c>=2)?innerHeight-h-m:top; PS.c=c; placePanel(); }
+function snapSide(){ const {w}=pSize(); PS.x=(PS.x+w/2<innerWidth/2)?6:innerWidth-w-6; placePanel(); }
+$('pSmall').onclick=e=>{ e.stopPropagation(); PS.sc=Math.max(0.5,+(PS.sc-0.1).toFixed(2)); placePanel(); };
+$('pBig').onclick=e=>{ e.stopPropagation(); PS.sc=Math.min(1.3,+(PS.sc+0.1).toFixed(2)); placePanel(); };
+$('pCorner').onclick=e=>{ e.stopPropagation(); toCorner(((PS.c||0)+1)%4); };
+$('minBtn').onclick=e=>{ e.stopPropagation(); PS.min=!PS.min; placePanel(); };
+addEventListener('resize',placePanel);
+
+/* ---------- Drag panel ---------- */
+let dragged=false;
+(function(){ const p=$('panel'),h=$('phead'); let sx,sy,ox,oy,down=false;
+h.addEventListener('pointerdown',e=>{down=true;dragged=false;sx=e.clientX;sy=e.clientY;ox=PS.x;oy=PS.y;p.classList.add('dragging');h.setPointerCapture(e.pointerId);});
+h.addEventListener('pointermove',e=>{if(!down)return;const dx=e.clientX-sx,dy=e.clientY-sy;if(Math.abs(dx)+Math.abs(dy)>6)dragged=true;
+PS.x=ox+dx;PS.y=oy+dy;placePanel();});
+let lastTap=0;
+h.addEventListener('pointerup',()=>{const now=Date.now(); if(!dragged&&now-lastTap<350){ PS.min=!PS.min; placePanel(); lastTap=0; down=false; setTimeout(()=>dragged=false,50); return; } lastTap=now; down=false;p.classList.remove('dragging');if(dragged)snapSide();setTimeout(()=>dragged=false,50);});
+})();
+
+$('startBtn').onclick=()=>{
+  if(REG_ON && !B.running && !regData()){ askReg(startFn); return; }
+  startFn();
+};
+/* ---------- Support ---------- */
+function buildSupport(){
+  const A=[];
+  if(SUPPORT.whatsapp) A.push(`<a class="sLink" style="background:#4f9e7a" href="https://wa.me/${SUPPORT.whatsapp}" target="_blank">${L('waTalk')}</a>`);
+  if(SUPPORT.telegram) A.push(`<a class="sLink" style="background:#5a92c4" href="https://t.me/${SUPPORT.telegram}" target="_blank">${L('tgTalk')}</a>`);
+  if(SUPPORT.email) A.push(`<a class="sLink" style="background:#7f86c9" href="mailto:${SUPPORT.email}">✉️ Email भेजें</a>`);
+  if(SUPPORT.phone) A.push(`<a class="sLink" style="background:#d9b46e;color:#0f2420" href="tel:${SUPPORT.phone}">📞 कॉल करें</a>`);
+  $('supLinks').innerHTML=A.length?A.join(''):'<div class="faq">अभी कोई Support संपर्क नहीं जोड़ा गया। कोड में <b style="display:inline">ADD-7 → SUPPORT</b> में अपना WhatsApp / Telegram / Email भरें।</div>';
+}
+$('supBtn').onclick=()=>{ if(SUPPORT.telegram){ const u='https://t.me/'+SUPPORT.telegram; let w=null; try{ w=window.open(u,'_blank'); }catch(e){} if(!w) location.href=u; return; }
+ buildSupport(); hideRegUI(); const r=regData(); if(r&&!$('supValid').innerHTML) $('supValid').innerHTML='👤 '+r.name+' · Device: <b>'+r.device+'</b>'; $('supModal').classList.add('show'); };
+$('supClose').onclick=()=>$('supModal').classList.remove('show');
+$('supReg').onclick=()=>{ if(regData()){ $('supReg').style.display='none'; return; } $('supModal').classList.remove('show'); askReg(); };
+
+/* ---------- License (ADD-8) ---------- */
+// Key वाला लॉक फिर से चालू करना हो तो false को true कर दें
+let LICENSE_ON=false;
+// यह सिर्फ PUBLIC key है — इससे नई Key नहीं बन सकती। Key सिर्फ keygen.html से बनती है।
+const LIC_PUB={"kty":"EC","x":"7o1u6DeKDJW1NeRBREkH9iNRqEI35b-q2vapHCRCU60","y":"R9gDQYPBiWbnWRFQX9Gr5KaE-wQO9CBRXbLg1XYRyUs","crv":"P-256"};
+const b64d=t=>{t=t.replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';return Uint8Array.from(atob(t),c=>c.charCodeAt(0));};
+function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v);}catch(e){return null;}}
+function deviceId(){
+  let id=store('dip_dev');
+  if(!id){const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',r=crypto.getRandomValues(new Uint8Array(8));
+    id='DIP-'+[...r].map(x=>A[x%A.length]).join('');store('dip_dev',id);}
+  return id;
+}
+function today(){const d=new Date();return ''+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');}
+const SK_A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const SK_S=null; // पुरानी छोटी Key बंद (उसका secret सबको दिख रहा था)। अब सिर्फ Control Panel वाली Key चलेगी।
+function skB32(bytes,n){let bits=0,val=0,out='';for(const b of bytes){val=(val<<8)|b;bits+=8;while(bits>=5){out+=SK_A[(val>>>(bits-5))&31];bits-=5;}}return out.slice(0,n);}
+// ---- crypto.subtle न मिले तो (कुछ फोन/ब्राउज़र में) अपना SHA-256 ----
+function sha256js(bytes){const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+ let H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+ const l=bytes.length,m=new Uint8Array(((l+9+63)>>6)<<6);m.set(bytes);m[l]=0x80;const bl=l*8;
+ for(let i=0;i<4;i++)m[m.length-1-i]=(bl>>>(8*i))&255;
+ const W=new Uint32Array(64),r=(x,n)=>(x>>>n)|(x<<(32-n));
+ for(let o=0;o<m.length;o+=64){for(let i=0;i<16;i++)W[i]=(m[o+4*i]<<24)|(m[o+4*i+1]<<16)|(m[o+4*i+2]<<8)|m[o+4*i+3];
+  for(let i=16;i<64;i++){const s0=r(W[i-15],7)^r(W[i-15],18)^(W[i-15]>>>3),s1=r(W[i-2],17)^r(W[i-2],19)^(W[i-2]>>>10);W[i]=(W[i-16]+s0+W[i-7]+s1)|0;}
+  let [a,b,c,d,e,f,g,h]=H;
+  for(let i=0;i<64;i++){const t1=(h+(r(e,6)^r(e,11)^r(e,25))+((e&f)^(~e&g))+K[i]+W[i])|0,t2=((r(a,2)^r(a,13)^r(a,22))+((a&b)^(a&c)^(b&c)))|0;h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;}
+  H=H.map((v,i)=>(v+[a,b,c,d,e,f,g,h][i])|0);}
+ const out=new Uint8Array(32);H.forEach((v,i)=>{out[4*i]=v>>>24;out[4*i+1]=(v>>>16)&255;out[4*i+2]=(v>>>8)&255;out[4*i+3]=v&255;});return out;}
+function hmacjs(key,msg){const k=new Uint8Array(64);k.set(key.length>64?sha256js(key):key);
+ const ip=new Uint8Array(64+msg.length),op=new Uint8Array(96);for(let i=0;i<64;i++){ip[i]=k[i]^0x36;op[i]=k[i]^0x5c;}
+ ip.set(msg,64);op.set(sha256js(ip),64);return sha256js(op);}
+async function skMac(dev,code){const raw=new Uint8Array((SK_S[0]+SK_S[1]).match(/../g).map(h=>parseInt(h,16)));
+  const msg=new TextEncoder().encode(dev+'|'+code);
+  if(window.crypto&&crypto.subtle){ try{ const k=await crypto.subtle.importKey('raw',raw,{name:'HMAC',hash:'SHA-256'},false,['sign']);
+    return skB32(new Uint8Array(await crypto.subtle.sign('HMAC',k,msg)),8);}catch(e){} }
+  return skB32(hmacjs(raw,msg),8);}
+const SK_BASE=Date.UTC(2026,0,1);
+function skCodeFromDate(d){ if(!d) return 'ZZZ'; const n=Math.floor((d-SK_BASE)/864e5); return SK_A[(n>>10)&31]+SK_A[(n>>5)&31]+SK_A[n&31]; }
+function skDateFromCode(c){ if(c==='ZZZ') return '99991231'; const n=(SK_A.indexOf(c[0])<<10)|(SK_A.indexOf(c[1])<<5)|SK_A.indexOf(c[2]);
+  const d=new Date(SK_BASE+n*864e5); return ''+d.getUTCFullYear()+String(d.getUTCMonth()+1).padStart(2,'0')+String(d.getUTCDate()).padStart(2,'0'); }
+async function shortCheck(dev,key){
+  if(!SK_S) return null;
+  const kk=(key||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(kk.length!==11||[...kk].some(ch=>!SK_A.includes(ch))) return null;
+  const code=kk.slice(0,3); if(await skMac(dev,code)!==kk.slice(3)) return 'bad';
+  const exp=skDateFromCode(code); return exp<today()?'expired':'ok:'+exp;
+}
+async function checkKey(dev,key){
+  try{
+    const sk=await shortCheck(dev,key); if(sk) return sk;
+    const [exp,sig]=(key||'').trim().split('.');
+    if(!/^\d{8}$/.test(exp)||!sig) return 'bad';
+    const k=await crypto.subtle.importKey('jwk',LIC_PUB,{name:'ECDSA',namedCurve:'P-256'},false,['verify']);
+    const ok=await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},k,b64d(sig),new TextEncoder().encode(dev+'|'+exp));
+    if(!ok) return 'bad';
+    if(exp<today()) return 'expired';
+    return 'ok:'+exp;
+  }catch(e){return 'bad';}
+}
+function fmtExp(e){return e==='99991231'?'Lifetime':e.slice(6,8)+'-'+e.slice(4,6)+'-'+e.slice(0,4);}
+async function initLock(){
+  $('lock').style.display='flex';
+  const dev=deviceId(); $('devId').textContent=dev;
+  $('copyDev').onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(dev);$('lockMsg').textContent='Device ID कॉपी हो गई';};
+  $('sendDev').onclick=()=>{const r=regData();openTG('🔑 DIP Master AI Key चाहिए\nDevice ID: '+dev+(r?'\nनाम: '+r.name+'\nमोबाइल: '+r.mobile:''));};
+  const saved=store('dip_key');
+  if(saved){const r=await checkKey(dev,saved);
+    if(r.startsWith('ok')){unlock(r.slice(3));return;}
+    if(r==='expired'){$('lockMsg').innerHTML='<span class="loss">आपकी Key की अवधि खत्म हो गई। नई Key लें।</span>';}}
+  $('actBtn').onclick=async()=>{
+    const key=$('keyIn').value.trim(); const r=await checkKey(dev,key);
+    if(r.startsWith('ok')){store('dip_key',key);unlock(r.slice(3));}
+    else $('lockMsg').innerHTML='<span class="loss">'+(r==='expired'?'यह Key एक्सपायर हो चुकी है।':'गलत Key या किसी दूसरे फोन की Key है।')+'</span>';
+  };
+}
+function unlock(exp){ $('lock').style.display='none'; $('supValid').innerHTML='Device: <b>'+deviceId()+'</b> · Key valid: <b style="color:var(--gold)">'+fmtExp(exp)+'</b>'; }
+
+/* ---------- Registration (ADD-9) ---------- */
+// रजिस्ट्रेशन बंद करना हो तो true को false कर दें
+let REG_ON=true;
+function openTG(text){
+  // पहले सीधे Telegram ऐप खोलें (tg://) — इससे काली स्क्रीन नहीं आती; ऐप न हो तो t.me लिंक
+  const user=SUPPORT.telegram, web='https://t.me/'+user+(text?'?text='+encodeURIComponent(text):'');
+  const app='tg://resolve?domain='+encodeURIComponent(user)+(text?'&text='+encodeURIComponent(text):'');
+  let left=false; const onHide=()=>{ if(document.hidden) left=true; };
+  document.addEventListener('visibilitychange',onHide);
+  try{ location.href=app; }catch(e){}
+  setTimeout(()=>{ document.removeEventListener('visibilitychange',onHide);
+    if(!left){ let w=null; try{ w=window.open(web,'_blank','noopener'); }catch(e){} if(!w){ const a=document.createElement('a'); a.href=web; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); } } },1500);
+}
+function regData(){ try{ const r=JSON.parse(store('dip_reg')||'null'); if(r) return r; }catch(e){}
+  // एडमिन की ग्राहक लिस्ट में यह Device पहले से है → दोबारा रजिस्ट्रेशन/Telegram नहीं माँगना
+  try{ const c=JSON.parse(store('dip_cfg')||'null'); if(c && typeof myUser==='function' && myUser(c)){ const d={name:'',mobile:'',uid:uidGet&&uidGet()||'',device:deviceId(),fromAdmin:true}; store('dip_reg',JSON.stringify(d)); return d; } }catch(e){}
+  return null; }
+function regDone(){ return !!regData(); }
+function hideRegUI(){ if(regDone()){ const b=$('supReg'); if(b) b.style.display='none'; } }
+function showReg(){
+  $('reg').style.display='block';
+  { const en=RL()==='en'; $('rAppL').textContent=en?'Game / App':'गेम / App'; $('rApp').options[0].text=en?'Select':'चुनें'; $('rUid').placeholder=en?'Game UID':'गेम की UID'; $('rPinL').textContent=en?'Create your PIN (4 digits)':'अपना PIN बनाएँ (4 अंक)'; $('rPin2L').textContent=en?'Enter PIN again':'PIN दोबारा डालें'; }
+  $('rGen').onclick=e=>{ const b=e.target.closest('.gBtn'); if(!b) return; $('rGen').querySelectorAll('.gBtn').forEach(x=>x.classList.toggle('on',x===b)); };
+  if($('rApp').options.length<2) APPS.forEach(([n])=>$('rApp').add(new Option(n,n)));
+  if(!$('rUid').value) $('rUid').value=uidGet(); if(apGet()) $('rApp').value=apGet();
+  $('regBtn').onclick=()=>{
+    const d={name:$('rName').value.trim(),mobile:$('rMobile').value.trim(),wa:$('rWa').value.trim(),
+             tg:$('rTg').value.trim(),city:$('rCity').value.trim(),app:$('rApp').value,uid:$('rUid').value.trim(),gender:($('rGen').querySelector('.on')||{}).dataset?.g||''};
+    const err=d.name.length<2?(RL()==='en'?'Enter your full name':'पूरा नाम भरें'):!d.gender?(RL()==='en'?'Select gender':'Gender चुनें'):!/^[6-9]\d{9}$/.test(d.mobile)?L('eMobile'):!/^@?[A-Za-z0-9_]{5,32}$/.test(d.tg)?L('eTg'):
+      !d.app?(RL()==='en'?'Select game / app':'गेम / App चुनें'):!/^[A-Za-z0-9]{3,20}$/.test(d.uid)?(RL()==='en'?'Enter a valid UID':'सही UID भरें'):d.city.length<2?(RL()==='en'?'Enter city / state':'शहर / राज्य भरें'):!/^\d{4}$/.test($('rPin').value)?(RL()==='en'?'Create a 4-digit PIN':'4 अंक का PIN बनाएँ'):$('rPin').value!==$('rPin2').value?(RL()==='en'?'Both PINs must match':'दोनों PIN एक जैसे होने चाहिए'):(d.wa&&!/^[6-9]\d{9}$/.test(d.wa))?L('eWa'):'';
+    if(err){ $('regMsg').innerHTML='<span class="loss">'+err+'</span>'; return; }
+    $('regMsg').innerHTML='';
+    if(d.tg[0]!=='@') d.tg='@'+d.tg;
+    d.device=deviceId(); d.date=new Date().toLocaleString('en-IN');
+    const msg='━━━━━━━━━━━━━━━━━━\n🆕 नया रजिस्ट्रेशन\n📊 DIP Master AI\n━━━━━━━━━━━━━━━━━━\n'+
+      '👤 नाम: '+d.name+'\n⚧ Gender: '+d.gender+'\n📱 मोबाइल: '+d.mobile+'\n✈️ Telegram: '+d.tg+
+      '\n🎮 App: '+d.app+'\n🆔 UID: '+d.uid+'\n📍 शहर: '+d.city+
+      '\n━━━━━━━━━━━━━━━━━━\n🔑 Device ID: '+d.device+'\n🕒 समय: '+d.date+'\n━━━━━━━━━━━━━━━━━━';
+    pinSet($('rPin').value); $('rPin').value=$('rPin2').value='';
+    store('dip_reg',JSON.stringify(d)); store('dip_uid',d.uid); if(d.app) store('dip_app',d.app); uidShow(); apLabel();
+    afterReg(); closeReg(); hideRegUI();
+    setTimeout(()=>openTG(msg),150);
+  };
+}
+function afterReg(){ if(LICENSE_ON) initLock(); else $('lock').style.display='none'; }
+function startGate(){ afterReg(); hideRegUI(); if(REG_ON && !regData()) showReg(); else if(REG_ON) pinShow(pinHas()?'unlock':'create'); }  // बोर्ड पहले खुलेगा, रजिस्ट्रेशन बाद में
+let regAsked=false, regThen=null;
+function closeReg(){ $('reg').style.display='none'; const f=regThen; regThen=null; if(f) f(); }
+function askReg(then){ if(regData()){ if(then) then(); return; } regThen=then||null; showReg(); }
+
+/* ---------- Init ---------- */
+/* ---------- PIN लॉक (यूज़र खुद अपना PIN बनाता है, भूलने पर मोबाइल + UID से खुद रीसेट) ---------- */
+const PT={hi:{t_unlock:'PIN डालें',s_unlock:'ऐप खोलने के लिए अपना 4 अंक का PIN डालें',go:'🔓 खोलें',forgot:'PIN भूल गए?',
+  t_reset:'नया PIN बनाएँ',s_reset:'रजिस्ट्रेशन वाला मोबाइल नंबर और UID डालें, फिर नया PIN बनाएँ',t_create:'अपना PIN बनाएँ',s_create:'आगे से ऐप इसी PIN से खुलेगा',
+  m:'रजिस्ट्रेशन वाला मोबाइल नंबर',u:'रजिस्ट्रेशन वाली UID',n1:'नया PIN (4 अंक)',n2:'नया PIN दोबारा',save:'✅ PIN सेव करें',back:'← वापस',
+  eWrong:'गलत PIN, दोबारा कोशिश करें',eMatch:'मोबाइल नंबर या UID रजिस्ट्रेशन से मेल नहीं खाता',e4:'4 अंक का PIN डालें',eSame:'दोनों PIN एक जैसे होने चाहिए',ok:'✅ नया PIN सेव हो गया'},
+ en:{t_unlock:'Enter PIN',s_unlock:'Enter your 4-digit PIN to open the app',go:'🔓 Open',forgot:'Forgot PIN?',
+  t_reset:'Create a new PIN',s_reset:'Enter the mobile number and UID you registered with, then set a new PIN',t_create:'Create your PIN',s_create:'The app will open with this PIN from now on',
+  m:'Registered mobile number',u:'Registered UID',n1:'New PIN (4 digits)',n2:'New PIN again',save:'✅ Save PIN',back:'← Back',
+  eWrong:'Wrong PIN, try again',eMatch:'Mobile number or UID does not match registration',e4:'Enter a 4-digit PIN',eSame:'Both PINs must match',ok:'✅ New PIN saved'}};
+function pinHash(p){ const b=sha256js(new TextEncoder().encode('dip|'+deviceId()+'|'+p)); return [...b].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+function pinSet(p){ store('dip_pin',pinHash(p)); }
+function pinHas(){ return !!store('dip_pin'); }
+function pinShow(mode){ const T=PT[RL()], r=mode!=='unlock';
+  $('pinLock').style.display='block'; $('pinMsg').innerHTML=''; $('pinUnlock').style.display=r?'none':'block'; $('pinReset').style.display=r?'block':'none';
+  $('pinTitle').textContent=T['t_'+mode]; $('pinSub').textContent=T['s_'+mode];
+  $('pinGo').textContent=T.go; $('pinForgot').textContent=T.forgot; $('pmL').textContent=T.m; $('puL').textContent=T.u; $('pn1L').textContent=T.n1; $('pn2L').textContent=T.n2;
+  $('pinSave').textContent=T.save; $('pinBack').textContent=T.back; $('pinBack').style.display=(mode==='reset')?'block':'none';
+  ['pinIn','pmIn','puIn','pn1','pn2'].forEach(i=>$(i).value='');
+  $('pinGo').onclick=()=>{ if(pinHash($('pinIn').value)===store('dip_pin')){ $('pinLock').style.display='none'; } else { $('pinMsg').innerHTML='<span class="loss">'+T.eWrong+'</span>'; $('pinIn').value=''; } };
+  $('pinIn').onkeyup=e=>{ if($('pinIn').value.length===4) $('pinGo').click(); };
+  $('pinForgot').onclick=()=>pinShow('reset'); $('pinBack').onclick=()=>pinShow('unlock');
+  $('pinSave').onclick=()=>{ const d=regData()||{}, a=$('pn1').value, b=$('pn2').value;
+    if(mode==='reset' && ($('pmIn').value.trim()!==d.mobile || $('puIn').value.trim()!==d.uid)){ $('pinMsg').innerHTML='<span class="loss">'+T.eMatch+'</span>'; return; }
+    if(!/^\d{4}$/.test(a)){ $('pinMsg').innerHTML='<span class="loss">'+T.e4+'</span>'; return; }
+    if(a!==b){ $('pinMsg').innerHTML='<span class="loss">'+T.eSame+'</span>'; return; }
+    pinSet(a); $('pinMsg').innerHTML='<span class="win">'+T.ok+'</span>'; setTimeout(()=>{ $('pinLock').style.display='none'; },700); };
+  // "create" मोड में मोबाइल/UID की ज़रूरत नहीं
+  [$('pmL'),$('pmIn'),$('puL'),$('puIn')].forEach(x=>x.style.display=(mode==='reset')?'block':'none');
+}
+
+/* ---------- ADMIN CONFIG: Control Panel (admin.html) से आता है ---------- */
+// config GitHub के 'panel-config' branch में रहता है — इससे Netlify के credits खर्च नहीं होते।
+const CFG_URL='https://raw.githubusercontent.com/thakurdip881-cloud/dip-config/main/config.json';
+function cfgApply(c){ if(!c||typeof c!=='object') return;
+  if(typeof c.reg_on==='boolean') REG_ON=c.reg_on;
+  if(typeof c.license_on==='boolean') LICENSE_ON=c.license_on;
+  if(typeof c.telegram==='string' && c.telegram.trim()) SUPPORT.telegram=c.telegram.replace(/^@/,'').trim();
+  if(typeof c.whatsapp==='string') SUPPORT.whatsapp=c.whatsapp.replace(/\D/g,'');
+}
+try{ cfgApply(JSON.parse(store('dip_cfg')||'null')); }catch(e){}
+/* ---------- MASTER CONNECTOR (Firebase) से ON/OFF, मैसेज और Device की अवधि ----------
+   MC_PROJECT खाली हो तो कुछ नहीं बदलता (पहले की तरह dip-config से चलता है)।
+   भरा हो तो MASTER CONNECTOR ऐप की सेटिंग सबसे ऊपर मानी जाती है। */
+const MC_PROJECT='master-connector-f2a0d';
+function mcMerge(s){
+  if(!MC_PROJECT) return s;
+  const B='https://firestore.googleapis.com/v1/projects/'+MC_PROJECT+'/databases/(default)/documents/';
+  const g=u=>fetch(B+u,{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null);
+  return Promise.all([g('dip/control'), g('dipDevices/'+encodeURIComponent(deviceId()))]).then(([c,d])=>{
+    s=s||{};
+    const f=c&&c.fields;
+    if(f){ if(f.on&&'booleanValue' in f.on) s.on=f.on.booleanValue;
+      if(f.msg&&'stringValue' in f.msg) s.msg=f.msg.stringValue;
+      if(f.telegram&&f.telegram.stringValue) s.telegram=f.telegram.stringValue; }
+    const v=d&&d.fields;
+    if(v){ const on=!(v.on&&v.on.booleanValue===false);
+      const ex=v.exp&&v.exp.timestampValue?Date.parse(v.exp.timestampValue):0;
+      s.mc_blk=!on || (ex>0 && Date.now()>ex); }
+    return s;
+  });
+}
+let chkMin=1440, chkT=null;  // कम डेटा: हर 24 घंटे (ऐप खोलते/वापस आते ही तुरंत भी जाँचता है)
+function adminCheck(){
+  if(location.protocol==='file:') return;
+  fetch(CFG_URL,{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject())
+   .catch(()=>fetch('status.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null))
+   .then(s=>mcMerge(s))
+   .then(s=>{
+    if(!s) return; store('dip_cfg',JSON.stringify(s));
+    if(myUser(s) && $('reg').style.display==='block' && regData()){ closeReg(); hideRegUI(); if(REG_ON && !pinHas()) pinShow('create'); }
+    const wasLic=LICENSE_ON; cfgApply(s);
+    if(LICENSE_ON && !wasLic) afterReg(); else if(!LICENSE_ON && wasLic) $('lock').style.display='none';
+    const me=myUser(s), blk=(!!me && (me.b===true || (me.auto===true && me.exp && today()>me.exp))) || s.mc_blk===true;
+    const off=s.on===false || blk, en=RL()==='en';
+    if(off){ try{ if(B.running) stopBot(); }catch(e){}
+      if(blk){
+        $('offTitle').textContent=en?'Your access has ended':'आपकी ऐप की अवधि खत्म हो गई है';
+        $('offMsg').textContent=s.block_msg||(en?'Please contact the admin to continue. Device: ':'आगे चलाने के लिए एडमिन से बात करें। Device: ')+deviceId();
+      }else{
+        $('offTitle').textContent=en?'App is OFF right now':'ऐप अभी बंद है';
+        $('offMsg').textContent=s.msg||(en?'The admin has turned the app off. Please try later.':'एडमिन ने ऐप बंद किया है। थोड़ी देर बाद खोलें।');
+      }
+      $('offRetry').textContent=en?'🔄 Check again':'🔄 दोबारा देखें'; }
+    $('offTg').style.display=(blk && SUPPORT.telegram)?'block':'none';
+    $('offScr').style.display=off?'block':'none';
+    const m=Math.max(1,Math.min(1440,Math.round(+s.check_min)||1440));
+    if(m!==chkMin){ chkMin=m; clearInterval(chkT); chkT=setInterval(adminCheck,chkMin*60000); }
+  }).catch(()=>{});
+}
+$('offRetry').onclick=adminCheck;
+$('offTg').onclick=()=>openTG('🔑 DIP Master AI — मेरी ऐप चालू करनी है\nDevice ID: '+deviceId());
+// हर यूज़र की पहचान: Device ID का hash (असली ID config में नहीं लिखी जाती)
+function myUser(s){ if(!s||!s.users) return null;
+  const b=sha256js(new TextEncoder().encode('dipu|'+deviceId())); const h=[...b].slice(0,8).map(x=>x.toString(16).padStart(2,'0')).join('');
+  return s.users[h]||null; }
+adminCheck(); chkT=setInterval(adminCheck,chkMin*60000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) adminCheck(); });
+
+/* ---------- चेतावनी ---------- */
+const WARN={hi:{t:'चेतावनी',ok:'मैं समझ गया',p:['यह ऐप सिर्फ़ <b>टाइमपास और सीखने के लिए एक डेमो</b> है।','इसके नंबर और सिग्नल <b>रैंडम</b> हैं। ये किसी असली गेम का नतीजा नहीं बताते।','<b>इसके भरोसे असली पैसे न लगाएँ।</b>'],
+  gov:'🇮🇳 यह ऐप भारत सरकार के बनाए नियमों का पालन करता है और किसी भी सट्टा / जुआ या पैसे वाले गेम का समर्थन नहीं करता।'},
+ en:{t:'Warning',ok:'I understand',p:['This app is only a <b>timepass and learning demo</b>.','Its numbers and signals are <b>random</b>. They do not predict any real game.','<b>Do not bet real money on it.</b>'],
+  gov:'🇮🇳 This app follows the rules made by the Government of India and does not support any betting, gambling or real-money game.'}};
+function warnShow(){ const T=WARN[LANG==='en'?'en':'hi']; $('wTitle').textContent=T.t; $('wOk').textContent=T.ok;
+  $('wBody').innerHTML=T.p.map(x=>'<p>'+x+'</p>').join('')+'<p class="gov">'+T.gov+'</p>'; $('warnScr').style.display='block'; }
+$('wOk').onclick=()=>{ $('warnScr').style.display='none'; };
+warnShow();
+
+/* ---------- कैसे चलाएँ (गाइड) ---------- */
+const HELP={hi:{t:'❓ कैसे चलाएँ',close:'समझ गया',steps:[
+ '<b>पहली बार:</b> रजिस्ट्रेशन फ़ॉर्म भरें, अपना 4 अंक का PIN बनाएँ और "Telegram पर भेजें" दबाएँ।',
+ '<b>हर बार खोलने पर:</b> अपना PIN डालें। भूल गए तो "PIN भूल गए?" दबाकर मोबाइल नंबर + UID से नया PIN बनाएँ।',
+ '<b>सेटिंग:</b> पैनल में ⚙ दबाएँ। Mode, Signal, Staking, Base Bet, बैलेंस और Target चुनें, फिर SAVE दबाएँ।',
+ '<b>चालू करें:</b> ▶ START दबाएँ। ऊपर की बत्ती 🟢 "चालू" हो जाएगी। रोकने के लिए फिर से दबाएँ।',
+ '<b>पैनल पढ़ें:</b> Balance, Profit, Stake, Signal, Result, जीत/हार और लगातार हार यहीं दिखते हैं।',
+ '<b>रिपोर्ट:</b> बॉट रुकते ही रिपोर्ट कार्ड खुलता है। हरा = नफ़ा, लाल = नुकसान। 📋 कॉपी से शेयर करें।',
+ '<b>हिसाब देखें:</b> 📖 READ में लेवल चार्ट, हर दाँव का लॉग और पिछले सेशन मिलते हैं। ↺ RESET से नए सिरे से शुरू करें।',
+ '<b>मदद:</b> ऊपर ✈️ Telegram दबाएँ।'],
+ tip:'⚠️ यह सिर्फ़ टाइमपास का डेमो है। नंबर रैंडम हैं, किसी असली गेम का नतीजा नहीं बताते। इसके भरोसे असली पैसे न लगाएँ।'},
+ en:{t:'❓ How to use',close:'Got it',steps:[
+ '<b>First time:</b> fill the registration form, create your 4-digit PIN and tap "Send on Telegram".',
+ '<b>Every time:</b> enter your PIN. Forgot it? Tap "Forgot PIN?" and set a new one with your mobile number + UID.',
+ '<b>Settings:</b> tap ⚙ on the panel. Choose Mode, Signal, Staking, Base Bet, balance and Target, then SAVE.',
+ '<b>Start:</b> tap ▶ START. The top light turns 🟢 "ON". Tap again to stop.',
+ '<b>Read the panel:</b> Balance, Profit, Stake, Signal, Result, wins/losses and losing streak are shown here.',
+ '<b>Report:</b> when the bot stops, the report card opens. Green = profit, red = loss. Share with 📋 Copy.',
+ '<b>Details:</b> 📖 READ shows the level chart, every bet and past sessions. ↺ RESET starts fresh.',
+ '<b>Help:</b> tap ✈️ Telegram at the top.'],
+ tip:'⚠️ This is a timepass demo only. Numbers are random and do not predict any real game. Do not bet real money on it.'}};
+$('helpBtn').onclick=()=>{ const T=HELP[RL()];
+  $('helpTitle').textContent=T.t; $('helpClose').textContent=T.close;
+  const W=WARN[LANG==='en'?'en':'hi']; $('helpBody').innerHTML='<div class="tip" style="border:2px solid #ff4d4f;background:rgba(255,77,79,.14);color:#ffe3e3;margin:0 0 8px">'+T.tip+'<br>'+W.gov+'</div><ol>'+T.steps.map(s=>'<li>'+s+'</li>').join('')+'</ol>';
+  $('helpModal').classList.add('show'); };
+$('helpClose').onclick=()=>$('helpModal').classList.remove('show');
+
+try{ const sv=JSON.parse(localStorage.getItem('dip_set')||'null'); if(sv&&typeof sv==='object'){ Object.assign(S,sv); if(!['level','tf1','x3'].includes(S.staking)) S.staking='level'; } }catch(e){}
+fillSettings(); resetBot(); G.left=S.mode; drawGame(); startLoop(); startGate(); applyLang(); placePanel();
+</script>
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}</script>
+<!-- Visitor counter (GoatCounter): dashboard https://dipmaster.goatcounter.com -->
+<script data-goatcounter="https://dipmaster.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<!-- 👷 वर्कर: आदेश देखें / हायरिंग लिंक से जुड़ें — सिर्फ़ वर्कर्स को दिखता है, ग्राहकों को नहीं -->
+<button id="dwBtn" style="display:none;position:fixed;left:12px;bottom:12px;z-index:9000;width:52px;height:52px;border-radius:50%;border:2px solid #e7b84a;background:#202328;color:#fff;font-size:24px;box-shadow:0 3px 10px #0008">👷<span id="dwBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#e53935;color:#fff;border-radius:10px;font-size:12px;padding:1px 6px;font-weight:700"></span></button>
+<div id="dwOv" style="display:none;position:fixed;inset:0;z-index:9500;background:#000b;overflow:auto;padding:12px">
+  <div style="max-width:520px;margin:auto;background:#17191c;border-radius:14px;padding:10px 12px 16px">
+    <div style="display:flex;align-items:center"><b style="flex:1;color:#e7b84a;font:700 17px system-ui">👷 DIP Master AI टीम</b><button id="dwX" style="background:none;border:0;color:#fff;font-size:26px">×</button></div>
+    <div id="dwBox"></div>
+  </div>
+</div>
+<script src="mc-firebase.js"></script>
+<script type="module">
+// Firebase तभी लोड होता है जब यह फ़ोन वर्कर का हो (या हायरिंग/लॉगिन लिंक से खोला गया हो) — ग्राहकों का डेटा खर्च नहीं
+const P=new URLSearchParams(location.search); let on=false; try{ on=localStorage.getItem('dipw_on')==='1'; }catch(e){}
+if(P.get('join')||P.get('worker')||on){
+  const btn=document.getElementById('dwBtn'), ov=document.getElementById('dwOv'), box=document.getElementById('dwBox'), bd=document.getElementById('dwBadge');
+  btn.style.display='block';
+  const open=()=>{ ov.style.display='block'; box.dwRefresh&&box.dwRefresh(); };
+  btn.onclick=open; document.getElementById('dwX').onclick=()=>{ ov.style.display='none'; };
+  import('./workers.js').then(m=>m.mount(box,'worker',n=>{ bd.textContent=n; bd.style.display=n?'block':'none'; }));
+  if(P.get('join')||P.get('worker')) open();
+}
+</script>
+</body>
+</html>

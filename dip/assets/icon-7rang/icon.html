@@ -1,0 +1,56 @@
+<html><head><meta charset="utf-8"><style>body{margin:0;background:transparent}</style></head><body>
+<svg id="s" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<defs>
+ <radialGradient id="bg" cx="50%" cy="45%" r="70%"><stop offset="0" stop-color="#3b1d5e"/><stop offset=".6" stop-color="#1a0b2e"/><stop offset="1" stop-color="#0b0418"/></radialGradient>
+ <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff1a8"/><stop offset=".45" stop-color="#f5c542"/><stop offset="1" stop-color="#a86b0a"/></linearGradient>
+ <linearGradient id="goldR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe9a0"/><stop offset=".5" stop-color="#d4a017"/><stop offset="1" stop-color="#8a5a00"/></linearGradient>
+ <radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff6c8" stop-opacity=".9"/><stop offset=".4" stop-color="#ffb347" stop-opacity=".35"/><stop offset="1" stop-color="#ff7a00" stop-opacity="0"/></radialGradient>
+<clipPath id="inner"><circle cx="256" cy="262" r="156"/></clipPath>
+<linearGradient id="clay" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd76a"/><stop offset=".5" stop-color="#e09a14"/><stop offset="1" stop-color="#8a4f00"/></linearGradient>
+</defs>
+<rect width="512" height="512" rx="0" fill="url(#bg)"/>
+<!-- zodiac ring -->
+<circle cx="256" cy="262" r="205" fill="none" stroke="url(#goldR)" stroke-width="5"/>
+<circle cx="256" cy="262" r="160" fill="none" stroke="url(#goldR)" stroke-width="2.5" opacity=".8"/>
+<g id="ring"></g>
+<g clip-path="url(#inner)">
+<circle id="gl" cx="256" cy="215" r="95" fill="url(#glow)"/>
+<g transform="translate(256,262)"><g id="fl">
+ <path d="M0,-118 C27,-84 40,-50 38,-24 C36,-2 20,10 0,10 C-20,10 -36,-2 -38,-24 C-40,-50 -27,-84 0,-118Z" fill="#8b00ff"/>
+ <path d="M0,-106 C23,-76 34,-46 32,-23 C30,-4 17,6 0,6 C-17,6 -30,-4 -32,-23 C-34,-46 -23,-76 0,-106Z" fill="#4b0082"/>
+ <path d="M0,-94 C20,-68 29,-42 27,-22 C25,-6 14,3 0,3 C-14,3 -25,-6 -27,-22 C-29,-42 -20,-68 0,-94Z" fill="#1e5bff"/>
+ <path d="M0,-82 C17,-60 24,-38 22,-21 C21,-8 12,0 0,0 C-12,0 -21,-8 -22,-21 C-24,-38 -17,-60 0,-82Z" fill="#00c853"/>
+ <path d="M0,-70 C14,-52 19,-34 17,-20 C16,-10 9,-4 0,-4 C-9,-4 -16,-10 -17,-20 C-19,-34 -14,-52 0,-70Z" fill="#ffeb3b"/>
+ <path d="M0,-58 C10,-44 14,-30 13,-19 C12,-12 7,-8 0,-8 C-7,-8 -12,-12 -13,-19 C-14,-30 -10,-44 0,-58Z" fill="#ff8f00"/>
+ <path d="M0,-46 C7,-36 9,-26 8,-18 C8,-14 4,-11 0,-11 C-4,-11 -8,-14 -8,-18 C-9,-26 -7,-36 0,-46Z" fill="#ff1744"/>
+ <ellipse cx="0" cy="-20" rx="3" ry="7" fill="#fff8e1"/>
+</g><rect x="-2.5" y="6" width="5" height="12" rx="2.5" fill="#3a2a10"/></g>
+<!-- new traditional diya -->
+<g transform="translate(256,300)">
+ <!-- lotus petals base -->
+ <g fill="url(#clay)" stroke="#6b3a00" stroke-width="2">
+  <path d="M-62,58 Q-48,30 -26,52 Q-40,66 -62,58Z"/><path d="M62,58 Q48,30 26,52 Q40,66 62,58Z"/>
+  <path d="M-30,60 Q-16,26 0,54 Q-12,70 -30,60Z"/><path d="M30,60 Q16,26 0,54 Q12,70 30,60Z"/>
+ </g>
+ <ellipse cx="0" cy="62" rx="70" ry="9" fill="url(#gold)" stroke="#6b3a00" stroke-width="2"/>
+ <!-- bowl with pointed spouts both sides -->
+ <path d="M-128,-26 Q-96,-12 -70,-18 L70,-18 Q96,-12 128,-26 Q120,-4 98,8 Q60,52 0,54 Q-60,52 -98,8 Q-120,-4 -128,-26Z" fill="url(#clay)" stroke="#6b3a00" stroke-width="3"/>
+ <!-- oil surface -->
+ <ellipse cx="0" cy="-18" rx="70" ry="9" fill="#5a2d00" stroke="#ffd76a" stroke-width="2.5"/>
+ <ellipse cx="0" cy="-19" rx="56" ry="5" fill="#c77a00" opacity=".55"/>
+ <!-- decorative band -->
+ <path d="M-96,6 Q0,34 96,6" fill="none" stroke="#fff1a8" stroke-width="3"/>
+ <g fill="#b0006d"><circle cx="-60" cy="22" r="5"/><circle cx="-30" cy="29" r="5"/><circle cx="0" cy="31" r="5"/><circle cx="30" cy="29" r="5"/><circle cx="60" cy="22" r="5"/></g>
+ <g fill="#fff1a8"><circle cx="-45" cy="26" r="2.5"/><circle cx="-15" cy="30" r="2.5"/><circle cx="15" cy="30" r="2.5"/><circle cx="45" cy="26" r="2.5"/></g>
+</g>
+</g>
+</svg>
+<script>
+const sy=['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'];
+const cols=['#ff1744','#ff8f00','#ffeb3b','#00c853','#1e5bff','#4b0082','#8b00ff','#ff1744','#ff8f00','#ffeb3b','#00c853','#1e5bff'];
+const g=document.getElementById('ring');
+sy.forEach((c,i)=>{const a=(i*30-90)*Math.PI/180, r=183, x=256+r*Math.cos(a), y=262+r*Math.sin(a);
+ const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',x);t.setAttribute('y',y+11);t.setAttribute('text-anchor','middle');
+ t.setAttribute('font-size','32');t.setAttribute('font-family','Noto Sans Symbols, Noto Sans Symbols 2, DejaVu Sans, sans-serif');t.setAttribute('fill','#ffe9a0');t.textContent=c+'︎';g.appendChild(t);
+ const d=document.createElementNS('http://www.w3.org/2000/svg','circle');const a2=(i*30-75)*Math.PI/180;d.setAttribute('cx',256+183*Math.cos(a2));d.setAttribute('cy',262+183*Math.sin(a2));d.setAttribute('r',5);d.setAttribute('fill',cols[i]);g.appendChild(d);});
+</script></body></html>
