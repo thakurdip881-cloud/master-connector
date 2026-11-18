@@ -112,12 +112,14 @@ a.lnk{display:block;text-align:center;text-decoration:none}
     <h2>🔐 पहली बार सेटअप</h2>
     <div class="note">यह जानकारी सिर्फ इसी फ़ोन/ब्राउज़र में सेव रहती है। किसी को न बताएँ।</div>
     <label>GitHub Token (Contents: Read & write — Dip और dip-config दोनों repo)</label>
-    <input id="tokIn" type="password" placeholder="github_pat_..." autocomplete="off">
+    <button class="btn gold" id="tokPaste" type="button">📋 कॉपी किया Token यहाँ पेस्ट करें</button>
+    <input id="tokIn" type="text" placeholder="github_pat_..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="-webkit-text-security:disc">
+    <div class="note" id="tokInfo"></div>
     <a class="note lnk" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">➕ नया GitHub Token बनाएँ (यहाँ टैप करें)</a>
     <label>पैनल पासवर्ड (ग्राहकों की लिस्ट को लॉक रखने के लिए — याद रखें)</label>
     <input id="pwIn" type="password" placeholder="कम से कम 6 अक्षर" autocomplete="new-password">
     <label>License Private Key (Key बनाने के लिए — license-private-key.txt का पूरा टेक्स्ट)</label>
-    <textarea id="prvIn" placeholder='{"kty":"EC", ... }'></textarea>
+    <textarea id="prvIn" placeholder='खाली छोड़ सकते हैं' autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
     <button class="btn gold" id="setBtn">✅ सेव करें और आगे बढ़ें</button>
     <div class="msg" id="setMsg"></div>
   </div>
@@ -445,11 +447,15 @@ $('cList').onclick=async e=>{
 };
 
 /* ---- setup / login ---- */
+const tokShow=()=>{ const v=$('tokIn').value.trim(); $('tokInfo').textContent = !v ? '' : /^github_pat_\w{70,}$/.test(v) ? '✅ Token सही लग रहा है ('+v.length+' अक्षर)' : '❌ यह GitHub Token नहीं लग रहा — github_pat_ से शुरू होना चाहिए ('+v.length+' अक्षर)'; };
+$('tokIn').oninput=tokShow;
+$('tokPaste').onclick=async()=>{ try{ const t=(await navigator.clipboard.readText()).trim(); if(!t) throw 0; $('tokIn').value=t; tokShow(); }catch(e){ $('tokInfo').textContent='❌ पेस्ट नहीं हुआ — GitHub पर 📋 से token फिर कॉपी करें, फिर यह बटन दबाकर "Allow" करें'; } };
 $('setBtn').onclick=async()=>{
-  const t=$('tokIn').value.trim(), p=$('prvIn').value.trim(), w=$('pwIn').value;
+  const t=$('tokIn').value.trim(); let p=$('prvIn').value.trim(); if(p && !p.startsWith('{')) p=''; const _x=0, w=$('pwIn').value;
   if(!t) return say('setMsg','❌ GitHub Token डालें',false);
   if(w.length<6) return say('setMsg','❌ पैनल पासवर्ड कम से कम 6 अक्षर का रखें',false);
-  if(p){ try{ const j=JSON.parse(p); if(j.kty!=='EC'||!j.d) throw 0; }catch(e){ return say('setMsg','❌ Private Key का टेक्स्ट सही नहीं है',false); } }
+  if(p && !p.startsWith('{')){ $('prvIn').value=''; }
+  if(p && p.startsWith('{')){ try{ const j=JSON.parse(p); if(j.kty!=='EC'||!j.d) throw 0; }catch(e){ return say('setMsg','❌ Private Key का टेक्स्ट सही नहीं है',false); } }
   TOK=t; PRV=p; PW=w; say('setMsg','जाँच हो रही है…',true);
   try{ await load(); await loadCust(); ls('dp_tok',t); ls('dp_pw',w); if(p) ls('dp_prv',p); start(); }
   catch(e){ TOK=''; PW=''; say('setMsg','❌ '+e.message,false); }
