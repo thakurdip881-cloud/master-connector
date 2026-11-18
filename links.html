@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>मेरे सारे लिंक</title><meta name="robots" content="noindex">
+<style>
+body{margin:0;font-family:system-ui,sans-serif;background:#fff8ef;color:#222;padding:16px}
+h1{font-size:21px;margin:0 0 10px}
+.b{display:block;width:100%;padding:15px;margin:8px 0;font-size:18px;font-weight:700;border:0;border-radius:12px;color:#fff;text-align:center;text-decoration:none;box-sizing:border-box}
+.w{background:#25a244}.e{background:#1c7ed6}.c{background:#e8590c}
+#m{font-weight:700;color:#2b8a3e;text-align:center;min-height:22px}
+pre{white-space:pre-wrap;word-break:break-all;background:#fff;border:1px solid #ddd;border-radius:10px;padding:12px;font-size:14px;line-height:1.5}
+</style></head><body>
+<h1>📌 मेरे सारे लिंक</h1>
+<a class="b w" id="wa" target="_blank" rel="noopener">🟢 WhatsApp पर खुद को भेजें</a>
+<a class="b e" id="em">📧 Email में सेव करें</a>
+<button class="b c" id="cp">📋 सब कॉपी करें</button>
+<div id="m"></div>
+<pre id="t">📱 APK (ऐप)
+DIP Master AI: https://thakurdip881-cloud.github.io/master-connector/dip/DIP-Master-AI.apk
+DIP सहायक: https://github.com/thakurdip881-cloud/Dip/tree/sahayak-apk-out
+MASTER CONNECTOR: https://github.com/thakurdip881-cloud/master-connector/releases/latest
+
+🌐 साइटें
+MASTER CONNECTOR वेब: https://thakurdip881-cloud.github.io/master-connector/
+DIP Master AI साइट: https://thakurdip881-cloud.github.io/master-connector/dip/
+DIP Control Panel: https://thakurdip881-cloud.github.io/master-connector/dip/admin.html
+ट्रेनिंग साइट: https://github-netlify-deploy-0cc412.netlify.app/
+Firebase नियम पेज: https://thakurdip881-cloud.github.io/master-connector/rules.html
+
+💻 सोर्स कोड (GitHub)
+Dip (private): https://github.com/thakurdip881-cloud/Dip
+master-connector: https://github.com/thakurdip881-cloud/master-connector
+dip-config: https://github.com/thakurdip881-cloud/dip-config
+
+🔥 Firebase: https://console.firebase.google.com/project/master-connector-f2a0d
+📄 सारे लिंक: https://thakurdip881-cloud.github.io/master-connector/links.html</pre>
+<script>
+var t=document.getElementById('t').textContent,m=document.getElementById('m');
+document.getElementById('wa').href='https://wa.me/?text='+encodeURIComponent(t);
+document.getElementById('em').href='mailto:?subject='+encodeURIComponent('मेरे सारे लिंक (DIP / MASTER CONNECTOR)')+'&body='+encodeURIComponent(t);
+document.getElementById('cp').onclick=function(){var ok=function(){m.textContent='✅ कॉपी हो गया'};
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,fb);else fb();
+ function fb(){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');ok()}catch(e){}a.remove()}};
+</script></body></html>
