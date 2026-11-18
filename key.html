@@ -25,7 +25,7 @@ function copy(t,msg){var ok=function(){m.textContent=msg};
  function fb(){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');ok()}catch(e){m.textContent='कॉपी नहीं हुआ, फिर दबाएँ'}a.remove()}}
 document.getElementById('fi').onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();
  r.onload=function(){var t=String(r.result).replace(/^\uFEFF/,'').trim();
-  try{var j=JSON.parse(t);if(!j.private_key||!j.client_email)throw 0}catch(x){m.style.color='#c92a2a';m.textContent='❌ यह सही key फ़ाइल नहीं है ('+f.name+') — नाम में adminsdk वाली चुनें';cp.disabled=true;return}
+  if(t.indexOf('private_key')<0||t.indexOf('client_email')<0){m.style.color='#c92a2a';m.textContent='❌ यह सही key फ़ाइल नहीं है ('+f.name+') — नाम में adminsdk वाली चुनें';cp.disabled=true;return}
   k=t;m.style.color='#2b8a3e';m.textContent='✅ फ़ाइल मिल गई ('+f.name+') — अब 2️⃣ दबाएँ';cp.disabled=false};r.readAsText(f)};
 cp.onclick=function(){if(k)copy(k,'✅ key कॉपी हो गई — GitHub में Secret खाने में पेस्ट करें')};
 document.getElementById('cn').onclick=function(){copy('FIREBASE_SA','✅ नाम कॉपी हो गया — GitHub में Name खाने में पेस्ट करें')};
