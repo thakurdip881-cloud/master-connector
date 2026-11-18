@@ -1,0 +1,91 @@
+rules_version = '2';
+// =====================================================================
+// MASTER CONNECTOR + DIP Master AI — एक ही Firebase के सुरक्षा नियम
+// Firebase Console → Firestore Database → Rules में यह पूरा पेस्ट करके Publish करें।
+//   • मालिक = OWNER_UID (आपका अकाउंट) — सब कुछ
+//   • canEdit वाला एडमिन: कमांड, फ़ाइलें, DIP ON/OFF, ग्राहक
+//   • वर्कर: अपनी ड्यूटी, अपने लिए आई कमांड, फ़ाइलें देखना
+//   • नया वर्कर: DIP Control Panel के हायरिंग लिंक से खुद जुड़ता है
+// =====================================================================
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function signed()   { return request.auth != null; }
+    function isOwner()  { return signed() && request.auth.uid == 'Y7u25ODNNLOFBiiePyM7oR7Ts6n2'; }
+    function userDoc(u) { return /databases/$(db)/documents/users/$(u); }
+    function me()       { return get(userDoc(request.auth.uid)).data; }
+    function active()   { return isOwner() || (signed() && exists(userDoc(request.auth.uid)) && me().active != false); }
+    function editor()   { return isOwner() || (active() && me().canEdit == true); }
+    function inviteDoc(c)  { return /databases/$(db)/documents/invites/$(c); }
+    function inviteOpen(c) { return exists(inviteDoc(c)) && get(inviteDoc(c)).data.used == false && get(inviteDoc(c)).data.exp > request.time; }
+
+    // ---------- यूज़र्स ----------
+    match /users/{uid} {
+      allow read: if (signed() && request.auth.uid == uid) || editor();
+      allow create: if (isOwner() && (uid == request.auth.uid || request.resource.data.role != 'admin'))
+        // नया वर्कर हायरिंग लिंक से — लिंक वाली भूमिका ही, बदलाव की अनुमति नहीं
+        || (signed() && request.auth.uid == uid && !exists(userDoc(uid))
+          && request.resource.data.keys().hasOnly(['name', 'email', 'mobile', 'role', 'canEdit', 'active', 'shift', 'invite', 'createdAt'])
+          && request.resource.data.invite is string && inviteOpen(request.resource.data.invite)
+          && request.resource.data.role == get(inviteDoc(request.resource.data.invite)).data.role
+          && request.resource.data.canEdit == false && request.resource.data.active == true
+          && request.resource.data.name is string && request.resource.data.name.size() > 0
+          && getAfter(inviteDoc(request.resource.data.invite)).data.usedBy == uid);
+      allow update: if isOwner() && (uid == request.auth.uid || request.resource.data.role != 'admin');
+      allow delete: if isOwner() && uid != request.auth.uid;
+    }
+
+    // ---------- ड्यूटी (हाज़िरी + 2 km location जाँच) ----------
+    match /duty/{id} {
+      allow read: if editor() || (active() && resource.data.uid == request.auth.uid);
+      allow create: if active() && request.resource.data.uid == request.auth.uid && request.resource.data.end == null;
+      allow update: if editor() || (active() && resource.data.uid == request.auth.uid && resource.data.end == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['end', 'lastLat', 'lastLng', 'awayKm', 'lastAt', 'startLat', 'startLng']));
+      allow delete: if isOwner();
+    }
+
+    // ---------- कमांड बोर्ड ----------
+    match /commands/{id} {
+      allow read: if editor() || (active() && (resource.data.to == 'all' || resource.data.to == request.auth.uid));
+      allow create: if editor() && request.resource.data.text is string
+        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000
+        && request.resource.data.to is string;
+      allow update: if false;
+      allow delete: if editor();
+    }
+    // जवाब: id = कमांडID_यूज़रID (देख लिया / हो गया)
+    match /acks/{id} {
+      allow read: if editor() || (signed() && resource.data.uid == request.auth.uid);
+      allow create, update: if active() && id == request.resource.data.cmd + '_' + request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status in ['seen', 'done'];
+      allow delete: if editor();
+    }
+
+    // ---------- हायरिंग लिंक (लंबा random code, एक बार चलता है) ----------
+    match /invites/{code} {
+      allow get: if true;
+      allow list, delete: if editor();
+      allow create: if editor() && code.size() >= 16
+        && request.resource.data.role in ['worker', 'trainee']
+        && request.resource.data.used == false && request.resource.data.exp is timestamp;
+      allow update: if signed() && resource.data.used == false && resource.data.exp > request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['used', 'usedBy', 'usedAt'])
+        && request.resource.data.used == true && request.resource.data.usedBy == request.auth.uid
+        && !exists(userDoc(request.auth.uid))
+        && existsAfter(userDoc(request.auth.uid)) && getAfter(userDoc(request.auth.uid)).data.invite == code;
+    }
+
+    // ---------- फ़ाइलें / लिंक ----------
+    match /files/{id} { allow read: if active(); allow write: if editor(); }
+
+    // ---------- DIP Master AI ----------
+    // ON/OFF और मैसेज DIP साइट बिना login पढ़ती है — इसमें कोई गुप्त चीज़ न रखें
+    match /dip/control { allow read: if true; allow write: if editor(); }
+    match /dipDevices/{d} { allow get: if true; allow list: if false; allow write: if editor(); }
+    match /dipCustomers/{id} { allow read, write: if editor(); }
+
+    // बाकी सब बंद
+    match /{document=**} { allow read, write: if false; }
+  }
+}
