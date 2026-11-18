@@ -16,12 +16,17 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import android.speech.RecognizerIntent;
+import android.speech.tts.TextToSpeech;
+import org.json.JSONObject;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends Activity {
     private static final String APP_URL = "https://thakurdip881-cloud.github.io/master-connector/";
-    private static final int REQ_PERM = 7;
+    private static final int REQ_PERM = 7, REQ_VOICE = 8;
+    private TextToSpeech tts; private boolean ttsReady = false;
     private WebView web;
     private GeolocationPermissions.Callback geoCb;
     private String geoOrigin;
@@ -62,7 +67,29 @@ public class MainActivity extends Activity {
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
         else web.loadUrl(APP_URL);
         askPermissions();
+        tts = new TextToSpeech(this, st -> {
+            if (st == TextToSpeech.SUCCESS) {
+                int r = tts.setLanguage(new Locale("hi", "IN"));
+                ttsReady = r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED;
+                tts.setSpeechRate(0.95f);
+            }
+        });
     }
+
+    private void voiceResult(String t) {
+        web.evaluateJavascript("window.__dipVoice&&window.__dipVoice(" + JSONObject.quote(t) + ")", null);
+    }
+
+    @Override
+    protected void onActivityResult(int req, int res, Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req != REQ_VOICE) return;
+        ArrayList<String> r = data == null ? null : data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+        voiceResult(res == RESULT_OK && r != null && !r.isEmpty() ? r.get(0) : "?");
+    }
+
+    @Override
+    protected void onDestroy() { if (tts != null) tts.shutdown(); super.onDestroy(); }
 
     private boolean hasLocation() {
         return Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -98,7 +125,27 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void stopDuty() { runOnUiThread(() -> DutyService.stop(MainActivity.this)); }
         @JavascriptInterface
-        public int version() { return 2; }
+        public int version() { return 3; }
+        /** 🎙️ बोलकर पूछें — Google की फ़्री बोलने-से-लिखने वाली सुविधा; नतीजा window.__dipVoice(text) में */
+        @JavascriptInterface
+        public void listen(String lang) {
+            runOnUiThread(() -> {
+                try {
+                    Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                    i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                    i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang);
+                    i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang);
+                    i.putExtra(RecognizerIntent.EXTRA_PROMPT, "बोलिए — जैसे: कितने काम बाकी हैं?");
+                    startActivityForResult(i, REQ_VOICE);
+                } catch (Exception e) { voiceResult("!"); }
+            });
+        }
+        /** 🔊 बोलकर बताना (फ़ोन की अपनी आवाज़, फ़्री) */
+        @JavascriptInterface
+        public void speak(String t) {
+            if (tts == null || !ttsReady) return;
+            tts.speak(t, TextToSpeech.QUEUE_FLUSH, null, "s" + System.currentTimeMillis());
+        }
     }
 
     @Override

@@ -78,7 +78,7 @@ a{color:var(--pri2);word-break:break-all}
 <script type="module">
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, getFirestore, writeBatch, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, getFirestore, writeBatch, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyApw_GttyXeEmHFvKlJjoQFI11KuL4ahxI",
@@ -136,6 +136,7 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catc
 $("#logoutBtn").onclick = async () => { if(confirm("लॉग आउट करें?")) { clearSubs(); await signOut(auth); } };
 
 function showLogin(){
+  try{ window.DipVoiceAI?.remove(); }catch(e){}
   clearSubs(); nav.classList.add("hidden"); $("#logoutBtn").classList.add("hidden"); $("#who").textContent = "लॉगिन करें";
   app.innerHTML = `<div class="card">${DIYA(140)}<h3>लॉगिन</h3>
     <label>मोबाइल नंबर या ईमेल</label><input id="em" autocomplete="username">
@@ -236,6 +237,7 @@ onAuthStateChanged(auth, async user => {
   resumeNativeDuty();
   watchCommands();
   buildNav();
+  startVoiceAI();
 });
 
 const TABS_ADMIN = [["home","🏠","होम"],["workers","👥","वर्कर"],["cmd","📢","कमांड"],["files","📁","फ़ाइलें"],["dip","⚡","DIP"]];
@@ -557,6 +559,43 @@ function pageDip(){
     el.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{ if(confirm("ये ग्राहक हटाएँ?")) try{ await deleteDoc(doc(db,"dipCustomers",b.dataset.del)); }catch(e){ toast(errMsg(e)); } });
   }, e=>toast(errMsg(e))));
 }
+
+/* ---------- 🎙️ बोलकर पूछें (voice-ai.js) — फ़्री, फ़ोन पर ही; सिर्फ़ पूछने पर Firebase से ताज़ा जानकारी ---------- */
+let vaTry=0;
+function startVoiceAI(){
+  if(!window.DipVoiceAI){ if(vaTry++<20) setTimeout(startVoiceAI,500); return; }
+  DipVoiceAI.init({ title: canEdit ? "MASTER CONNECTOR" : "मेरा काम", bottom: 78,
+    chips: canEdit ? ["कितने काम बाकी हैं?","कौन ड्यूटी पर है?","कौन दूर है?","आज का हाल बताओ"] : ["मेरे कितने आदेश बाकी हैं?","मेरी ड्यूटी का हाल","आज का हाल बताओ"],
+    facts: async () => {
+      const F = [], now = new Date(), day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const acksQ = canEdit ? query(collection(db,"acks"),orderBy("at","desc"),limit(1500)) : query(collection(db,"acks"),where("uid","==",me.uid),limit(500));
+      const cmdQ = canEdit ? query(collection(db,"commands"),orderBy("createdAt","desc"),limit(30)) : myCmdQuery();
+      const dutyQ = canEdit ? query(collection(db,"duty"),orderBy("start","desc"),limit(80)) : query(collection(db,"duty"),where("uid","==",me.uid));
+      const [cs, as, ds] = await Promise.all([getDocs(cmdQ), getDocs(acksQ), getDocs(dutyQ)]);
+      const acks = as.docs.map(d=>d.data()), duty = ds.docs.map(d=>({id:d.id,...d.data()}));
+      const open = duty.filter(r=>!r.end), far = open.filter(r=>r.awayKm>LIMIT_KM);
+      if(canEdit){
+        const us = await getDocs(collection(db,"users")), users = us.docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.id!==OWNER_UID && u.role!=="admin");
+        const todayIn = new Set(duty.filter(r=>{const t=toD(r.start); return t && t>=day0;}).map(r=>r.uid));
+        const absent = users.filter(u=>u.active!==false && u.status!=="pending" && !todayIn.has(u.id));
+        F.push({t:`${open.length} वर्कर अभी ड्यूटी पर हैं`, d: open.map(r=>`${r.name} (${shiftName(r.shift)}, ${fmtT(r.start)} से${r.awayKm?`, ${r.awayKm} km`:""})`).join(", "), s:"info", k:"ड्यूटी कौन चालू"});
+        F.push({t: far.length ? `⚠️ ${far.length} वर्कर ड्यूटी की जगह से ${LIMIT_KM} km से दूर हैं` : "कोई वर्कर दूर नहीं है", d: far.map(r=>`${r.name} — ${r.awayKm} km`).join(", "), s: far.length?"baki":"info", k:"दूर ड्यूटी जगह location"});
+        F.push({t: absent.length ? `आज ${absent.length} वर्कर ड्यूटी पर नहीं आए` : "आज सभी वर्कर ड्यूटी पर आ चुके हैं", d: absent.map(u=>`${u.name} (${shiftName(u.shift)})`).join(", "), s: absent.length?"baki":"info", k:"ड्यूटी नहीं आए गैरहाज़िर absent"});
+        const pend = users.filter(u=>u.status==="pending");
+        if(pend.length) F.push({t:`${pend.length} नए वर्कर की मंज़ूरी बाकी है`, d: pend.map(u=>u.name).join(", ")+" — 👥 टीम टैब में मंज़ूर करें", s:"baki", k:"वर्कर मंज़ूरी नया फ़ॉर्म join"});
+        cs.docs.forEach(d=>{ const c=d.data(), dn=acks.filter(a=>a.cmd===d.id && a.status==="done");
+          const need = c.to==="all" ? users.filter(u=>u.active!==false).length : 1, ok = dn.length>=need;
+          F.push({t:`आदेश "${c.text}" (${c.toName||"सब"})`, d: ok ? "सबने कर दिया" : `${dn.length}/${need} ने ✅ किया`+(dn.length?` — ${dn.map(a=>a.name).join(", ")}`:""), s: ok?"done":"baki", k:"आदेश"}); });
+      } else {
+        const mine = {}; acks.forEach(a=>{ mine[a.cmd]=a.status; });
+        cs.docs.forEach(d=>{ const c=d.data(); F.push({t:`आदेश: ${c.text}`, d: c.byName?`${c.byName} ने भेजा`:"", s: mine[d.id]==="done"?"done":"baki", k:"आदेश मेरा"}); });
+        const o = open[0];
+        F.push({t: o ? `आपकी ड्यूटी चालू है (${fmtT(o.start)} से)` : "आपकी ड्यूटी अभी बंद है", d: o && o.awayKm>LIMIT_KM ? `⚠️ आप ड्यूटी की जगह से ${o.awayKm} km दूर हैं` : "", s: o && o.awayKm>LIMIT_KM ? "baki" : "info", k:"ड्यूटी मेरी"});
+      }
+      return F;
+    }});
+}
 </script>
+<script src="voice-ai.js" defer></script>
 </body>
 </html>

@@ -468,5 +468,26 @@ async function start(){
 }
 if(TOK) start(); else $('setup').classList.remove('hide');
 </script>
+<script src="voice-ai.js"></script>
+<script>
+/* 🎙️ बोलकर पूछें — काम की लिस्ट (private Dip repo, आपके Token से) + ग्राहक + ऐप ON/OFF। फ़्री, सिर्फ़ पूछने पर; बदली न हो तो डेटा नहीं (ETag) */
+DipVoiceAI.init({ title:'DIP Control Panel', bottom:18,
+  chips:['कितने काम बाकी हैं?','किसका License खत्म होने वाला है?','ऐप चालू है?','आज का हाल बताओ'],
+  facts: async () => {
+    if(!TOK) return [{t:'पहले Control Panel में GitHub Token डालकर लॉगिन करें', s:'baki', k:'token लॉगिन'}];
+    let md=''; const et=ls('dva_et'), old=ls('dva_md');
+    const r=await gh('/contents/NEXT_UPDATE.md?ref=main',{headers:et&&old?{'If-None-Match':et}:{}},CREPO);
+    if(r.status===304) md=old; else if(r.ok){ const j=await r.json(); md=b64dec(j.content); try{ localStorage.setItem('dva_md',md); localStorage.setItem('dva_et',r.headers.get('ETag')||''); }catch(e){} } else md=old||'';
+    const F=DipVoiceAI.factsFromMd(md);
+    F.unshift({t:'DIP Master AI ऐप अभी '+(CFG.on?'चालू':'बंद')+' है', d:CFG.msg?'मैसेज: '+CFG.msg:'', s:'info', k:'dip चालू बंद on off'});
+    if(CUST&&CUST.length){
+      const soon=CUST.filter(c=>!c.blocked&&daysLeft(c.exp)>=0&&daysLeft(c.exp)<=7), dead=CUST.filter(c=>!c.blocked&&daysLeft(c.exp)<0);
+      F.unshift({t:'कुल '+CUST.length+' ग्राहक', d:soon.length+' का License 7 दिन में खत्म, '+dead.length+' का खत्म हो चुका', s:'info', k:'ग्राहक license गिनती'});
+      if(soon.length) F.unshift({t:soon.length+' ग्राहकों का License 7 दिन में खत्म होने वाला है', d:soon.map(c=>(c.name||c.dev)+' — '+(daysLeft(c.exp)===0?'आज':daysLeft(c.exp)+' दिन')).join(', '), s:'baki', k:'ग्राहक license खत्म जल्द renewal'});
+      if(dead.length) F.unshift({t:dead.length+' ग्राहकों का License खत्म हो चुका है', d:dead.map(c=>c.name||c.dev).join(', '), s:'baki', k:'ग्राहक license खत्म renewal'});
+    }
+    return F;
+  }});
+</script>
 </body>
 </html>
