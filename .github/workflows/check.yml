@@ -14,6 +14,7 @@ jobs:
           B='https://firestore.googleapis.com/v1/projects/master-connector-f2a0d/databases/(default)/documents'
           for u in "https://thakurdip881-cloud.github.io/master-connector/" "https://thakurdip881-cloud.github.io/master-connector/dip/" "https://thakurdip881-cloud.github.io/master-connector/dip/admin.html" "https://github-netlify-deploy-0cc412.netlify.app/"; do
             echo "SITE $(curl -s -o /dev/null -w '%{http_code}' "$u") $u"; done
+          echo "ASSETLINKS $(curl -s -o /dev/null -w '%{http_code}' https://thakurdip881-cloud.github.io/.well-known/assetlinks.json) $(curl -s https://thakurdip881-cloud.github.io/.well-known/assetlinks.json | grep -c 07:2A:47)"
           curl -s https://thakurdip881-cloud.github.io/master-connector/dip/admin.html | grep -c tokPaste | sed 's/^/PASTE_BUTTON_LIVE /'
           curl -s https://thakurdip881-cloud.github.io/master-connector/ | grep -c resumeNativeDuty | sed 's/^/MC_NEW_CODE_LIVE /'
           echo "FS dip/control (public read expected 200/404): $(curl -s -o /dev/null -w '%{http_code}' "$B/dip/control")"
