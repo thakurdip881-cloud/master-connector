@@ -410,7 +410,7 @@ function pageDip(){
   app.innerHTML = `<div class="card"><div class="between"><span><h3 style="margin:0">DIP Master AI</h3><span class="muted" id="dipSt">लोड हो रहा है…</span></span>${canEdit?`<button class="switch" id="dipSw" aria-label="DIP Master चालू/बंद"></button>`:`<span class="pill" id="dipPill">—</span>`}</div></div>
     ${canEdit?`<div class="card"><h3>ग्राहकों के लिए मैसेज</h3><p class="muted">DIP Master AI ऐप में सबको दिखेगा (बंद करते समय कारण लिख सकते हैं)।</p><textarea id="dipMsg" maxlength="300"></textarea><div style="margin-top:8px"><button class="sec" id="dipMsgSave" style="width:100%">मैसेज सेव करें</button></div></div>`:""}
     ${canEdit?`<div class="card"><h3>नया ग्राहक जोड़ें</h3><label>नाम</label><input id="dn"><label>फ़ोन (वैकल्पिक)</label><input id="dp" inputmode="tel"><label>नोट (वैकल्पिक)</label><input id="dx"><div style="margin-top:12px"><button id="da" style="width:100%">जोड़ें</button></div></div>`:""}
-    <div class="card"><h3>ग्राहक लिस्ट</h3><div class="list" id="dl"></div></div>`;
+    ${canEdit?`<div class="card"><h3>ग्राहक लिस्ट</h3><div class="list" id="dl"></div></div>`:""}`;
   let on = false;
   psub(onSnapshot(doc(db,"dip","control"), s => {
     const d = s.exists()? s.data() : {}; on = (d.on ?? d.enabled) === true; if(canEdit && $("#dipMsg") && document.activeElement!==$("#dipMsg")) $("#dipMsg").value = d.msg || "";
@@ -422,7 +422,7 @@ function pageDip(){
     $("#dipMsgSave").onclick = async () => { try{ await setDoc(doc(db,"dip","control"),{msg:$("#dipMsg").value.trim(),updatedAt:serverTimestamp(),by:me.uid},{merge:true}); toast("मैसेज सेव हुआ"); }catch(e){ toast(errMsg(e)); } };
     $("#da").onclick = async () => { const name=$("#dn").value.trim(); if(!name) return toast("नाम लिखें"); try{ await addDoc(collection(db,"dipCustomers"),{name,phone:$("#dp").value.trim(),note:$("#dx").value.trim(),active:true,createdAt:serverTimestamp()}); ["#dn","#dp","#dx"].forEach(s=>$(s).value=""); toast("ग्राहक जुड़ा"); }catch(e){ toast(errMsg(e)); } };
   }
-  psub(onSnapshot(query(collection(db,"dipCustomers"),orderBy("createdAt","desc"),limit(300)), s => {
+  if(canEdit) psub(onSnapshot(query(collection(db,"dipCustomers"),orderBy("createdAt","desc"),limit(300)), s => {
     const el=$("#dl"); if(!el) return;
     el.innerHTML = s.docs.map(d=>{ const c=d.data(); return `<div class="between"><span><b>${esc(c.name)}</b> ${c.active===false?'<span class="pill bad">बंद</span>':''}<br><span class="muted">${esc(c.phone||"")}${c.note?" · "+esc(c.note):""}</span></span>
       ${canEdit?`<span class="row" style="flex:none"><button class="sec sm" data-t="${d.id}" data-v="${c.active===false?1:0}">${c.active===false?"चालू":"बंद"}</button><button class="sec sm" data-del="${d.id}">हटाएँ</button></span>`:""}</div>`; }).join("") || `<p class="muted">अभी कोई ग्राहक नहीं</p>`;
