@@ -1,0 +1,20 @@
+name: Health check
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/check.yml']
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check sites and Firebase rules
+        run: |
+          B='https://firestore.googleapis.com/v1/projects/master-connector-f2a0d/databases/(default)/documents'
+          for u in "https://thakurdip881-cloud.github.io/master-connector/" "https://thakurdip881-cloud.github.io/master-connector/dip/" "https://thakurdip881-cloud.github.io/master-connector/dip/admin.html" "https://github-netlify-deploy-0cc412.netlify.app/"; do
+            echo "SITE $(curl -s -o /dev/null -w '%{http_code}' "$u") $u"; done
+          curl -s https://thakurdip881-cloud.github.io/master-connector/dip/admin.html | grep -c tokPaste | sed 's/^/PASTE_BUTTON_LIVE /'
+          curl -s https://thakurdip881-cloud.github.io/master-connector/ | grep -c resumeNativeDuty | sed 's/^/MC_NEW_CODE_LIVE /'
+          echo "FS dip/control (public read expected 200/404): $(curl -s -o /dev/null -w '%{http_code}' "$B/dip/control")"
+          echo "FS users list unauth (new rules => 403): $(curl -s -o /dev/null -w '%{http_code}' "$B/users")"
+          echo "FS duty list unauth (new rules => 403): $(curl -s -o /dev/null -w '%{http_code}' "$B/duty")"
+          echo "FS invites get unauth (new rules => 404, old closed => 403): $(curl -s -o /dev/null -w '%{http_code}' "$B/invites/zzzzzzzzzzzzzzzzzzzz")"
