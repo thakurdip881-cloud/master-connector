@@ -358,22 +358,24 @@ function pageWorkers(){
     <div class="card"><h3>📱 WhatsApp से वर्कर बुलाएँ</h3><p class="muted">सिर्फ़ मोबाइल नंबर डालें। वर्कर को WhatsApp पर फ़ॉर्म का लिंक जाएगा — वो नाम और पासवर्ड भरेगा, अपने-आप यहाँ जुड़ जाएगा और उसे ऐप का लिंक मिल जाएगा। (लिंक 7 दिन चलेगा, एक बार ही।)</p>
     <label>वर्कर का मोबाइल नंबर</label><input id="im" inputmode="numeric" placeholder="10 अंक">
     <label>शिफ्ट</label><select id="is"><option value="morning">सुबह</option><option value="evening">शाम</option></select>
-    <div style="margin-top:12px"><button class="ok" id="inv" style="width:100%">📲 WhatsApp पर लिंक भेजें</button></div>
+    <div class="row" style="margin-top:12px"><button class="ok" id="inv" style="flex:1">📲 WhatsApp पर भेजें</button><button class="sec" id="invSms" style="flex:1">💬 SMS से भेजें</button></div>
     <div class="list" id="invList" style="margin-top:10px"></div></div>`:""}
     <div class="card"><h3>सभी लोग</h3><div class="list" id="wl"></div></div>`;
   if(isOwner){
-    $("#inv").onclick = async () => {
+    const sendInvite = async (via) => {
       const m=mobDigits($("#im").value); if(!m) return toast("सही 10 अंक का मोबाइल नंबर डालें");
       const code=newCode(), link=location.origin+location.pathname+"?join="+code;
-      const b=$("#inv"); b.disabled=true;
+      const b=via==="sms"?$("#invSms"):$("#inv"); b.disabled=true;
       try{
         await setDoc(doc(db,"invites",code),{role:"worker",mobile:m,shift:$("#is").value,used:false,exp:Timestamp.fromDate(new Date(Date.now()+7*864e5)),by:me.uid,createdAt:serverTimestamp()});
         const msg=`नमस्ते! MASTER CONNECTOR में जुड़ने के लिए यह फ़ॉर्म भरें (नाम और पासवर्ड):\n${link}\n\nफ़ॉर्म भरने के बाद ऐप यहाँ से डाउनलोड करें:\n${APK_URL}`;
-        const a=document.createElement("a"); a.href=`https://wa.me/91${m}?text=${encodeURIComponent(msg)}`; a.target="_blank"; a.rel="noopener"; document.body.appendChild(a); a.click(); a.remove();
-        $("#im").value=""; toast("WhatsApp खुल रहा है — वहाँ Send दबाएँ");
+        const a=document.createElement("a"); a.href = via==="sms" ? `sms:+91${m}?body=${encodeURIComponent(msg)}` : `https://wa.me/91${m}?text=${encodeURIComponent(msg)}`; a.target="_blank"; a.rel="noopener"; document.body.appendChild(a); a.click(); a.remove();
+        $("#im").value=""; toast((via==="sms"?"SMS":"WhatsApp")+" खुल रहा है — वहाँ Send दबाएँ");
       }catch(e){ toast(errMsg(e)); }
       b.disabled=false;
     };
+    $("#inv").onclick = () => sendInvite("wa");
+    $("#invSms").onclick = () => sendInvite("sms");
     psub(onSnapshot(query(collection(db,"invites"),orderBy("createdAt","desc"),limit(10)), s => {
       const el=$("#invList"); if(!el) return;
       el.innerHTML = s.docs.map(d=>{ const v=d.data(); const st=v.used?'<span class="pill ok">✅ जुड़ गया</span>':(toD(v.exp)||0)<Date.now()?'<span class="pill bad">समय खत्म</span>':'<span class="pill warn">इंतज़ार</span>';
