@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Firebase नियम कॉपी</title><meta name="robots" content="noindex">
+<style>
+body{margin:0;font-family:system-ui,sans-serif;background:#fff8ef;color:#222;padding:16px}
+h1{font-size:20px;margin:0 0 12px}
+.b{display:block;width:100%;padding:16px;margin:10px 0;font-size:18px;font-weight:700;border:0;border-radius:12px;color:#fff;text-align:center;text-decoration:none}
+.c{background:#e8590c}.o{background:#1c7ed6}
+#m{font-size:17px;font-weight:700;color:#2b8a3e;min-height:24px;text-align:center}
+ol{font-size:16px;line-height:1.6;padding-left:22px}
+textarea{width:100%;height:160px;font-size:11px;box-sizing:border-box;border-radius:8px}
+</style></head><body>
+<h1>🔥 Firebase नियम — 2 बटन</h1>
+<button class="b c" id="cp">1️⃣ नियम कॉपी करें</button>
+<div id="m"></div>
+<a class="b o" href="https://console.firebase.google.com/project/master-connector-f2a0d/firestore/rules" target="_blank" rel="noopener">2️⃣ Firebase Rules खोलें</a>
+<ol>
+<li>पहला बटन दबाएँ — "कॉपी हो गया ✅" दिखेगा</li>
+<li>दूसरा बटन दबाएँ — Firebase में Rules पेज खुलेगा</li>
+<li>वहाँ पुराना सारा text मिटाएँ, लंबा दबाकर <b>Paste</b> करें</li>
+<li>ऊपर <b>Publish</b> दबाएँ</li>
+</ol>
+<textarea id="t" readonly>लोड हो रहा है…</textarea>
+<script>
+var t=document.getElementById('t'),m=document.getElementById('m');
+fetch('firestore.rules?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.text()})
+.catch(function(){return fetch('https://raw.githubusercontent.com/thakurdip881-cloud/master-connector/main/firestore.rules').then(function(r){return r.text()})})
+.then(function(x){t.value=x}).catch(function(){t.value='लोड नहीं हुआ — नेट जाँचें और पेज फिर खोलें'});
+document.getElementById('cp').onclick=function(){
+ var ok=function(){m.textContent='कॉपी हो गया ✅ अब दूसरा बटन दबाएँ'};
+ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t.value).then(ok,fb)}else fb();
+ function fb(){t.focus();t.select();try{document.execCommand('copy');ok()}catch(e){m.textContent='नीचे वाला text लंबा दबाकर कॉपी करें'}}
+};
+</script></body></html>
