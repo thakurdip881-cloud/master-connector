@@ -45,8 +45,8 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid', 'name', 'mobile', 'dob', 'mail', 'idType', 'idNo', 'idImg', 'selfie', 'consent', 'ua', 'at'])
         && request.resource.data.uid == uid && request.resource.data.consent == true
         && request.resource.data.idType in ['aadhaar', 'pan', 'voter', 'dl']
-        && request.resource.data.idImg is string && request.resource.data.idImg.matches('data:image/jpeg;base64,.*') && request.resource.data.idImg.size() < 400000
-        && request.resource.data.selfie is string && request.resource.data.selfie.matches('data:image/jpeg;base64,.*') && request.resource.data.selfie.size() < 300000
+        && request.resource.data.idImg is string && request.resource.data.idImg.size() < 400000
+        && request.resource.data.selfie is string && request.resource.data.selfie.size() < 300000
         && (request.resource.data.idType != 'aadhaar' || request.resource.data.idNo.matches('XXXX-XXXX-[0-9]{4}'));
       allow update: if false;
       allow delete: if isOwner();
