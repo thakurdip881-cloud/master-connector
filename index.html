@@ -58,10 +58,18 @@ a{color:var(--pri2);word-break:break-all}
 .switch::after{content:"";position:absolute;top:4px;left:4px;width:28px;height:28px;border-radius:50%;background:#fff;transition:.2s}
 .switch.on{background:var(--ok)}
 .switch.on::after{left:32px}
+.diya{position:relative;display:inline-block;width:var(--s);height:var(--s);border-radius:50%;overflow:hidden;flex:none;vertical-align:middle}
+.diya img.b{width:100%;height:100%;display:block}
+.diya .g{position:absolute;left:50%;top:37%;width:62%;height:62%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(255,205,120,.6),rgba(255,150,60,.2) 45%,transparent 70%);mix-blend-mode:screen;pointer-events:none;animation:dglow 2.6s ease-in-out infinite}
+.diya img.f{position:absolute;left:41.6%;top:21.9%;width:16.4%;height:22.5%;transform-origin:50% 100%;filter:drop-shadow(0 0 5px rgba(255,190,90,.85));animation:dsway 3.2s ease-in-out infinite}
+@keyframes dsway{0%,100%{transform:rotate(-3deg) scaleY(1)}25%{transform:rotate(2deg) scaleY(1.06)}50%{transform:rotate(4deg) scaleY(.96)}75%{transform:rotate(-1.5deg) scaleY(1.04)}}
+@keyframes dglow{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(.88)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}}
+@media (prefers-reduced-motion:reduce){.diya img.f,.diya .g{animation:none}}
+.diyaBig{text-align:center;margin:4px 0 10px}
 </style>
 </head>
 <body>
-<header><h1>MASTER CONNECTOR<small id="who">लोड हो रहा है…</small></h1><button class="sec sm hidden" id="logoutBtn">लॉग आउट</button></header>
+<header><div style="display:flex;align-items:center"><span class="diya" style="--s:44px;margin-right:10px"><img class="b" src="img/diya-base.png" alt=""><span class="g"></span><img class="f" src="img/flame.png" alt=""></span><h1>MASTER CONNECTOR<small id="who">लोड हो रहा है…</small></h1></div><button class="sec sm hidden" id="logoutBtn">लॉग आउट</button></header>
 <main id="app"><div class="card">लोड हो रहा है…</div></main>
 <nav id="nav" class="hidden"></nav>
 <div id="toast" class="toast hidden"></div>
@@ -111,6 +119,7 @@ const newCode = () => { const a=new Uint8Array(15); crypto.getRandomValues(a); r
 const shrink = (file, max=640, q=0.6) => new Promise((res,rej) => { if(!file) return rej(new Error("no file")); const r=new FileReader(); r.onload=()=>{ const im=new Image(); im.onload=()=>{ const k=Math.min(1,max/Math.max(im.width,im.height)); const c=document.createElement("canvas"); c.width=Math.round(im.width*k); c.height=Math.round(im.height*k); c.getContext("2d").drawImage(im,0,0,c.width,c.height); res(c.toDataURL("image/jpeg",q)); }; im.onerror=rej; im.src=r.result; }; r.onerror=rej; r.readAsDataURL(file); });
 const ageYears = d => { const b=new Date(d); if(isNaN(b)) return -1; const n=new Date(); let a=n.getFullYear()-b.getFullYear(); if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate())) a--; return a; };
 const ID_TYPES = {aadhaar:"आधार कार्ड", pan:"PAN कार्ड", voter:"वोटर ID", dl:"ड्राइविंग लाइसेंस"};
+const DIYA = sz => `<div class="diyaBig"><span class="diya" style="--s:${sz}px"><img class="b" src="img/diya-base.png" alt=""><span class="g"></span><img class="f" src="img/flame.png" alt=""></span></div>`;
 const DIP_PANEL = "https://github-netlify-deploy-0cc412.netlify.app/admin.html";
 const NATIVE = window.MCNative || null;   // Android ऐप के अंदर: फ़ोन लॉक होने पर भी duty location जाँच
 const LIMIT_KM = 2;
@@ -128,7 +137,7 @@ $("#logoutBtn").onclick = async () => { if(confirm("लॉग आउट कर�
 
 function showLogin(){
   clearSubs(); nav.classList.add("hidden"); $("#logoutBtn").classList.add("hidden"); $("#who").textContent = "लॉगिन करें";
-  app.innerHTML = `<div class="card"><h3>लॉगिन</h3>
+  app.innerHTML = `<div class="card">${DIYA(140)}<h3>लॉगिन</h3>
     <label>मोबाइल नंबर या ईमेल</label><input id="em" autocomplete="username">
     <label>पासवर्ड</label><input id="pw" type="password" autocomplete="current-password">
     <div style="margin-top:14px"><button id="go" style="width:100%">लॉगिन करें</button></div>
@@ -147,7 +156,7 @@ async function showJoin(){
   const expired = inv && (inv.used || (toD(inv.exp)||0) < Date.now());
   if(!inv || expired){ app.innerHTML = `<div class="card"><h3>लिंक काम नहीं कर रहा</h3><p class="muted">${!inv?"यह लिंक सही नहीं है।":inv.used?"यह लिंक पहले ही इस्तेमाल हो चुका है।":"इस लिंक का समय खत्म हो गया।"} एडमिन से नया लिंक माँगें।</p><button class="sec" id="toLogin" style="width:100%">लॉगिन पेज</button></div>`; $("#toLogin").onclick=()=>{ location.href=location.pathname; }; return; }
   const mob = inv.mobile || "";
-  app.innerHTML = `<div class="card"><h3>👋 MASTER CONNECTOR में जुड़ें</h3>
+  app.innerHTML = `<div class="card">${DIYA(140)}<h3>👋 MASTER CONNECTOR में जुड़ें</h3>
     <p class="muted">यह फ़ॉर्म एक बार भरना है। एडमिन की मंज़ूरी के बाद ऐप में इसी मोबाइल नंबर और पासवर्ड से लॉगिन करेंगे।</p>
     <label>मोबाइल नंबर</label><input id="jm" value="${esc(mob)}" ${mob?"readonly":""} inputmode="numeric">
     <label>पूरा नाम (ID जैसा)</label><input id="jn" autocomplete="name">
@@ -195,7 +204,7 @@ async function showJoin(){
       bt.set(doc(tdb,"kyc",uid),{uid,name,mobile:m,dob,mail,idType:idt,idNo,idImg,selfie,consent:true,ua:navigator.userAgent.slice(0,160),at:serverTimestamp()});
       await bt.commit();
       try{ await signOut(getAuth(tmp)); await deleteApp(tmp); }catch(e){}
-      app.innerHTML = `<div class="card"><h3>✅ फ़ॉर्म जमा हो गया, ${esc(name)}!</h3>
+      app.innerHTML = `<div class="card">${DIYA(110)}<h3>✅ फ़ॉर्म जमा हो गया, ${esc(name)}!</h3>
         <p>एडमिन आपकी जानकारी देखकर मंज़ूरी देंगे। तब तक ऐप डाउनलोड कर लें:</p>
         <a href="${APK_URL}"><button class="ok" style="width:100%">📥 MASTER CONNECTOR ऐप डाउनलोड करें</button></a>
         <p>1. ऐप इंस्टॉल करें (फ़ोन पूछे तो Allow)।<br>2. Location और Notification की अनुमति दें।<br>3. मंज़ूरी के बाद लॉगिन: मोबाइल <b>${m}</b> और आपका पासवर्ड।<br>4. <b>ड्यूटी शुरू करें</b> दबाएँ।</p></div>`;
