@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Key कॉपी</title><meta name="robots" content="noindex">
+<style>
+body{margin:0;font-family:system-ui,sans-serif;background:#fff8ef;color:#222;padding:16px}
+h1{font-size:20px;margin:0 0 6px}p{font-size:15px;margin:6px 0}
+.b{display:block;width:100%;padding:16px;margin:10px 0;font-size:18px;font-weight:700;border:0;border-radius:12px;color:#fff;text-align:center;text-decoration:none;box-sizing:border-box}
+.f{background:#2b8a3e}.c{background:#e8590c}.o{background:#1c7ed6}.n{background:#555}
+#m{font-size:17px;font-weight:700;color:#2b8a3e;min-height:24px;text-align:center}
+input{display:none}
+</style></head><body>
+<h1>🔑 Firebase key → GitHub</h1>
+<p>🔒 फ़ाइल आपके फ़ोन में ही पढ़ी जाती है — कहीं भेजी नहीं जाती।</p>
+<label class="b f" for="fi">1️⃣ डाउनलोड हुई key फ़ाइल चुनें</label>
+<input type="file" id="fi" accept=".json,application/json,*/*">
+<div id="m"></div>
+<a class="b o" href="https://github.com/thakurdip881-cloud/master-connector/settings/secrets/actions/new" target="_blank" rel="noopener">2️⃣ GitHub Secret पेज खोलें</a>
+<button class="b n" id="cn">3️⃣ नाम कॉपी करें: FIREBASE_SA</button>
+<button class="b c" id="cp" disabled>4️⃣ key कॉपी करें</button>
+<p>2️⃣ से GitHub खुलेगा। 3️⃣ दबाकर GitHub में <b>Name</b> में पेस्ट करें। फिर यहाँ लौटकर 4️⃣ दबाएँ और <b>Secret</b> में पेस्ट करें → <b>Add secret</b>.</p>
+<script>
+var k='',m=document.getElementById('m'),cp=document.getElementById('cp');
+function copy(t,msg){var ok=function(){m.textContent=msg};
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,fb);else fb();
+ function fb(){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');ok()}catch(e){m.textContent='कॉपी नहीं हुआ, फिर दबाएँ'}a.remove()}}
+document.getElementById('fi').onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();
+ r.onload=function(){var t=String(r.result);
+  try{var j=JSON.parse(t);if(!j.private_key||!j.client_email)throw 0}catch(x){m.style.color='#c92a2a';m.textContent='❌ यह सही key फ़ाइल नहीं है';cp.disabled=true;return}
+  k=t;m.style.color='#2b8a3e';m.textContent='✅ फ़ाइल मिल गई — अब 2️⃣ दबाएँ';cp.disabled=false};r.readAsText(f)};
+cp.onclick=function(){if(k)copy(k,'✅ key कॉपी हो गई — GitHub में Secret खाने में पेस्ट करें')};
+document.getElementById('cn').onclick=function(){copy('FIREBASE_SA','✅ नाम कॉपी हो गया — GitHub में Name खाने में पेस्ट करें')};
+</script></body></html>
