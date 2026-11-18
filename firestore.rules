@@ -25,14 +25,31 @@ service cloud.firestore {
       allow create: if (isOwner() && (uid == request.auth.uid || request.resource.data.role != 'admin'))
         // नया वर्कर हायरिंग लिंक से — लिंक वाली भूमिका ही, बदलाव की अनुमति नहीं
         || (signed() && request.auth.uid == uid && !exists(userDoc(uid))
-          && request.resource.data.keys().hasOnly(['name', 'email', 'mobile', 'role', 'canEdit', 'active', 'shift', 'invite', 'createdAt'])
+          && request.resource.data.keys().hasOnly(['name', 'email', 'mobile', 'role', 'canEdit', 'active', 'status', 'shift', 'invite', 'createdAt'])
           && request.resource.data.invite is string && inviteOpen(request.resource.data.invite)
           && request.resource.data.role == get(inviteDoc(request.resource.data.invite)).data.role
-          && request.resource.data.canEdit == false && request.resource.data.active == true
+          && request.resource.data.canEdit == false
+          // पुराना (DIP Control Panel) लिंक: सीधे चालू; नया WhatsApp फ़ॉर्म: मंज़ूरी बाकी
+          && (request.resource.data.active == true || (request.resource.data.active == false && request.resource.data.status == 'pending'))
           && request.resource.data.name is string && request.resource.data.name.size() > 0
           && getAfter(inviteDoc(request.resource.data.invite)).data.usedBy == uid);
       allow update: if isOwner() && (uid == request.auth.uid || request.resource.data.role != 'admin');
       allow delete: if isOwner() && uid != request.auth.uid;
+    }
+
+    // ---------- KYC (जन्म तिथि, ईमेल, ID, लाइव फ़ोटो) — सिर्फ़ मालिक और वो खुद देख सके ----------
+    match /kyc/{uid} {
+      allow read: if isOwner() || (signed() && request.auth.uid == uid);
+      allow create: if signed() && request.auth.uid == uid && !exists(/databases/$(db)/documents/kyc/$(uid))
+        && getAfter(userDoc(uid)).data.invite is string
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'mobile', 'dob', 'mail', 'idType', 'idNo', 'idImg', 'selfie', 'consent', 'ua', 'at'])
+        && request.resource.data.uid == uid && request.resource.data.consent == true
+        && request.resource.data.idType in ['aadhaar', 'pan', 'voter', 'dl']
+        && request.resource.data.idImg is string && request.resource.data.idImg.matches('data:image/jpeg;base64,.*') && request.resource.data.idImg.size() < 400000
+        && request.resource.data.selfie is string && request.resource.data.selfie.matches('data:image/jpeg;base64,.*') && request.resource.data.selfie.size() < 300000
+        && (request.resource.data.idType != 'aadhaar' || request.resource.data.idNo.matches('XXXX-XXXX-[0-9]{4}'));
+      allow update: if false;
+      allow delete: if isOwner();
     }
 
     // ---------- ड्यूटी (हाज़िरी + 2 km location जाँच) ----------

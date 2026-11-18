@@ -103,6 +103,10 @@ const showId = e => String(e||"").endsWith("@"+MOB_DOMAIN) ? "📱 "+e.split("@"
 const APK_URL = "https://github.com/thakurdip881-cloud/master-connector/releases/download/apk-v6/MasterConnector.apk";
 const JOIN_CODE = new URLSearchParams(location.search).get("join") || "";
 const newCode = () => { const a=new Uint8Array(15); crypto.getRandomValues(a); return btoa(String.fromCharCode(...a)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); };
+// फ़ोटो छोटी करके (कम डेटा) base64 — Firebase Storage नहीं (वो फ़्री नहीं)
+const shrink = (file, max=640, q=0.6) => new Promise((res,rej) => { if(!file) return rej(new Error("no file")); const r=new FileReader(); r.onload=()=>{ const im=new Image(); im.onload=()=>{ const k=Math.min(1,max/Math.max(im.width,im.height)); const c=document.createElement("canvas"); c.width=Math.round(im.width*k); c.height=Math.round(im.height*k); c.getContext("2d").drawImage(im,0,0,c.width,c.height); res(c.toDataURL("image/jpeg",q)); }; im.onerror=rej; im.src=r.result; }; r.onerror=rej; r.readAsDataURL(file); });
+const ageYears = d => { const b=new Date(d); if(isNaN(b)) return -1; const n=new Date(); let a=n.getFullYear()-b.getFullYear(); if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate())) a--; return a; };
+const ID_TYPES = {aadhaar:"आधार कार्ड", pan:"PAN कार्ड", voter:"वोटर ID", dl:"ड्राइविंग लाइसेंस"};
 const DIP_PANEL = "https://github-netlify-deploy-0cc412.netlify.app/admin.html";
 const NATIVE = window.MCNative || null;   // Android ऐप के अंदर: फ़ोन लॉक होने पर भी duty location जाँच
 const LIMIT_KM = 2;
@@ -140,41 +144,61 @@ async function showJoin(){
   if(!inv || expired){ app.innerHTML = `<div class="card"><h3>लिंक काम नहीं कर रहा</h3><p class="muted">${!inv?"यह लिंक सही नहीं है।":inv.used?"यह लिंक पहले ही इस्तेमाल हो चुका है।":"इस लिंक का समय खत्म हो गया।"} एडमिन से नया लिंक माँगें।</p><button class="sec" id="toLogin" style="width:100%">लॉगिन पेज</button></div>`; $("#toLogin").onclick=()=>{ location.href=location.pathname; }; return; }
   const mob = inv.mobile || "";
   app.innerHTML = `<div class="card"><h3>👋 MASTER CONNECTOR में जुड़ें</h3>
-    <p class="muted">यह फ़ॉर्म एक बार भरना है। फिर ऐप में इसी मोबाइल नंबर और पासवर्ड से लॉगिन करें।</p>
+    <p class="muted">यह फ़ॉर्म एक बार भरना है। एडमिन की मंज़ूरी के बाद ऐप में इसी मोबाइल नंबर और पासवर्ड से लॉगिन करेंगे।</p>
     <label>मोबाइल नंबर</label><input id="jm" value="${esc(mob)}" ${mob?"readonly":""} inputmode="numeric">
-    <label>आपका पूरा नाम</label><input id="jn" autocomplete="name">
-    <label>नया पासवर्ड (कम से कम 6 अक्षर)</label><input id="jp" type="password" autocomplete="new-password">
+    <label>पूरा नाम (ID जैसा)</label><input id="jn" autocomplete="name">
+    <label>जन्म तिथि</label><input id="jd" type="date">
+    <label>ईमेल ID</label><input id="je" type="email" inputmode="email" autocomplete="email">
+    <label>सरकारी ID</label><select id="jt">${Object.entries(ID_TYPES).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select>
+    <label>ID नंबर</label><input id="ji" autocapitalize="characters">
+    <p class="muted" id="jiHint">आधार: सुरक्षा के लिए सिर्फ़ आखिरी 4 अंक सेव होंगे।</p>
+    <label>ID की फ़ोटो (सामने वाला हिस्सा)</label><input id="jf" type="file" accept="image/*" capture="environment">
+    <label>📸 लाइव फ़ोटो (अभी कैमरे से सेल्फ़ी)</label><input id="js" type="file" accept="image/*" capture="user">
+    <img id="jsPrev" style="display:none;max-width:120px;border-radius:12px;margin-top:6px">
+    <label>नया पासवर्ड (कम से कम 8 अक्षर, अंक भी हों)</label><input id="jp" type="password" autocomplete="new-password">
     <label>पासवर्ड फिर से</label><input id="jp2" type="password" autocomplete="new-password">
-    <div style="margin-top:14px"><button id="jgo" style="width:100%">✅ जुड़ें</button></div></div>`;
+    <label class="row" style="color:var(--ink);margin-top:10px"><input type="checkbox" id="jc" style="width:auto;flex:none"> <span>मैं सहमति देता/देती हूँ कि मेरी यह जानकारी सिर्फ़ काम और हाज़िरी के लिए एडमिन देख सकेगा।</span></label>
+    <div style="margin-top:14px"><button id="jgo" style="width:100%">✅ फ़ॉर्म जमा करें</button></div></div>`;
+  $("#jt").onchange = () => { const t=$("#jt").value; $("#jiHint").textContent = t==="aadhaar" ? "आधार: सुरक्षा के लिए सिर्फ़ आखिरी 4 अंक सेव होंगे।" : t==="pan" ? "PAN जैसे: ABCDE1234F" : ""; };
+  $("#js").onchange = async () => { try{ $("#jsPrev").src = await shrink($("#js").files[0], 240, 0.6); $("#jsPrev").style.display="block"; }catch(e){} };
   $("#jgo").onclick = async () => {
-    const m=mobDigits($("#jm").value), name=$("#jn").value.trim(), pw=$("#jp").value;
+    const m=mobDigits($("#jm").value), name=$("#jn").value.trim(), dob=$("#jd").value, mail=$("#je").value.trim().toLowerCase();
+    const idt=$("#jt").value, idRaw=$("#ji").value.replace(/\s|-/g,"").toUpperCase(), pw=$("#jp").value;
     if(!m) return toast("सही 10 अंक का मोबाइल नंबर डालें");
-    if(!name) return toast("अपना नाम लिखें");
-    if(pw.length<6) return toast("पासवर्ड कम से कम 6 अक्षर");
+    if(name.length<3) return toast("अपना पूरा नाम लिखें");
+    const age=ageYears(dob); if(age<18 || age>80) return toast("सही जन्म तिथि डालें (18 साल या ज़्यादा)");
+    if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(mail)) return toast("सही ईमेल ID डालें");
+    if(idt==="aadhaar" && !/^[2-9]\d{11}$/.test(idRaw)) return toast("आधार 12 अंक का होना चाहिए");
+    if(idt==="pan" && !/^[A-Z]{5}\d{4}[A-Z]$/.test(idRaw)) return toast("PAN सही नहीं (जैसे ABCDE1234F)");
+    if(idRaw.length<6) return toast("ID नंबर सही डालें");
+    if(!$("#jf").files[0]) return toast("ID की फ़ोटो लगाएँ");
+    if(!$("#js").files[0]) return toast("लाइव फ़ोटो (सेल्फ़ी) लें");
+    if(pw.length<8 || !/\d/.test(pw) || !/[A-Za-z]/.test(pw)) return toast("पासवर्ड 8+ अक्षर का हो, अक्षर और अंक दोनों");
     if(pw!==$("#jp2").value) return toast("दोनों पासवर्ड एक जैसे नहीं हैं");
-    const b=$("#jgo"); b.disabled=true; b.textContent="जुड़ रहा है…";
+    if(!$("#jc").checked) return toast("सहमति वाले डिब्बे पर ✔ लगाएँ");
+    const b=$("#jgo"); b.disabled=true; b.textContent="जमा हो रहा है…";
+    let idImg, selfie;
+    try{ idImg = await shrink($("#jf").files[0], 800, 0.6); selfie = await shrink($("#js").files[0], 480, 0.6); }
+    catch(e){ toast("फ़ोटो नहीं खुली, दोबारा लें"); b.disabled=false; b.textContent="✅ फ़ॉर्म जमा करें"; return; }
+    const idNo = idt==="aadhaar" ? "XXXX-XXXX-"+idRaw.slice(-4) : idRaw;
     const tmp = initializeApp(firebaseConfig, "join"+Date.now());
     try{
       const email = m+"@"+MOB_DOMAIN;
       const cred = await createUserWithEmailAndPassword(getAuth(tmp), email, pw);
-      const tdb = getFirestore(tmp), bt = writeBatch(tdb);
-      bt.update(doc(tdb,"invites",JOIN_CODE),{used:true,usedBy:cred.user.uid,usedAt:serverTimestamp()});
-      bt.set(doc(tdb,"users",cred.user.uid),{name,email,mobile:m,role:inv.role||"worker",canEdit:false,active:true,shift:inv.shift==="evening"?"evening":"morning",invite:JOIN_CODE,createdAt:serverTimestamp()});
+      const uid = cred.user.uid, tdb = getFirestore(tmp), bt = writeBatch(tdb);
+      bt.update(doc(tdb,"invites",JOIN_CODE),{used:true,usedBy:uid,usedAt:serverTimestamp()});
+      bt.set(doc(tdb,"users",uid),{name,email,mobile:m,role:inv.role||"worker",canEdit:false,active:false,status:"pending",shift:inv.shift==="evening"?"evening":"morning",invite:JOIN_CODE,createdAt:serverTimestamp()});
+      bt.set(doc(tdb,"kyc",uid),{uid,name,mobile:m,dob,mail,idType:idt,idNo,idImg,selfie,consent:true,ua:navigator.userAgent.slice(0,160),at:serverTimestamp()});
       await bt.commit();
       try{ await signOut(getAuth(tmp)); await deleteApp(tmp); }catch(e){}
-      app.innerHTML = `<div class="card"><h3>✅ आप जुड़ गए, ${esc(name)}!</h3>
-        <p>अब ये करें:</p>
-        <p>1. नीचे बटन से <b>MASTER CONNECTOR ऐप</b> डाउनलोड करें और इंस्टॉल करें (फ़ोन पूछे तो Allow)।</p>
-        <a href="${APK_URL}"><button class="ok" style="width:100%">📥 ऐप डाउनलोड करें</button></a>
-        <p>2. ऐप खोलें, Location और Notification की अनुमति दें।</p>
-        <p>3. लॉगिन: मोबाइल <b>${m}</b> और आपका बनाया पासवर्ड।</p>
-        <p>4. <b>ड्यूटी शुरू करें</b> दबाएँ।</p>
-        <button class="sec" id="webLogin" style="width:100%;margin-top:8px">या यहीं ब्राउज़र में लॉगिन करें</button></div>`;
-      $("#webLogin").onclick=()=>{ location.href=location.pathname; };
+      app.innerHTML = `<div class="card"><h3>✅ फ़ॉर्म जमा हो गया, ${esc(name)}!</h3>
+        <p>एडमिन आपकी जानकारी देखकर मंज़ूरी देंगे। तब तक ऐप डाउनलोड कर लें:</p>
+        <a href="${APK_URL}"><button class="ok" style="width:100%">📥 MASTER CONNECTOR ऐप डाउनलोड करें</button></a>
+        <p>1. ऐप इंस्टॉल करें (फ़ोन पूछे तो Allow)।<br>2. Location और Notification की अनुमति दें।<br>3. मंज़ूरी के बाद लॉगिन: मोबाइल <b>${m}</b> और आपका पासवर्ड।<br>4. <b>ड्यूटी शुरू करें</b> दबाएँ।</p></div>`;
     }catch(e){
       try{ await deleteApp(tmp); }catch(_){}
       toast(String(e.code||"").includes("email-already-in-use") ? "इस मोबाइल नंबर से अकाउंट पहले से है — ऐप में लॉगिन करें" : errMsg(e));
-      b.disabled=false; b.textContent="✅ जुड़ें";
+      b.disabled=false; b.textContent="✅ फ़ॉर्म जमा करें";
     }
   };
 }
@@ -191,7 +215,7 @@ onAuthStateChanged(auth, async user => {
     if(!snap.exists()){ app.innerHTML = `<div class="card">आपका अकाउंट अभी जोड़ा नहीं गया है। एडमिन से संपर्क करें।</div>`; $("#logoutBtn").classList.remove("hidden"); return; }
     profile = snap.data();
   } catch(e){ app.innerHTML = `<div class="card">प्रोफ़ाइल लोड नहीं हुई: ${esc(errMsg(e))}</div>`; $("#logoutBtn").classList.remove("hidden"); return; }
-  if(profile.active === false && !isOwner){ app.innerHTML = `<div class="card">आपका अकाउंट बंद कर दिया गया है।</div>`; $("#logoutBtn").classList.remove("hidden"); return; }
+  if(profile.active === false && !isOwner){ app.innerHTML = profile.status==="pending" ? `<div class="card"><h3>⏳ मंज़ूरी का इंतज़ार</h3><p class="muted">आपका फ़ॉर्म मिल गया है। एडमिन के मंज़ूरी देते ही आप यहाँ ड्यूटी लगा सकेंगे। थोड़ी देर बाद फिर खोलें।</p></div>` : `<div class="card">आपका अकाउंट बंद कर दिया गया है।</div>`; $("#logoutBtn").classList.remove("hidden"); return; }
   canEdit = isOwner || profile.canEdit === true;
   $("#logoutBtn").classList.remove("hidden");
   $("#who").textContent = `${profile.name || showId(user.email)} · ${isOwner ? "मुख्य एडमिन" : canEdit ? "एडमिन (अनुमति)" : "वर्कर"}`;
@@ -312,6 +336,17 @@ function pageHome(){
 }
 
 /* ---------- ADMIN: WORKERS ---------- */
+const safeImg = d => /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(d||"") ? d : "";
+async function showKyc(u){
+  const p=$("#popup"); p.innerHTML=`<div class="card">लोड हो रहा है…</div>`; p.classList.remove("hidden");
+  let k=null; try{ const s=await getDoc(doc(db,"kyc",u.id)); k=s.exists()?s.data():null; }catch(e){ k=null; }
+  p.innerHTML = `<div class="card" style="max-height:85vh;overflow:auto"><div class="between"><h3 style="margin:0">🪪 ${esc(u.name)}</h3><button class="sec sm" id="kx">बंद</button></div>
+    ${!k?`<p class="muted">KYC नहीं मिली।</p>`:`
+    <p>📱 ${esc(k.mobile)}<br>🎂 ${esc(k.dob)} (${ageYears(k.dob)} साल)<br>✉️ ${esc(k.mail)}<br>🪪 ${esc(ID_TYPES[k.idType]||k.idType)}: <b>${esc(k.idNo)}</b><br><span class="muted">जमा: ${fmtD(k.at)} ${fmtT(k.at)}</span></p>
+    <p class="muted">📸 लाइव फ़ोटो</p><img src="${safeImg(k.selfie)}" style="max-width:100%;border-radius:12px">
+    <p class="muted">ID फ़ोटो</p><img src="${safeImg(k.idImg)}" style="max-width:100%;border-radius:12px">`}</div>`;
+  $("#kx").onclick=()=>p.classList.add("hidden");
+}
 function pageWorkers(){
   app.innerHTML = `${isOwner?`<div class="card"><h3>नया वर्कर जोड़ें</h3>
     <label>नाम</label><input id="wn">
@@ -362,18 +397,20 @@ function pageWorkers(){
     const rows = s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.id===OWNER_UID?-1:b.id===OWNER_UID?1:(a.name||"").localeCompare(b.name||"")));
     $("#wl").innerHTML = rows.map(u=>{
       const owner=u.id===OWNER_UID;
-      return `<div><div class="between"><span><b>${esc(u.name)}</b> ${owner?'<span class="pill warn">मुख्य एडमिन</span>':u.canEdit?'<span class="pill warn">एडमिन अनुमति</span>':''} ${u.active===false?'<span class="pill bad">बंद</span>':''}<br><span class="muted">${esc(showId(u.email))} · ${shiftName(u.shift)} शिफ्ट${u.role==="trainee"?" · ट्रेनी":""}</span></span></div>
+      return `<div><div class="between"><span><b>${esc(u.name)}</b> ${owner?'<span class="pill warn">मुख्य एडमिन</span>':u.canEdit?'<span class="pill warn">एडमिन अनुमति</span>':''} ${u.status==="pending"?'<span class="pill warn">⏳ मंज़ूरी बाकी</span>':u.active===false?'<span class="pill bad">बंद</span>':''}<br><span class="muted">${esc(showId(u.email))} · ${shiftName(u.shift)} शिफ्ट${u.role==="trainee"?" · ट्रेनी":""}</span></span></div>
       ${isOwner&&!owner?`<div class="row" style="margin-top:8px">
         <button class="sec sm" data-a="shift" data-id="${u.id}">शिफ्ट बदलें</button>
         <button class="sec sm" data-a="perm" data-id="${u.id}">${u.canEdit?"अनुमति हटाएँ":"एडमिन अनुमति दें"}</button>
-        <button class="${u.active===false?"ok":"bad"} sm" data-a="act" data-id="${u.id}">${u.active===false?"चालू करें":"बंद करें"}</button></div>`:""}</div>`;
+        ${u.invite?`<button class="sec sm" data-a="kyc" data-id="${u.id}">🪪 KYC</button>`:""}
+        <button class="${u.active===false?"ok":"bad"} sm" data-a="act" data-id="${u.id}">${u.status==="pending"?"✅ मंज़ूरी दें":u.active===false?"चालू करें":"बंद करें"}</button></div>`:""}</div>`;
     }).join("");
     $("#wl").querySelectorAll("button[data-a]").forEach(b=>b.onclick=async()=>{
       const u=rows.find(r=>r.id===b.dataset.id); const r=doc(db,"users",u.id);
       try{
         if(b.dataset.a==="shift") await updateDoc(r,{shift:u.shift==="evening"?"morning":"evening"});
         if(b.dataset.a==="perm"){ if(!confirm(u.canEdit?"इस व्यक्ति से एडमिन अनुमति हटाएँ?":"इस व्यक्ति को बदलाव करने की अनुमति दें?")) return; await updateDoc(r,{canEdit:!u.canEdit}); }
-        if(b.dataset.a==="act"){ if(!confirm(u.active===false?"अकाउंट चालू करें?":"अकाउंट बंद करें? ये व्यक्ति लॉगिन नहीं कर पाएगा।")) return; await updateDoc(r,{active:u.active===false}); }
+        if(b.dataset.a==="kyc"){ return showKyc(u); }
+        if(b.dataset.a==="act"){ if(!confirm(u.status==="pending"?"KYC देख ली? इस वर्कर को मंज़ूरी दें?":u.active===false?"अकाउंट चालू करें?":"अकाउंट बंद करें? ये व्यक्ति लॉगिन नहीं कर पाएगा।")) return; await updateDoc(r,{active:u.active===false,status:u.active===false?"approved":"blocked"}); }
         toast("बदलाव सेव हुआ");
       }catch(e){ toast(errMsg(e)); }
     });
