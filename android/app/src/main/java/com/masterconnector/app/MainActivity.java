@@ -96,6 +96,19 @@ public class MainActivity extends Activity {
                 || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
+    /** TECNO/HiOS बैटरी बचत ड्यूटी की लोकेशन जाँच को पीछे से बंद न करे — एक ही बार पूछता है */
+    private void askBattery() {
+        try {
+            if (Build.VERSION.SDK_INT < 23) return;
+            android.content.SharedPreferences sp = getSharedPreferences("mc", MODE_PRIVATE);
+            if (sp.getBoolean("batAsked", false)) return;
+            android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
+            if (pm.isIgnoringBatteryOptimizations(getPackageName())) return;
+            sp.edit().putBoolean("batAsked", true).apply();
+            startActivity(new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getPackageName())));
+        } catch (Exception ignored) { }
+    }
+
     private void askPermissions() {
         if (Build.VERSION.SDK_INT < 23) return;
         List<String> need = new ArrayList<>();
@@ -103,12 +116,14 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
             need.add(Manifest.permission.POST_NOTIFICATIONS);
         if (!need.isEmpty()) requestPermissions(need.toArray(new String[0]), REQ_PERM);
+        else askBattery();
     }
 
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
         super.onRequestPermissionsResult(code, perms, res);
         boolean ok = hasLocation();
+        if (ok) askBattery();
         if (geoCb != null) { geoCb.invoke(geoOrigin, ok, false); geoCb = null; }
         if (ok && pendingDuty != null) { String[] d = pendingDuty; pendingDuty = null; DutyService.start(this, d[0], d[1], d[2], d[3]); }
     }
