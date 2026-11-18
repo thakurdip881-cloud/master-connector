@@ -1018,50 +1018,81 @@ try{ cfgApply(JSON.parse(store('dip_cfg')||'null')); }catch(e){}
    MC_PROJECT खाली हो तो कुछ नहीं बदलता (पहले की तरह dip-config से चलता है)।
    भरा हो तो MASTER CONNECTOR ऐप की सेटिंग सबसे ऊपर मानी जाती है। */
 const MC_PROJECT='master-connector-f2a0d';
-function mcMerge(s){
-  if(!MC_PROJECT) return s;
+const MC_CFG={apiKey:'AIzaSyApw_GttyXeEmHFvKlJjoQFI11KuL4ahxI',projectId:MC_PROJECT,appId:'1:542800382335:web:8bf9d3ac9ad3b7906bb24a'};
+const MC={c:null,d:null,live:false};  // c = dip/control, d = इस फ़ोन का dipDevices रिकॉर्ड (सब समय millis में)
+const msOf=t=>!t?0:(typeof t==='number'?t:(t.toMillis?t.toMillis():(t.timestampValue?Date.parse(t.timestampValue):0)));
+// पहली बार (या लाइव जुड़ाव न हो तो): Firestore REST से पढ़ना
+function mcRest(){
+  if(MC.live) return Promise.resolve();
   const B='https://firestore.googleapis.com/v1/projects/'+MC_PROJECT+'/databases/(default)/documents/';
   const g=u=>fetch(B+u,{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null);
+  const val=v=>!v?undefined:('booleanValue' in v?v.booleanValue:'stringValue' in v?v.stringValue:'integerValue' in v?+v.integerValue:'timestampValue' in v?Date.parse(v.timestampValue):undefined);
+  const obj=f=>{ const o={}; for(const k in (f||{})) o[k]=val(f[k]); return o; };
   return Promise.all([g('dip/control'), g('dipDevices/'+encodeURIComponent(deviceId()))]).then(([c,d])=>{
-    s=s||{};
-    const f=c&&c.fields;
-    if(f){ if(f.on&&'booleanValue' in f.on) s.on=f.on.booleanValue;
-      if(f.msg&&'stringValue' in f.msg) s.msg=f.msg.stringValue;
-      if(f.telegram&&f.telegram.stringValue) s.telegram=f.telegram.stringValue; }
-    const v=d&&d.fields;
-    if(v){ const on=!(v.on&&v.on.booleanValue===false);
-      const ex=v.exp&&v.exp.timestampValue?Date.parse(v.exp.timestampValue):0;
-      s.mc_blk=!on || (ex>0 && Date.now()>ex); }
-    return s;
-  });
+    if(MC.live) return; if(c&&c.fields) MC.c=obj(c.fields); if(d&&d.fields) MC.d=obj(d.fields); });
 }
+// लाइव जुड़ाव: एडमिन के बटन दबाते ही कुछ सेकंड में यहाँ लागू (Firebase onSnapshot — बदलाव पर ही डेटा)
+async function mcLive(){
+  if(location.protocol==='file:' || MC.live) return;
+  try{
+    const A=await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
+    const F=await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+    const db=F.getFirestore(A.initializeApp(MC_CFG,'dipmc'));
+    MC.live=true;
+    F.onSnapshot(F.doc(db,'dip','control'),s=>{ MC.c=s.exists()?s.data():{}; mcRender(); },()=>{ MC.live=false; });
+    const ref=F.doc(db,'dipDevices',deviceId());
+    F.onSnapshot(ref,s=>{ if(!s.exists()){ F.setDoc(ref,{firstSeen:F.serverTimestamp()}).catch(()=>{}); return; } MC.d=s.data(); mcRender(); },()=>{});
+  }catch(e){ MC.live=false; }
+}
+// MASTER CONNECTOR की सेटिंग सबसे ऊपर: ON/OFF + टाइमर, मैसेज, 7 दिन ट्रायल / 30-90-180 दिन प्लान
+function mcMerge(s){
+  s=Object.assign({},s||{}); const c=MC.c, d=MC.d, now=Date.now();
+  if(c){ if(typeof c.on==='boolean') s.on=c.on; else if(typeof c.enabled==='boolean') s.on=c.enabled;
+    if(typeof c.msg==='string') s.msg=c.msg; if(c.telegram) s.telegram=c.telegram;
+    const u=msOf(c.until); s.until=u; if(s.on!==false && u>0 && now>=u){ s.on=false; s.timerEnd=true; } }
+  if(d){ const ex=msOf(d.exp), fs=msOf(d.firstSeen), td=(c&&+c.trialDays)||7, trial=!(c&&c.trial===false);
+    let blk=d.on===false, tEnd=false;
+    if(ex>0) blk = blk || now>ex;
+    else if(trial && fs>0 && now>fs+td*864e5){ blk=true; tEnd=true; }
+    s.mc_blk=blk; s.trialEnd=tEnd; s.trialAt=(!ex&&trial&&fs)?fs+td*864e5:0; s.expAt=ex; }
+  return s;
+}
+let lastS=null, mcT=null;
+function mcRender(){ if(lastS) cfgRender(lastS); else adminCheck(); }
 let chkMin=1440, chkT=null;  // कम डेटा: हर 24 घंटे (ऐप खोलते/वापस आते ही तुरंत भी जाँचता है)
 function adminCheck(){
   if(location.protocol==='file:') return;
   fetch(CFG_URL,{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject())
    .catch(()=>fetch('status.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null))
-   .then(s=>mcMerge(s))
-   .then(s=>{
-    if(!s) return; store('dip_cfg',JSON.stringify(s));
+   .then(s=>mcRest().then(()=>s))
+   .then(s=>{ if(s){ store('dip_cfg',JSON.stringify(s)); lastS=s; cfgRender(s); } }).catch(()=>{});
+}
+function cfgRender(s0){
+    const s=mcMerge(s0);
     if(myUser(s) && $('reg').style.display==='block' && regData()){ closeReg(); hideRegUI(); if(REG_ON && !pinHas()) pinShow('create'); }
     const wasLic=LICENSE_ON; cfgApply(s);
     if(LICENSE_ON && !wasLic) afterReg(); else if(!LICENSE_ON && wasLic) $('lock').style.display='none';
     const me=myUser(s), blk=(!!me && (me.b===true || (me.auto===true && me.exp && today()>me.exp))) || s.mc_blk===true;
     const off=s.on===false || blk, en=RL()==='en';
     if(off){ try{ if(B.running) stopBot(); }catch(e){}
-      if(blk){
+      if(blk && s.trialEnd){
+        $('offTitle').textContent=en?'Your 7-day free trial has ended':'आपका 7 दिन का फ़्री ट्रायल खत्म हो गया';
+        $('offMsg').textContent=(en?'Take a 30 / 90 / 180 day plan from the admin to continue. Device: ':'आगे चलाने के लिए एडमिन से 30 / 90 / 180 दिन का प्लान लें। Device: ')+deviceId();
+      }else if(blk){
         $('offTitle').textContent=en?'Your access has ended':'आपकी ऐप की अवधि खत्म हो गई है';
         $('offMsg').textContent=s.block_msg||(en?'Please contact the admin to continue. Device: ':'आगे चलाने के लिए एडमिन से बात करें। Device: ')+deviceId();
       }else{
         $('offTitle').textContent=en?'App is OFF right now':'ऐप अभी बंद है';
-        $('offMsg').textContent=s.msg||(en?'The admin has turned the app off. Please try later.':'एडमिन ने ऐप बंद किया है। थोड़ी देर बाद खोलें।');
+        $('offMsg').textContent=s.msg||(s.timerEnd?(en?'Today\'s app time is over. It will open again when the admin starts it.':'आज का ऐप का समय पूरा हुआ। एडमिन दोबारा चालू करेंगे तब खुलेगा।'):(en?'The admin has turned the app off. Please try later.':'एडमिन ने ऐप बंद किया है। थोड़ी देर बाद खोलें।'));
       }
       $('offRetry').textContent=en?'🔄 Check again':'🔄 दोबारा देखें'; }
     $('offTg').style.display=(blk && SUPPORT.telegram)?'block':'none';
     $('offScr').style.display=off?'block':'none';
-    const m=Math.max(1,Math.min(1440,Math.round(+s.check_min)||1440));
+    const m=Math.max(1,Math.min(1440,Math.round(+s0.check_min)||1440));
     if(m!==chkMin){ chkMin=m; clearInterval(chkT); chkT=setInterval(adminCheck,chkMin*60000); }
-  }).catch(()=>{});
+    // टाइमर / ट्रायल खत्म होने के ठीक समय पर अपने-आप बंद
+    clearTimeout(mcT); const nx=[s.until, s.trialAt, s.expAt].filter(t=>t>Date.now()).sort((a,b)=>a-b)[0];
+    if(nx && nx-Date.now()<864e5) mcT=setTimeout(mcRender, nx-Date.now()+1500);
 }
 $('offRetry').onclick=adminCheck;
 $('offTg').onclick=()=>openTG('🔑 DIP Master AI — मेरी ऐप चालू करनी है\nDevice ID: '+deviceId());
@@ -1069,7 +1100,7 @@ $('offTg').onclick=()=>openTG('🔑 DIP Master AI — मेरी ऐप चा
 function myUser(s){ if(!s||!s.users) return null;
   const b=sha256js(new TextEncoder().encode('dipu|'+deviceId())); const h=[...b].slice(0,8).map(x=>x.toString(16).padStart(2,'0')).join('');
   return s.users[h]||null; }
-adminCheck(); chkT=setInterval(adminCheck,chkMin*60000);
+adminCheck(); chkT=setInterval(adminCheck,chkMin*60000); setTimeout(mcLive,1500);
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) adminCheck(); });
 
 /* ---------- चेतावनी ---------- */

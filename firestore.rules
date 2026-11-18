@@ -99,7 +99,14 @@ service cloud.firestore {
     // ---------- DIP Master AI ----------
     // ON/OFF और मैसेज DIP साइट बिना login पढ़ती है — इसमें कोई गुप्त चीज़ न रखें
     match /dip/control { allow read: if true; allow write: if editor(); }
-    match /dipDevices/{d} { allow get: if true; allow list: if false; allow write: if editor(); }
+    // हर फ़ोन का रिकॉर्ड: पहली बार खुलने का समय (7 दिन फ़्री ट्रायल) — फ़ोन खुद सिर्फ़ एक बार firstSeen बना सकता है
+    match /dipDevices/{d} {
+      allow get: if true;
+      allow list: if editor();
+      allow create: if editor() || (d.matches('DIP-[A-Z0-9]{8}') && request.resource.data.keys().hasOnly(['firstSeen'])
+        && request.resource.data.firstSeen == request.time);
+      allow update, delete: if editor();
+    }
     match /dipCustomers/{id} { allow read, write: if editor(); }
 
     // बाकी सब बंद
