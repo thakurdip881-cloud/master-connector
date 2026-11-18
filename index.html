@@ -66,7 +66,7 @@ a{color:var(--pri2);word-break:break-all}
 <script type="module">
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, getFirestore, writeBatch, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyApw_GttyXeEmHFvKlJjoQFI11KuL4ahxI",
@@ -100,6 +100,9 @@ const MOB_DOMAIN = "worker.masterconnector.app";
 const mobDigits = x => { let d=String(x||"").replace(/[\s\-+]/g,""); if(/^91\d{10}$/.test(d)) d=d.slice(2); if(/^0\d{10}$/.test(d)) d=d.slice(1); return /^[6-9]\d{9}$/.test(d) ? d : ""; };
 const loginId = x => { const d=mobDigits(x); return d ? d+"@"+MOB_DOMAIN : String(x||"").trim(); };
 const showId = e => String(e||"").endsWith("@"+MOB_DOMAIN) ? "📱 "+e.split("@")[0] : (e||"");
+const APK_URL = "https://github.com/thakurdip881-cloud/master-connector/releases/download/apk-v6/MasterConnector.apk";
+const JOIN_CODE = new URLSearchParams(location.search).get("join") || "";
+const newCode = () => { const a=new Uint8Array(15); crypto.getRandomValues(a); return btoa(String.fromCharCode(...a)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); };
 const DIP_PANEL = "https://github-netlify-deploy-0cc412.netlify.app/admin.html";
 const NATIVE = window.MCNative || null;   // Android ऐप के अंदर: फ़ोन लॉक होने पर भी duty location जाँच
 const LIMIT_KM = 2;
@@ -127,8 +130,58 @@ function showLogin(){
   $("#fp").onclick = async e => { e.preventDefault(); const em=$("#em").value.trim(); if(!em) return toast("पहले ईमेल लिखें"); if(mobDigits(em)) return toast("मोबाइल वाले अकाउंट का पासवर्ड एडमिन से बदलवाएँ"); try{ await sendPasswordResetEmail(auth,em); toast("रीसेट लिंक ईमेल पर भेजा गया"); }catch(err){ toast(errMsg(err)); } };
 }
 
+/* ---------- वर्कर खुद जुड़े: WhatsApp वाला लिंक (?join=CODE) ---------- */
+async function showJoin(){
+  clearSubs(); nav.classList.add("hidden"); $("#logoutBtn").classList.add("hidden"); $("#who").textContent = "नया वर्कर";
+  app.innerHTML = `<div class="card">लिंक जाँच रहा है…</div>`;
+  let inv = null;
+  try{ const s = await getDoc(doc(db,"invites",JOIN_CODE)); inv = s.exists() ? s.data() : null; }catch(e){}
+  const expired = inv && (inv.used || (toD(inv.exp)||0) < Date.now());
+  if(!inv || expired){ app.innerHTML = `<div class="card"><h3>लिंक काम नहीं कर रहा</h3><p class="muted">${!inv?"यह लिंक सही नहीं है।":inv.used?"यह लिंक पहले ही इस्तेमाल हो चुका है।":"इस लिंक का समय खत्म हो गया।"} एडमिन से नया लिंक माँगें।</p><button class="sec" id="toLogin" style="width:100%">लॉगिन पेज</button></div>`; $("#toLogin").onclick=()=>{ location.href=location.pathname; }; return; }
+  const mob = inv.mobile || "";
+  app.innerHTML = `<div class="card"><h3>👋 MASTER CONNECTOR में जुड़ें</h3>
+    <p class="muted">यह फ़ॉर्म एक बार भरना है। फिर ऐप में इसी मोबाइल नंबर और पासवर्ड से लॉगिन करें।</p>
+    <label>मोबाइल नंबर</label><input id="jm" value="${esc(mob)}" ${mob?"readonly":""} inputmode="numeric">
+    <label>आपका पूरा नाम</label><input id="jn" autocomplete="name">
+    <label>नया पासवर्ड (कम से कम 6 अक्षर)</label><input id="jp" type="password" autocomplete="new-password">
+    <label>पासवर्ड फिर से</label><input id="jp2" type="password" autocomplete="new-password">
+    <div style="margin-top:14px"><button id="jgo" style="width:100%">✅ जुड़ें</button></div></div>`;
+  $("#jgo").onclick = async () => {
+    const m=mobDigits($("#jm").value), name=$("#jn").value.trim(), pw=$("#jp").value;
+    if(!m) return toast("सही 10 अंक का मोबाइल नंबर डालें");
+    if(!name) return toast("अपना नाम लिखें");
+    if(pw.length<6) return toast("पासवर्ड कम से कम 6 अक्षर");
+    if(pw!==$("#jp2").value) return toast("दोनों पासवर्ड एक जैसे नहीं हैं");
+    const b=$("#jgo"); b.disabled=true; b.textContent="जुड़ रहा है…";
+    const tmp = initializeApp(firebaseConfig, "join"+Date.now());
+    try{
+      const email = m+"@"+MOB_DOMAIN;
+      const cred = await createUserWithEmailAndPassword(getAuth(tmp), email, pw);
+      const tdb = getFirestore(tmp), bt = writeBatch(tdb);
+      bt.update(doc(tdb,"invites",JOIN_CODE),{used:true,usedBy:cred.user.uid,usedAt:serverTimestamp()});
+      bt.set(doc(tdb,"users",cred.user.uid),{name,email,mobile:m,role:inv.role||"worker",canEdit:false,active:true,shift:inv.shift==="evening"?"evening":"morning",invite:JOIN_CODE,createdAt:serverTimestamp()});
+      await bt.commit();
+      try{ await signOut(getAuth(tmp)); await deleteApp(tmp); }catch(e){}
+      app.innerHTML = `<div class="card"><h3>✅ आप जुड़ गए, ${esc(name)}!</h3>
+        <p>अब ये करें:</p>
+        <p>1. नीचे बटन से <b>MASTER CONNECTOR ऐप</b> डाउनलोड करें और इंस्टॉल करें (फ़ोन पूछे तो Allow)।</p>
+        <a href="${APK_URL}"><button class="ok" style="width:100%">📥 ऐप डाउनलोड करें</button></a>
+        <p>2. ऐप खोलें, Location और Notification की अनुमति दें।</p>
+        <p>3. लॉगिन: मोबाइल <b>${m}</b> और आपका बनाया पासवर्ड।</p>
+        <p>4. <b>ड्यूटी शुरू करें</b> दबाएँ।</p>
+        <button class="sec" id="webLogin" style="width:100%;margin-top:8px">या यहीं ब्राउज़र में लॉगिन करें</button></div>`;
+      $("#webLogin").onclick=()=>{ location.href=location.pathname; };
+    }catch(e){
+      try{ await deleteApp(tmp); }catch(_){}
+      toast(String(e.code||"").includes("email-already-in-use") ? "इस मोबाइल नंबर से अकाउंट पहले से है — ऐप में लॉगिन करें" : errMsg(e));
+      b.disabled=false; b.textContent="✅ जुड़ें";
+    }
+  };
+}
+
 onAuthStateChanged(auth, async user => {
   clearSubs();
+  if(JOIN_CODE && !user) return showJoin();
   if(!user){ me=null; return showLogin(); }
   me = user; isOwner = user.uid === OWNER_UID;
   const ref = doc(db,"users",user.uid);
@@ -267,9 +320,31 @@ function pageWorkers(){
     <label>शिफ्ट</label><select id="ws"><option value="morning">सुबह</option><option value="evening">शाम</option></select>
     <div style="margin-top:12px"><button id="addW" style="width:100%">वर्कर जोड़ें</button></div>
     <p class="muted">ये मोबाइल/ईमेल और पासवर्ड वर्कर को दे दें, वो इसी से लॉगिन करेगा।</p></div>
-    <div class="card"><h3>➕ हायरिंग लिंक से वर्कर जोड़ें</h3><p class="muted">हायरिंग लिंक और 📢 कमांड बोर्ड DIP Master AI के Control Panel (👷 वर्कर टैब) में हैं। वहाँ से जुड़ा वर्कर अपने-आप यहाँ की लिस्ट में आ जाएगा और इसी ऐप में ड्यूटी लगा सकेगा। Control Panel में यही ईमेल-पासवर्ड से लॉगिन करें।</p><button class="sec" id="dipPanel" style="width:100%">Control Panel खोलें</button></div>`:""}
+    <div class="card"><h3>📱 WhatsApp से वर्कर बुलाएँ</h3><p class="muted">सिर्फ़ मोबाइल नंबर डालें। वर्कर को WhatsApp पर फ़ॉर्म का लिंक जाएगा — वो नाम और पासवर्ड भरेगा, अपने-आप यहाँ जुड़ जाएगा और उसे ऐप का लिंक मिल जाएगा। (लिंक 7 दिन चलेगा, एक बार ही।)</p>
+    <label>वर्कर का मोबाइल नंबर</label><input id="im" inputmode="numeric" placeholder="10 अंक">
+    <label>शिफ्ट</label><select id="is"><option value="morning">सुबह</option><option value="evening">शाम</option></select>
+    <div style="margin-top:12px"><button class="ok" id="inv" style="width:100%">📲 WhatsApp पर लिंक भेजें</button></div>
+    <div class="list" id="invList" style="margin-top:10px"></div></div>`:""}
     <div class="card"><h3>सभी लोग</h3><div class="list" id="wl"></div></div>`;
-  if(isOwner) $("#dipPanel").onclick = () => window.open(DIP_PANEL,"_blank");
+  if(isOwner){
+    $("#inv").onclick = async () => {
+      const m=mobDigits($("#im").value); if(!m) return toast("सही 10 अंक का मोबाइल नंबर डालें");
+      const code=newCode(), link=location.origin+location.pathname+"?join="+code;
+      const b=$("#inv"); b.disabled=true;
+      try{
+        await setDoc(doc(db,"invites",code),{role:"worker",mobile:m,shift:$("#is").value,used:false,exp:Timestamp.fromDate(new Date(Date.now()+7*864e5)),by:me.uid,createdAt:serverTimestamp()});
+        const msg=`नमस्ते! MASTER CONNECTOR में जुड़ने के लिए यह फ़ॉर्म भरें (नाम और पासवर्ड):\n${link}\n\nफ़ॉर्म भरने के बाद ऐप यहाँ से डाउनलोड करें:\n${APK_URL}`;
+        const a=document.createElement("a"); a.href=`https://wa.me/91${m}?text=${encodeURIComponent(msg)}`; a.target="_blank"; a.rel="noopener"; document.body.appendChild(a); a.click(); a.remove();
+        $("#im").value=""; toast("WhatsApp खुल रहा है — वहाँ Send दबाएँ");
+      }catch(e){ toast(errMsg(e)); }
+      b.disabled=false;
+    };
+    psub(onSnapshot(query(collection(db,"invites"),orderBy("createdAt","desc"),limit(10)), s => {
+      const el=$("#invList"); if(!el) return;
+      el.innerHTML = s.docs.map(d=>{ const v=d.data(); const st=v.used?'<span class="pill ok">✅ जुड़ गया</span>':(toD(v.exp)||0)<Date.now()?'<span class="pill bad">समय खत्म</span>':'<span class="pill warn">इंतज़ार</span>';
+        return `<div class="between"><span>📱 ${esc(v.mobile||"—")} · ${shiftName(v.shift)}<br><span class="muted">${fmtD(v.createdAt)} ${fmtT(v.createdAt)}</span></span>${st}</div>`; }).join("") || `<p class="muted">अभी कोई लिंक नहीं भेजा</p>`;
+    }, ()=>{}));
+  }
   if(isOwner) $("#addW").onclick = async () => {
     const name=$("#wn").value.trim(), email=loginId($("#we").value), pass=$("#wp").value, shift=$("#ws").value;
     if(!name||!email||!pass) return toast("नाम, ईमेल और पासवर्ड भरें");
