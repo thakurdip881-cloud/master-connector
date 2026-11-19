@@ -48,8 +48,8 @@ header img{width:36px;height:36px;border-radius:50%}
 header h1{margin:0;font-size:16px;color:var(--acc);letter-spacing:.3px;flex:1}
 header button{background:transparent;border:1px solid var(--line);color:var(--mut);border-radius:8px;padding:7px 10px;font-size:12px}
 main{max-width:520px;margin:0 auto;padding:12px}
-.tabs{display:flex;gap:6px;margin-bottom:12px}
-.tabs button{flex:1;background:var(--card);color:var(--mut);border:1px solid var(--line);border-radius:10px;padding:10px 2px;font-size:13px;font-weight:bold;box-shadow:var(--shadow)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tabs button{flex:1 1 22%;background:var(--card);color:var(--mut);border:1px solid var(--line);border-radius:10px;padding:10px 2px;font-size:13px;font-weight:bold;box-shadow:var(--shadow)}
 .tabs button.on{background:var(--acc);color:var(--accTxt);border-color:var(--acc)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
 .card h2{margin:0 0 10px;font-size:15px;color:var(--acc)}
@@ -135,6 +135,7 @@ a.lnk{display:block;text-align:center;text-decoration:none}
     <button data-t="tLic">🔑 Key</button>
     <button data-t="tSet">⚙ सेटिंग</button>
     <button data-t="tWrk">👷 वर्कर</button>
+    <button data-t="tCon">🔗 कनेक्शन</button>
   </div>
 
   <div id="tCtl" class="tab">
@@ -235,6 +236,7 @@ a.lnk{display:block;text-align:center;text-decoration:none}
     </div>
   </div>
   <div id="tWrk" class="tab hide"><div id="wrkBox"></div></div>
+  <div id="tCon" class="tab hide"><div id="conBox"></div></div>
 </section>
 </main>
 <script src="mc-firebase.js"></script>
@@ -243,6 +245,13 @@ a.lnk{display:block;text-align:center;text-decoration:none}
 let done=false;
 document.querySelector('[data-t="tWrk"]').addEventListener('click',async()=>{ if(done) return; done=true;
   const m=await import('./workers.js'); m.mount(document.getElementById('wrkBox'),'admin'); });
+</script>
+<script type="module">
+// 🔗 कनेक्शन — कौन सी साइट/सेवा जुड़ी है, जोड़ें/लॉगआउट, नए और आने वाले अपडेट (connections.js)
+let cm=null; const cx=()=>cm||(cm=import('./connections.js?v=1'));
+let mounted=false;
+document.querySelector('[data-t="tCon"]').addEventListener('click',async()=>{ if(mounted) return; mounted=true; (await cx()).mount(document.getElementById('conBox')); });
+if(TOK) cx().then(m=>m.background()).catch(()=>{});
 </script>
 
 <script>
