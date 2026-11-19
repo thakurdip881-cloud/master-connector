@@ -15,6 +15,39 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      # पक्की signing चाबी: एक बार बनती है, ताले में (FIREBASE_SA secret से बनी चाबी) `apk-signing` branch में रहती है।
+      # हर APK इसी से sign होती है → आगे से Uninstall किए बिना सीधे अपडेट।
+      # ध्यान: FIREBASE_SA secret बदलने पर पुरानी चाबी नहीं खुलेगी — तब build रुक जाएगा (चाबी अपने-आप नहीं बदलेगी)।
+      - name: पक्की signing चाबी
+        env:
+          SA: ${{ secrets.FIREBASE_SA }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ -z "$SA" ]; then echo "::warning::FIREBASE_SA secret नहीं — पुरानी (बदलती) debug चाबी से sign"; exit 0; fi
+          export PASS=$(printf '%s' "$SA" | sha256sum | cut -c1-64)
+          D="$RUNNER_TEMP/sig"; mkdir -p "$D"; cd "$D"
+          URL="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          if git ls-remote --exit-code --heads "$URL" apk-signing >/dev/null 2>&1; then
+            git clone -q --depth 1 -b apk-signing "$URL" br
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:PASS -in br/mc-signing.enc -out b.tgz \
+              || { echo "::error::signing चाबी नहीं खुली (FIREBASE_SA बदला?) — नई चाबी नहीं बनाई, ताकि अपडेट न टूटे"; exit 1; }
+            tar xzf b.tgz; rm -rf br b.tgz
+            echo "::notice::✅ पक्की signing चाबी इस्तेमाल हुई"
+          else
+            KP=$(openssl rand -hex 24); printf '%s' "$KP" > pw.txt
+            keytool -genkeypair -keystore release.jks -alias mc -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$KP" -keypass "$KP" -dname "CN=MASTER CONNECTOR, O=DIP, C=IN" -noprompt
+            tar czf b.tgz release.jks pw.txt
+            mkdir br; openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:PASS -in b.tgz -out br/mc-signing.enc; rm b.tgz
+            cd br; git init -q; git checkout -q -b apk-signing
+            printf '# ताले में बंद APK signing चाबी — हटाएँ नहीं\n' > README.md
+            git add .; git -c user.name=github-actions -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -qm "APK signing key (encrypted)"
+            git push -q "$URL" apk-signing; cd ..; rm -rf br
+            echo "::notice::🔑 नई पक्की signing चाबी बनी (apk-signing branch, ताले में)"
+          fi
+          KP=$(cat pw.txt); echo "::add-mask::$KP"
+          echo "MC_KS=$D/release.jks" >> "$GITHUB_ENV"; echo "MC_KP=$KP" >> "$GITHUB_ENV"
       - name: Android SDK check
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME" ; echo "::notice::ANDROID_HOME=$ANDROID_HOME"
@@ -31,6 +64,10 @@ jobs:
         if: failure()
         run: grep -A12 "What went wrong" build.log | head -30 | while IFS= read -r l; do echo "::error::$l"; done
       - run: cp android/app/build/outputs/apk/debug/app-debug.apk MasterConnector.apk
+      - name: Signature जाँच
+        run: |
+          A=$(ls $ANDROID_HOME/build-tools/*/apksigner | tail -1)
+          "$A" verify --print-certs MasterConnector.apk | grep -i "SHA-256" | head -1 | sed 's/^/::notice::/'
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-v${{ github.run_number }}

@@ -1,6 +1,9 @@
 plugins { id 'com.android.application' }
 
 def vcode = (project.findProperty('vcode') ?: '1').toString().toInteger()
+// पक्की signing चाबी (GitHub Actions देता है: MC_KS, MC_KP) — न हो तो सामान्य debug चाबी
+def mcKs = System.getenv('MC_KS')
+def mcKp = System.getenv('MC_KP')
 
 android {
     namespace 'com.masterconnector.app'
@@ -11,6 +14,19 @@ android {
         targetSdk 34
         versionCode vcode
         versionName "1.${vcode}"
+    }
+    if (mcKs && mcKp && file(mcKs).exists()) {
+        signingConfigs {
+            mc {
+                storeFile file(mcKs)
+                storePassword mcKp
+                keyAlias 'mc'
+                keyPassword mcKp
+            }
+        }
+        buildTypes {
+            debug { signingConfig signingConfigs.mc }
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
