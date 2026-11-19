@@ -1,6 +1,6 @@
 /* DIP Master AI — service worker (ऑफ़लाइन चलाने के लिए)
    नया वर्ज़न डालें तो CACHE का नाम बदल दें (v1 → v2), ताकि फ़ोन में नई फ़ाइलें आ जाएँ। */
-const CACHE = 'dip-master-ai-v8';
+const CACHE = 'dip-master-ai-v9';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 
 self.addEventListener('install', e => {

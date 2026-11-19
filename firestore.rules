@@ -108,6 +108,16 @@ service cloud.firestore {
       allow update, delete: if editor();
     }
     match /dipCustomers/{id} { allow read, write: if editor(); }
+    // ट्रायल खत्म स्क्रीन वाला फ़ॉर्म: ग्राहक सिर्फ़ अपनी Device ID पर अर्ज़ी भेज/बदल सकता है, पढ़ना सिर्फ़ एडमिन
+    match /dipPlanReq/{d} {
+      allow read, delete: if editor();
+      allow create, update: if editor() || (d.matches('DIP-[A-Z0-9]{8}')
+        && request.resource.data.keys().hasOnly(['name','mobile','plan','at'])
+        && request.resource.data.name is string && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 60
+        && request.resource.data.mobile is string && request.resource.data.mobile.matches('[6-9][0-9]{9}')
+        && request.resource.data.plan in [30, 90, 180]
+        && request.resource.data.at == request.time);
+    }
 
     // बाकी सब बंद
     match /{document=**} { allow read, write: if false; }

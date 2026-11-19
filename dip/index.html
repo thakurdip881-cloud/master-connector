@@ -424,6 +424,15 @@ td{text-align:center;padding:8px 4px;border-bottom:1px solid #2e3b48}
   <h3 id="offTitle">ऐप अभी बंद है</h3>
   <div id="offMsg" style="font-size:15px;color:#c3cfda;line-height:1.6"></div>
   <button class="pbtn startB" id="offRetry" style="margin-top:14px">🔄 दोबारा देखें</button>
+  <div id="offForm" style="display:none;text-align:left;margin-top:14px">
+    <div style="font-size:15px;font-weight:bold;margin-bottom:6px" id="pfT">📝 प्लान के लिए फ़ॉर्म</div>
+    <div class="devid" id="pfDev" style="margin-bottom:8px"></div>
+    <input id="pfName" maxlength="60" placeholder="पूरा नाम" style="width:100%;box-sizing:border-box;margin-bottom:6px">
+    <input id="pfMob" type="tel" maxlength="10" inputmode="numeric" placeholder="मोबाइल नंबर (10 अंक)" style="width:100%;box-sizing:border-box;margin-bottom:6px">
+    <select id="pfPlan" style="width:100%;box-sizing:border-box;margin-bottom:8px"><option value="30">30 दिन</option><option value="90">90 दिन</option><option value="180">180 दिन</option></select>
+    <button class="pbtn startB" id="pfGo" style="width:100%">📨 फ़ॉर्म भेजें</button>
+    <div id="pfMsg" style="margin-top:6px;font-size:14px"></div>
+  </div>
   <button class="pbtn readB" id="offTg" style="margin-top:8px;display:none">✈️ एडमिन से बात करें</button>
 </div></div>
 
@@ -1087,6 +1096,7 @@ function cfgRender(s0){
       }
       $('offRetry').textContent=en?'🔄 Check again':'🔄 दोबारा देखें'; }
     $('offTg').style.display=(blk && SUPPORT.telegram)?'block':'none';
+    pfShow(off && blk && s.trialEnd);
     $('offScr').style.display=off?'block':'none';
     const m=Math.max(1,Math.min(1440,Math.round(+s0.check_min)||1440));
     if(m!==chkMin){ chkMin=m; clearInterval(chkT); chkT=setInterval(adminCheck,chkMin*60000); }
@@ -1095,6 +1105,30 @@ function cfgRender(s0){
     if(nx && nx-Date.now()<864e5) mcT=setTimeout(mcRender, nx-Date.now()+1500);
 }
 $('offRetry').onclick=adminCheck;
+// 📝 ट्रायल खत्म → प्लान फ़ॉर्म: Device ID अपने-आप, नाम/मोबाइल रजिस्ट्रेशन से भरे; Firebase (फ़्री) में dipPlanReq/<Device ID>
+function pfShow(on){ const f=$('offForm'); if(!f) return; f.style.display=on?'block':'none'; if(!on) return;
+  const en=RL()==='en', r=regData()||{};
+  $('pfT').textContent=en?'📝 Plan request form':'📝 प्लान के लिए फ़ॉर्म';
+  $('pfDev').textContent='Device ID: '+deviceId();
+  $('pfName').placeholder=en?'Full name':'पूरा नाम'; $('pfMob').placeholder=en?'Mobile number (10 digits)':'मोबाइल नंबर (10 अंक)';
+  [...$('pfPlan').options].forEach(o=>o.text=o.value+(en?' days':' दिन'));
+  $('pfGo').textContent=en?'📨 Send form':'📨 फ़ॉर्म भेजें';
+  if(!$('pfName').value && r.name) $('pfName').value=r.name;
+  if(!$('pfMob').value && r.mobile) $('pfMob').value=r.mobile;
+  const sent=store('dip_planreq'); if(sent && !$('pfMsg').textContent) $('pfMsg').innerHTML='<span class="win">'+(en?'✅ Form already sent. The admin will contact you.':'✅ फ़ॉर्म भेजा जा चुका है। एडमिन आपसे संपर्क करेंगे।')+'</span>';
+}
+$('pfGo').onclick=()=>{ const en=RL()==='en', n=$('pfName').value.trim(), m=$('pfMob').value.trim(), pl=+$('pfPlan').value;
+  const err=n.length<2?(en?'Enter your full name':'पूरा नाम भरें'):!/^[6-9]\d{9}$/.test(m)?(en?'Enter a valid 10-digit mobile number':'सही 10 अंक का मोबाइल नंबर भरें'):'';
+  if(err){ $('pfMsg').innerHTML='<span class="loss">'+err+'</span>'; return; }
+  $('pfGo').disabled=true; $('pfMsg').textContent=en?'Sending…':'भेज रहे हैं…';
+  const body={writes:[{update:{name:'projects/'+MC_PROJECT+'/databases/(default)/documents/dipPlanReq/'+deviceId(),fields:{name:{stringValue:n},mobile:{stringValue:m},plan:{integerValue:String(pl)}}},
+    updateTransforms:[{fieldPath:'at',setToServerValue:'REQUEST_TIME'}]}]};
+  fetch('https://firestore.googleapis.com/v1/projects/'+MC_PROJECT+'/databases/(default)/documents:commit?key='+MC_CFG.apiKey,
+    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+   .then(r=>{ if(!r.ok) throw 0; store('dip_planreq',String(Date.now()));
+     $('pfMsg').innerHTML='<span class="win">'+(en?'✅ Form sent! The admin will start your plan soon.':'✅ फ़ॉर्म भेज दिया! एडमिन जल्दी आपका प्लान चालू करेंगे।')+'</span>'; })
+   .catch(()=>{ $('pfMsg').innerHTML='<span class="loss">'+(en?'Could not send. Check internet and try again.':'नहीं भेज पाए। इंटरनेट देखकर दोबारा भेजें।')+'</span>'; })
+   .finally(()=>{ $('pfGo').disabled=false; }); };
 $('offTg').onclick=()=>openTG('🔑 DIP Master AI — मेरी ऐप चालू करनी है\nDevice ID: '+deviceId());
 // हर यूज़र की पहचान: Device ID का hash (असली ID config में नहीं लिखी जाती)
 function myUser(s){ if(!s||!s.users) return null;

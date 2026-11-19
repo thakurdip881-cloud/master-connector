@@ -548,6 +548,7 @@ function pageDip(){
       <label>Device ID</label><input id="pvId" placeholder="DIP-XXXXXXXX" autocapitalize="characters"><label>नाम (वैकल्पिक)</label><input id="pvN">
       <label>प्लान</label><select id="pvD"><option value="30">30 दिन</option><option value="90">90 दिन</option><option value="180">180 दिन</option><option value="365">365 दिन</option></select>
       <div style="margin-top:10px"><button id="pvGo" style="width:100%">✅ प्लान दें</button></div></div>
+    <div class="card"><h3>📝 प्लान की अर्ज़ियाँ <span class="pill warn" id="prN">0</span></h3><p class="muted">ट्रायल खत्म होने पर ग्राहक ऐप से फ़ॉर्म भेजते हैं। पैसे मिलने के बाद "✅ प्लान दें" दबाएँ।</p><div class="list" id="prl"></div></div>
     <div class="card"><h3>📱 ग्राहकों के फ़ोन</h3><div class="list" id="dvl"></div></div>`:""}`;
   let ctl={}; const tick=()=>{ const on=(ctl.on ?? ctl.enabled)===true, u=ctl.until&&ctl.until.toMillis?ctl.until.toMillis():0, live=on && (!u || Date.now()<u);
     let t = live ? (u?`🟢 चालू — ${Math.max(0,Math.floor((u-Date.now())/36e5))}:${String(Math.max(0,Math.floor((u-Date.now())%36e5/6e4))).padStart(2,"0")} घंटे बाकी`:"🟢 चालू — जब तक आप बंद न करें") : (on&&u?"🔴 बंद — समय पूरा हुआ":"🔴 बंद");
@@ -566,6 +567,14 @@ function pageDip(){
     try{ const ref=doc(db,"dipDevices",id), cur=await getDoc(ref), d=cur.exists()?cur.data():{}, base=Math.max(Date.now(), d.exp&&d.exp.toMillis?d.exp.toMillis():0);
       await setDoc(ref,{exp:Timestamp.fromMillis(base+days*864e5),on:true,plan:days,...(name?{name}:{}),paidAt:serverTimestamp(),by:me.uid},{merge:true});
       toast(`${id}: ${days} दिन जुड़े`); }catch(e){ toast(errMsg(e)); } };
+  psub(onSnapshot(query(collection(db,"dipPlanReq"),limit(200)), s => {
+    const el=$("#prl"); if(!el) return; $("#prN").textContent=s.size;
+    const rows=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.at&&b.at.toMillis?b.at.toMillis():0)-(a.at&&a.at.toMillis?a.at.toMillis():0));
+    el.innerHTML = rows.map(v=>`<div><div class="between"><span><b>${esc(v.name||"")}</b> · ${esc(v.mobile||"")}<br><span class="pill warn">${+v.plan||30} दिन</span><span class="muted"> ${esc(v.id)}${v.at?" · "+fmtD(v.at):""}</span></span></div>
+      <div class="row" style="margin-top:6px"><button class="ok sm" data-pg="${esc(v.id)}" data-d="${+v.plan||30}" data-n="${esc(v.name||"")}">✅ प्लान दें</button><a class="sec sm" style="text-decoration:none;padding:6px 10px;border-radius:8px" href="tel:${esc(v.mobile||"")}">📞 कॉल</a><button class="sec sm" data-px="${esc(v.id)}">🗑️ हटाएँ</button></div></div>`).join("") || `<p class="muted">अभी कोई अर्ज़ी नहीं</p>`;
+    el.querySelectorAll("[data-pg]").forEach(b=>b.onclick=async()=>{ if(!confirm(`${b.dataset.pg} को ${b.dataset.d} दिन का प्लान दें?`)) return; await give(b.dataset.pg,+b.dataset.d,b.dataset.n); deleteDoc(doc(db,"dipPlanReq",b.dataset.pg)).catch(()=>{}); });
+    el.querySelectorAll("[data-px]").forEach(b=>b.onclick=()=>{ if(confirm("यह अर्ज़ी हटाएँ?")) deleteDoc(doc(db,"dipPlanReq",b.dataset.px)).catch(e=>toast(errMsg(e))); });
+  }, e=>toast(errMsg(e))));
   $("#pvGo").onclick = () => { give($("#pvId").value,+$("#pvD").value,$("#pvN").value.trim()); $("#pvId").value=""; $("#pvN").value=""; };
   psub(onSnapshot(query(collection(db,"dipDevices"),limit(500)), s => {
     const el=$("#dvl"); if(!el) return; const now=Date.now(), td=(ctl.trialDays||7)*864e5;
