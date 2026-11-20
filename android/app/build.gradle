@@ -9,7 +9,8 @@ android {
     namespace 'com.masterconnector.app'
     compileSdk 34
     defaultConfig {
-        applicationId 'com.masterconnector.app'
+        // नया पैकेज नाम: पुराने MASTER CONNECTOR (अलग चाबी वाले) से टकराव खत्म — बिना Uninstall सीधे Install
+        applicationId 'com.dip.masterconnector'
         minSdk 24
         targetSdk 34
         versionCode vcode
