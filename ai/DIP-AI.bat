@@ -2,7 +2,10 @@
 chcp 65001 >nul
 title DIP AI
 setlocal EnableDelayedExpansion
+set "TMPQ=%TEMP%\dip-ai-q.txt"
+set "TMPA=%TEMP%\dip-ai-a.txt"
 
+if /i "%~1"=="--copy" goto FROMCLIP
 if not "%~1"=="" (
   set "TASK=%*"
   goto AUTO
@@ -18,12 +21,16 @@ echo.
 echo   1) काम लिखें (अपने-आप सबसे अच्छा टूल)
 echo   2) खुद टूल चुनें
 echo   3) टूल इंस्टॉल करें
+echo   4) कॉपी किया हुआ text से काम (जवाब अपने-आप कॉपी)
+echo   5) सवाल लिखें, जवाब अपने-आप कॉपी
 echo   0) बाहर निकलें
 set "C="
 set /p C=चुनें:
 if "%C%"=="1" goto ASK
 if "%C%"=="2" goto PICK
 if "%C%"=="3" goto INSTALL
+if "%C%"=="4" goto FROMCLIP
+if "%C%"=="5" goto ASKCOPY
 if "%C%"=="0" exit /b
 goto MENU
 
@@ -47,6 +54,52 @@ for %%T in (gemini claude codex) do (
 )
 if "!TRIED!"=="0" echo कोई AI टूल इंस्टॉल नहीं है। मेन्यू में 3 दबाकर इंस्टॉल करें।
 goto DONE
+
+:FROMCLIP
+powershell -NoProfile -Command "[Console]::OutputEncoding=[Text.Encoding]::UTF8; $t=Get-Clipboard -Raw; if($t){[IO.File]::WriteAllText($env:TMPQ,$t)}else{exit 1}"
+if errorlevel 1 (
+  echo कुछ कॉपी नहीं किया हुआ है। पहले कोई text कॉपी करें।
+  goto DONE
+)
+echo.
+echo कॉपी किया हुआ काम:
+type "%TMPQ%"
+echo.
+goto ANSWERCOPY
+
+:ASKCOPY
+set "Q="
+set /p Q=सवाल/काम:
+if not defined Q goto MENU
+powershell -NoProfile -Command "[IO.File]::WriteAllText($env:TMPQ,$env:Q)"
+goto ANSWERCOPY
+
+:ANSWERCOPY
+for %%T in (gemini claude codex) do (
+  where %%T >nul 2>&1
+  if !errorlevel!==0 (
+    echo.
+    echo ^> %%T से जवाब ले रहा हूँ...
+    call :ASKTOOL %%T
+    if !errorlevel!==0 (
+      for %%S in ("%TMPA%") do if %%~zS GTR 0 (
+        type "%TMPA%"
+        echo.
+        powershell -NoProfile -Command "Get-Content -Raw -Encoding UTF8 $env:TMPA | Set-Clipboard"
+        echo जवाब कॉपी हो गया - अब किसी भी ऐप में Ctrl+V से Paste करें।
+        goto DONE
+      )
+    )
+    echo %%T नहीं चला, अगला टूल आज़माता हूँ...
+  )
+)
+echo कोई AI टूल नहीं चला। मेन्यू में 3 दबाकर इंस्टॉल करें।
+goto DONE
+
+:ASKTOOL
+rem सवाल फ़ाइल से पढ़कर सीधा जवाब, जवाब फ़ाइल में
+powershell -NoProfile -Command "$q=Get-Content -Raw -Encoding UTF8 $env:TMPQ; switch('%~1'){'gemini'{& gemini -p $q}'claude'{& claude -p $q}'codex'{& codex exec $q}} | Out-File -Encoding UTF8 $env:TMPA; exit $LASTEXITCODE"
+exit /b %errorlevel%
 
 :PICK
 echo   1) Gemini (फ़्री)   2) Claude Code   3) Codex
@@ -92,6 +145,7 @@ echo.
 for %%T in (gemini claude codex) do (
   where %%T >nul 2>&1 && (echo   [OK] %%T) || (echo   [--] %%T ^(इंस्टॉल नहीं^))
 )
+echo   [OK] कॉपी-पेस्ट
 exit /b
 
 :DONE
