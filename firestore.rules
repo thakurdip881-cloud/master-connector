@@ -52,6 +52,18 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
 
+    // ---------- KYC लाइव वीडियो (30 सेकंड, छोटा) — सिर्फ़ मालिक और वो खुद ----------
+    match /kycVideo/{uid} {
+      allow read: if isOwner() || (signed() && request.auth.uid == uid);
+      allow create: if signed() && request.auth.uid == uid && !exists(/databases/$(db)/documents/kycVideo/$(uid))
+        && getAfter(userDoc(uid)).data.invite is string
+        && request.resource.data.keys().hasOnly(['uid', 'vid', 'secs', 'at'])
+        && request.resource.data.uid == uid
+        && request.resource.data.vid is string && request.resource.data.vid.size() < 1000000;
+      allow update: if false;
+      allow delete: if isOwner();
+    }
+
     // ---------- ड्यूटी (हाज़िरी + 2 km location जाँच) ----------
     match /duty/{id} {
       allow read: if editor() || (active() && resource.data.uid == request.auth.uid);

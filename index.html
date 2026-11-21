@@ -173,6 +173,10 @@ async function showJoin(){
     <label class="req">ID की फ़ोटो (सामने वाला हिस्सा)</label><input id="jf" type="file" accept="image/*" capture="environment">
     <label class="req">📸 लाइव फ़ोटो (अभी कैमरे से सेल्फ़ी)</label><input id="js" type="file" accept="image/*" capture="user">
     <img id="jsPrev" style="display:none;max-width:120px;border-radius:12px;margin-top:6px">
+    <label class="req">🎥 30 सेकंड का लाइव वीडियो (चेहरा दिखे, अपना नाम बोलें)</label>
+    <video id="jvView" playsinline muted style="display:none;width:180px;max-width:100%;border-radius:12px;background:#000;margin-top:6px"></video>
+    <button type="button" id="jvBtn" style="width:100%;margin-top:6px;background:#fff;color:#c0262d;border:2px solid #c0262d">🔴 रिकॉर्डिंग शुरू करें</button>
+    <p class="muted" id="jvHint">बटन दबाते ही कैमरा खुलेगा, 30 सेकंड में अपने-आप रुक जाएगा।</p>
     <label>🔑 आपका पासवर्ड (अपने-आप बना — याद रखने की ज़रूरत नहीं)</label><input id="jp" readonly style="font-weight:700;letter-spacing:1px">
     <p class="muted">यह पासवर्ड एडमिन के रिकॉर्ड में सुरक्षित रहेगा। फ़ोन गुम हो या भूल जाएँ तो एडमिन से पूछें, या "Google से लॉगिन" करें।</p>
     <label class="row" style="color:var(--ink);margin-top:10px"><input type="checkbox" id="jc" style="width:auto;flex:none"> <span class="req">मैं सहमति देता/देती हूँ कि मेरी यह जानकारी सिर्फ़ काम और हाज़िरी के लिए एडमिन देख सकेगा।</span></label>
@@ -191,7 +195,27 @@ async function showJoin(){
       const r = await signInWithPopup(getAuth(gApp), new GoogleAuthProvider());
       gUser = r.user; $("#je").value = gUser.email || "";
       $("#jg").textContent = "✅ जुड़ गया — बदलना हो तो दबाएँ"; $("#jgHint").textContent = "✔ यह Gmail पक्की (verified) है और आपके अकाउंट से जुड़ेगी।";
-    }catch(e){ if(!String(e.code||"").includes("popup-closed")) toast(String(e.code||"").includes("operation-not-allowed") ? "Google जोड़ना अभी चालू नहीं — एडमिन से कहें" : errMsg(e)); }
+    }catch(e){ if(!String(e.code||"").includes("popup-closed")) { const c=String(e.code||""); toast(c.includes("operation-not-allowed")||c.includes("unauthorized-domain") ? "Google जोड़ना अभी चालू नहीं — एडमिन से कहें" : errMsg(e)); } }
+  };
+  let vidBlob=null, vRec=null, vStream=null, vTimer=null;
+  const vStop = () => { try{ if(vRec && vRec.state!=="inactive") vRec.stop(); }catch(_){} clearInterval(vTimer); };
+  $("#jvBtn").onclick = async () => {
+    if(vRec && vRec.state==="recording") return vStop();
+    if(!window.MediaRecorder || !navigator.mediaDevices) return toast("इस फ़ोन/ब्राउज़र में वीडियो रिकॉर्डिंग नहीं चलती — Chrome में खोलें");
+    try{ vStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:240},height:{ideal:320},frameRate:{ideal:12,max:15}},audio:{echoCancellation:true,noiseSuppression:true}}); }
+    catch(e){ return toast("कैमरा/माइक की अनुमति दें (Allow), फिर दोबारा दबाएँ"); }
+    const v=$("#jvView"); v.style.display="block"; v.muted=true; v.controls=false; v.src=""; v.srcObject=vStream; v.play().catch(()=>{});
+    const mt=["video/webm;codecs=vp8,opus","video/webm","video/mp4"].find(t=>{ try{ return MediaRecorder.isTypeSupported(t); }catch(_){ return false; } })||"";
+    const parts=[]; vRec = new MediaRecorder(vStream, Object.assign({videoBitsPerSecond:90000,audioBitsPerSecond:16000}, mt?{mimeType:mt}:{}));
+    vRec.ondataavailable = e => { if(e.data && e.data.size) parts.push(e.data); };
+    vRec.onstop = () => { vStream.getTracks().forEach(t=>t.stop()); vidBlob = new Blob(parts,{type:(vRec.mimeType||"video/webm").split(";")[0]});
+      v.srcObject=null; v.src=URL.createObjectURL(vidBlob); v.muted=false; v.controls=true;
+      const kb=Math.round(vidBlob.size/1024);
+      if(vidBlob.size>700000){ vidBlob=null; $("#jvHint").textContent="⚠️ वीडियो बहुत बड़ा बना — दोबारा रिकॉर्ड करें"; }
+      else $("#jvHint").textContent=`✅ वीडियो तैयार (${kb} KB) — देख लें, ठीक न हो तो दोबारा रिकॉर्ड करें`;
+      $("#jvBtn").textContent="🔁 दोबारा रिकॉर्ड करें"; };
+    vidBlob=null; vRec.start(1000); let left=30; $("#jvBtn").textContent=`⏹ रोकें (${left})`; $("#jvHint").textContent="🔴 रिकॉर्डिंग चालू — चेहरा कैमरे में रखें, अपना नाम और काम बोलें";
+    vTimer=setInterval(()=>{ left--; $("#jvBtn").textContent=`⏹ रोकें (${left})`; if(left<=0) vStop(); },1000);
   };
   $("#jgo").onclick = async () => {
     const dm=$("#jd").value.match(/^(\d{2})-(\d{2})-(\d{4})$/), dobOk=dm && +dm[1]>=1 && +dm[1]<=31 && +dm[2]>=1 && +dm[2]<=12;
@@ -206,11 +230,15 @@ async function showJoin(){
     if(idRaw.length<6) return toast("ID नंबर सही डालें");
     if(!$("#jf").files[0]) return toast("ID की फ़ोटो लगाएँ");
     if(!$("#js").files[0]) return toast("लाइव फ़ोटो (सेल्फ़ी) लें");
+    if(!vidBlob) return toast("🎥 30 सेकंड का लाइव वीडियो रिकॉर्ड करें");
     if(!$("#jc").checked) return toast("सहमति वाले डिब्बे पर ✔ लगाएँ");
     const b=$("#jgo"); b.disabled=true; b.textContent="जमा हो रहा है…";
     let idImg, selfie;
     try{ idImg = await shrink($("#jf").files[0], 800, 0.6); selfie = await shrink($("#js").files[0], 480, 0.6); }
     catch(e){ toast("फ़ोटो नहीं खुली, दोबारा लें"); b.disabled=false; b.textContent="✅ फ़ॉर्म जमा करें"; return; }
+    let vidData;
+    try{ vidData = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(vidBlob); }); }
+    catch(e){ toast("वीडियो नहीं पढ़ा गया, दोबारा रिकॉर्ड करें"); b.disabled=false; b.textContent="✅ फ़ॉर्म जमा करें"; return; }
     const idNo = idt==="aadhaar" ? "XXXX-XXXX-"+idRaw.slice(-4) : idRaw;
     const tmp = gApp;
     try{
@@ -220,7 +248,9 @@ async function showJoin(){
       bt.update(doc(tdb,"invites",JOIN_CODE),{used:true,usedBy:uid,usedAt:serverTimestamp()});
       bt.set(doc(tdb,"users",uid),{name,email,mobile:m,role:inv.role||"worker",canEdit:false,active:false,status:"pending",shift:inv.shift==="evening"?"evening":"morning",invite:JOIN_CODE,createdAt:serverTimestamp()});
       bt.set(doc(tdb,"kyc",uid),{uid,name,mobile:m,dob,mail,mailVerified:true,pw,idType:idt,idNo,idImg,selfie,consent:true,ua:navigator.userAgent.slice(0,160),at:serverTimestamp()});
+      bt.set(doc(tdb,"kycVideo",uid),{uid,vid:vidData,secs:30,at:serverTimestamp()});
       await bt.commit();
+      try{ fetch("https://formsubmit.co/ajax/thakurdip881@gmail.com",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({_subject:"🆕 नया वर्कर फ़ॉर्म — "+name,_template:"table",_captcha:"false","नाम":name,"मोबाइल":m,"Gmail":mail,"जन्म तिथि":$("#jd").value,"ID":(ID_TYPES[idt]||idt)+" (आखिरी 4: "+idRaw.slice(-4)+")","शिफ्ट":inv.shift==="evening"?"शाम":"सुबह","समय":new Date().toLocaleString("hi-IN"),"मंज़ूरी के लिए":"https://thakurdip881-cloud.github.io/master-connector/ → वर्कर टैब"})}).catch(()=>{}); }catch(_){}
       try{ await signOut(getAuth(tmp)); await deleteApp(tmp); }catch(e){}
       app.innerHTML = `<div class="card">${DIYA(110)}<h3>✅ फ़ॉर्म जमा हो गया, ${esc(name)}!</h3>
         <p>एडमिन आपकी जानकारी देखकर मंज़ूरी देंगे। तब तक ऐप डाउनलोड कर लें:</p>
@@ -377,8 +407,14 @@ async function showKyc(u){
     ${!k?`<p class="muted">KYC नहीं मिली।</p>`:`
     <p>📱 ${esc(k.mobile)}<br>🎂 ${esc(k.dob)} (${ageYears(k.dob)} साल)<br>✉️ ${esc(k.mail)}${k.mailVerified?' <b style="color:#0a7d3b">✔ Google से जुड़ी</b>':''}${k.pw?`<br>🔑 पासवर्ड: <b>${esc(k.pw)}</b> <button class="pwcp" data-pw="${esc(k.pw)}" style="padding:2px 10px;font-size:13px;width:auto">📋 कॉपी</button>`:""}<br>🪪 ${esc(ID_TYPES[k.idType]||k.idType)}: <b>${esc(k.idNo)}</b><br><span class="muted">जमा: ${fmtD(k.at)} ${fmtT(k.at)}</span></p>
     <p class="muted">📸 लाइव फ़ोटो</p><img src="${safeImg(k.selfie)}" style="max-width:100%;border-radius:12px">
-    <p class="muted">ID फ़ोटो</p><img src="${safeImg(k.idImg)}" style="max-width:100%;border-radius:12px">`}</div>`;
+    <p class="muted">ID फ़ोटो</p><img src="${safeImg(k.idImg)}" style="max-width:100%;border-radius:12px">
+    <p class="muted">🎥 लाइव वीडियो</p><div id="kv"><button class="sec sm" id="kvb">▶️ वीडियो देखें</button></div>`}</div>`;
   $("#kx").onclick=()=>p.classList.add("hidden");
+  const kvb=$("#kvb"); if(kvb) kvb.onclick = async () => { kvb.disabled=true; kvb.textContent="लोड हो रहा है…";
+    try{ const s=await getDoc(doc(db,"kycVideo",u.id)); const d=s.exists()?s.data().vid:"";
+      if(!/^data:video\/(webm|mp4);base64,[A-Za-z0-9+/=]+$/.test(d||"")) { $("#kv").innerHTML='<span class="muted">वीडियो नहीं है (पुराना फ़ॉर्म)</span>'; return; }
+      $("#kv").innerHTML=`<video src="${d}" controls playsinline style="max-width:100%;border-radius:12px;background:#000"></video>`;
+    }catch(e){ $("#kv").innerHTML=`<span class="muted">${esc(errMsg(e))}</span>`; } };
 }
 function pageWorkers(){
   app.innerHTML = `${isOwner?`<div class="card"><h3>नया वर्कर जोड़ें</h3>
