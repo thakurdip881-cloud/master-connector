@@ -134,7 +134,7 @@ let me = null, profile = null, isOwner = false, canEdit = false, tab = null, uns
 const clearSubs = () => { unsubs.forEach(u=>{try{u()}catch(e){}}); unsubs = []; };
 const sub = u => unsubs.push(u);
 
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+if ("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").then(r=>{ try{ r.update().catch(()=>{}); }catch(_){} }).catch(()=>{}); let rl=!navigator.serviceWorker.controller || !!JOIN_CODE; navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(!rl){ rl=true; location.reload(); } }); }
 
 $("#logoutBtn").onclick = async () => { if(confirm("लॉग आउट करें?")) { clearSubs(); await signOut(auth); } };
 
