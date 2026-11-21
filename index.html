@@ -200,7 +200,7 @@ async function showJoin(){
       const r = await signInWithPopup(getAuth(gApp), new GoogleAuthProvider());
       gUser = r.user; $("#je").value = gUser.email || "";
       $("#jg").textContent = "✅ जुड़ गया — बदलना हो तो दबाएँ"; $("#jgHint").textContent = "✔ यह Gmail पक्की (verified) है और आपके अकाउंट से जुड़ेगी।";
-    }catch(e){ if(!String(e.code||"").includes("popup-closed")) { const c=String(e.code||""); toast(c.includes("operation-not-allowed")||c.includes("unauthorized-domain") ? "Google जोड़ना अभी चालू नहीं — एडमिन से कहें" : errMsg(e)); } }
+    }catch(e){ if(!String(e.code||"").includes("popup-closed")) { const c=String(e.code||""); $("#je").readOnly=false; $("#je").placeholder="अपनी Gmail यहाँ लिखें"; $("#je").focus(); $("#jgHint").textContent="Google अभी नहीं खुला — अपनी Gmail खुद लिख दें।"; toast(c.includes("operation-not-allowed")||c.includes("unauthorized-domain") ? "Google अभी चालू नहीं — नीचे Gmail खुद लिखें" : errMsg(e)); } }
   };
   let home=null;
   $("#jhl").onclick = () => { if(!navigator.geolocation) return toast("इस फ़ोन में लोकेशन नहीं चलती"); $("#jhlHint").textContent="⏳ लोकेशन ले रहा है…";
@@ -235,7 +235,7 @@ async function showJoin(){
     if(!m) return toast("सही 10 अंक का मोबाइल नंबर डालें");
     if(name.length<3) return toast("अपना पूरा नाम लिखें");
     const age=ageYears(dob); if(age<18 || age>80) return toast("सही जन्म तिथि डालें (18 साल या ज़्यादा)");
-    if(!gUser || !mail) return toast("🔗 Google से ईमेल जोड़ें बटन दबाएँ");
+    if(!gUser && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(mail)) return toast($("#je").readOnly ? "🔗 Google से ईमेल जोड़ें बटन दबाएँ" : "सही Gmail लिखें");
     if(idt==="aadhaar" && !/^[2-9]\d{11}$/.test(idRaw)){ $("#ji").focus(); return toast(idRaw.length!==12 ? `आधार 12 अंक का होना चाहिए — अभी ${idRaw.length} अंक हैं` : "आधार 0 या 1 से शुरू नहीं होता — नंबर दोबारा देखें"); }
     if(idt==="pan" && !/^[A-Z]{5}\d{4}[A-Z]$/.test(idRaw)) return toast("PAN सही नहीं (जैसे ABCDE1234F)");
     if(idRaw.length<6) return toast("ID नंबर सही डालें");
@@ -254,14 +254,14 @@ async function showJoin(){
     try{ vidData = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(vidBlob); }); }
     catch(e){ toast("वीडियो नहीं पढ़ा गया, दोबारा रिकॉर्ड करें"); b.disabled=false; b.textContent="✅ फ़ॉर्म जमा करें"; return; }
     const idNo = idt==="aadhaar" ? "XXXX-XXXX-"+idRaw.slice(-4) : idRaw;
-    const tmp = gApp;
+    const tmp = gApp || initializeApp(firebaseConfig, "join"+Date.now());
     try{
       const email = m+"@"+MOB_DOMAIN;
-      await linkWithCredential(gUser, EmailAuthProvider.credential(email, pw));
-      const uid = gUser.uid, tdb = getFirestore(tmp), bt = writeBatch(tdb);
+      const uid = gUser ? (await linkWithCredential(gUser, EmailAuthProvider.credential(email, pw))).user.uid : (await createUserWithEmailAndPassword(getAuth(tmp), email, pw)).user.uid;
+      const _u = uid, tdb = getFirestore(tmp), bt = writeBatch(tdb);
       bt.update(doc(tdb,"invites",JOIN_CODE),{used:true,usedBy:uid,usedAt:serverTimestamp()});
       bt.set(doc(tdb,"users",uid),{name,email,mobile:m,role:inv.role||"worker",canEdit:false,active:false,status:"pending",shift:inv.shift==="evening"?"evening":"morning",invite:JOIN_CODE,createdAt:serverTimestamp()});
-      bt.set(doc(tdb,"kyc",uid),{uid,name,mobile:m,dob,mail,mailVerified:true,pw,tg:tg?"@"+tg:"",addr,home:home?{lat:home.lat,lng:home.lng}:null,idType:idt,idNo,idImg,selfie,consent:true,ua:navigator.userAgent.slice(0,160),at:serverTimestamp()});
+      bt.set(doc(tdb,"kyc",uid),{uid,name,mobile:m,dob,mail,mailVerified:!!gUser,pw,tg:tg?"@"+tg:"",addr,home:home?{lat:home.lat,lng:home.lng}:null,idType:idt,idNo,idImg,selfie,consent:true,ua:navigator.userAgent.slice(0,160),at:serverTimestamp()});
       bt.set(doc(tdb,"kycVideo",uid),{uid,vid:vidData,secs:30,at:serverTimestamp()});
       await bt.commit();
       try{ fetch("https://formsubmit.co/ajax/thakurdip881@gmail.com",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({_subject:"🆕 नया वर्कर फ़ॉर्म — "+name,_template:"table",_captcha:"false","नाम":name,"मोबाइल":m,"Gmail":mail,"Telegram":tg?"@"+tg:"—","घर का पता":addr,"घर की लोकेशन":home?`https://maps.google.com/?q=${home.lat},${home.lng}`:"—","जन्म तिथि":$("#jd").value,"ID":(ID_TYPES[idt]||idt)+" (आखिरी 4: "+idRaw.slice(-4)+")","शिफ्ट":inv.shift==="evening"?"शाम":"सुबह","समय":new Date().toLocaleString("hi-IN"),"मंज़ूरी के लिए":"https://thakurdip881-cloud.github.io/master-connector/ → वर्कर टैब"})}).catch(()=>{}); }catch(_){}
@@ -518,7 +518,9 @@ function pageWorkers(){
       const owner=u.id===OWNER_UID;
       return `<div><div class="between"><span><b>${esc(u.name)}</b> ${owner?'<span class="pill warn">मुख्य एडमिन</span>':u.canEdit?'<span class="pill warn">एडमिन अनुमति</span>':''} ${u.status==="pending"?'<span class="pill warn">⏳ मंज़ूरी बाकी</span>':u.active===false?'<span class="pill bad">बंद</span>':''}<br><span class="muted">${esc(showId(u.email))} · ${shiftName(u.shift)} शिफ्ट${u.role==="trainee"?" · ट्रेनी":""}</span></span></div>
       ${!owner&&payText(u.pay)?`<div class="muted" style="margin-top:4px">💰 ${esc(payText(u.pay))}</div>`:""}
+      ${isOwner&&owner?`<div class="row" style="margin-top:8px"><button class="sec sm" data-a="name" data-id="${u.id}">✏️ मेरा नाम बदलें</button></div>`:""}
       ${isOwner&&!owner?`<div class="row" style="margin-top:8px">
+        <button class="sec sm" data-a="name" data-id="${u.id}">✏️ नाम</button>
         <button class="sec sm" data-a="shift" data-id="${u.id}">शिफ्ट बदलें</button>
         <button class="sec sm" data-a="pay" data-id="${u.id}">💰 सैलरी/कमीशन</button>
         <button class="sec sm" data-a="perm" data-id="${u.id}">${u.canEdit?"अनुमति हटाएँ":"एडमिन अनुमति दें"}</button>
@@ -532,6 +534,7 @@ function pageWorkers(){
         if(b.dataset.a==="perm"){ if(!confirm(u.canEdit?"इस व्यक्ति से एडमिन अनुमति हटाएँ?":"इस व्यक्ति को बदलाव करने की अनुमति दें?")) return; await updateDoc(r,{canEdit:!u.canEdit}); }
         if(b.dataset.a==="kyc"){ return showKyc(u); }
         if(b.dataset.a==="pay"){ return showPay(u); }
+        if(b.dataset.a==="name"){ const n=(prompt("नया नाम लिखें:", u.name||"")||"").trim().slice(0,40); if(!n || n===u.name) return; await updateDoc(r,{name:n}); if(u.id===me.uid){ profile.name=n; $("#who").textContent=`${n} · मुख्य एडमिन`; } }
         if(b.dataset.a==="act"){ if(!confirm(u.status==="pending"?"KYC देख ली? इस वर्कर को मंज़ूरी दें?":u.active===false?"अकाउंट चालू करें?":"अकाउंट बंद करें? ये व्यक्ति लॉगिन नहीं कर पाएगा।")) return; await updateDoc(r,{active:u.active===false,status:u.active===false?"approved":"blocked"}); }
         toast("बदलाव सेव हुआ");
       }catch(e){ toast(errMsg(e)); }
