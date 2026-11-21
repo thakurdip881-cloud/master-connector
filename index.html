@@ -123,7 +123,7 @@ const GOOGLE_ON = false;   // Firebase में Google लॉगिन चा�
 const ageYears = d => { const b=new Date(d); if(isNaN(b)) return -1; const n=new Date(); let a=n.getFullYear()-b.getFullYear(); if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate())) a--; return a; };
 const ID_TYPES = {aadhaar:"आधार कार्ड", pan:"PAN कार्ड", voter:"वोटर ID", dl:"ड्राइविंग लाइसेंस"};
 const DIYA = sz => `<div class="diyaBig"><span class="diya" style="--s:${sz}px"><img class="b" src="img/diya-base.png" alt=""><span class="g"></span><img class="f" src="img/flame.png" alt=""></span></div>`;
-const DIP_PANEL = "https://github-netlify-deploy-0cc412.netlify.app/admin.html";
+const DIP_PANEL = "https://thakurdip881-cloud.github.io/master-connector/dip/admin.html";
 const NATIVE = window.MCNative || null;   // Android ऐप के अंदर: फ़ोन लॉक होने पर भी duty location जाँच
 const LIMIT_KM = 2;
 const kmBetween = (a,b,c,d) => { const R=6371, r=x=>x*Math.PI/180; const h=Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2; return 2*R*Math.asin(Math.sqrt(h)); };
@@ -459,11 +459,11 @@ function pageWorkers(){
   app.innerHTML = `${isOwner?`<div class="card"><h3>नया वर्कर जोड़ें</h3>
     <label>नाम</label><input id="wn">
     <label>मोबाइल नंबर या ईमेल (लॉगिन के लिए)</label><input id="we">
-    <label>पासवर्ड (कम से कम 6 अक्षर)</label><input id="wp" type="text">
+    <label>पासवर्ड (अपने-आप बना — चाहें तो बदलें)</label><input id="wp" type="text" style="font-weight:700;letter-spacing:1px">
     <label>शिफ्ट</label><select id="ws"><option value="morning">सुबह</option><option value="evening">शाम</option></select>
     <div style="margin-top:12px"><button id="addW" style="width:100%">वर्कर जोड़ें</button></div>
-    <p class="muted">ये मोबाइल/ईमेल और पासवर्ड वर्कर को दे दें, वो इसी से लॉगिन करेगा।</p></div>
-    <div class="card"><h3>📱 WhatsApp से वर्कर बुलाएँ</h3><p class="muted">सिर्फ़ मोबाइल नंबर डालें। वर्कर को WhatsApp पर फ़ॉर्म का लिंक जाएगा — वो नाम और पासवर्ड भरेगा, अपने-आप यहाँ जुड़ जाएगा और उसे ऐप का लिंक मिल जाएगा। (लिंक 7 दिन चलेगा, एक बार ही।)</p>
+    <p class="muted">पासवर्ड आपके रिकॉर्ड में सेव रहेगा (वर्कर लिस्ट में 🔑)। ये मोबाइल नंबर और पासवर्ड वर्कर को दे दें।</p></div>
+    <div class="card"><h3>📱 WhatsApp से वर्कर बुलाएँ</h3><p class="muted">सिर्फ़ मोबाइल नंबर डालें। वर्कर को WhatsApp पर फ़ॉर्म का लिंक जाएगा — वो फ़ॉर्म भरेगा, पासवर्ड अपने-आप बनेगा, और फ़ॉर्म जमा होते ही उसे ऐप डाउनलोड का बटन मिलेगा। (लिंक 7 दिन चलेगा, एक बार ही।)</p>
     <label>वर्कर का मोबाइल नंबर</label><input id="im" inputmode="numeric" placeholder="10 अंक">
     <label>शिफ्ट</label><select id="is"><option value="morning">सुबह</option><option value="evening">शाम</option></select>
     <div class="row" style="margin-top:12px"><button class="ok" id="inv" style="flex:1">📲 WhatsApp पर भेजें</button><button class="sec" id="invSms" style="flex:1">💬 SMS से भेजें</button></div>
@@ -530,15 +530,18 @@ function pageWorkers(){
     }catch(e){ $("#wipeNote").textContent="⚠️ "+errMsg(e); }
     b.disabled=false;
   };
+  const genPw = () => { const A="abcdefghjkmnpqrstuvwxyz", r=crypto.getRandomValues(new Uint32Array(8)); let t="Dip-"; for(let i=0;i<4;i++) t+=A[r[i]%A.length]; for(let i=4;i<8;i++) t+=r[i]%10; return t; };
+  if(isOwner) $("#wp").value = genPw();
   if(isOwner) $("#addW").onclick = async () => {
     const name=$("#wn").value.trim(), email=loginId($("#we").value), pass=$("#wp").value, shift=$("#ws").value;
-    if(!name||!email||!pass) return toast("नाम, ईमेल और पासवर्ड भरें");
+    if(!name||!email||!pass) return toast("नाम, मोबाइल नंबर और पासवर्ड भरें");
+    if(pass.length<6) return toast("पासवर्ड कम से कम 6 अक्षर का हो");
     const b=$("#addW"); b.disabled=true; b.textContent="जोड़ रहा है…";
     const tmp = initializeApp(firebaseConfig, "tmp"+Date.now());
     try{
       const cred = await createUserWithEmailAndPassword(getAuth(tmp), email, pass);
-      await setDoc(doc(db,"users",cred.user.uid),{name,email,mobile:mobDigits($("#we").value)||"",role:"worker",canEdit:false,active:true,shift,createdAt:serverTimestamp()});
-      toast(`${name} जोड़ा गया`); ["#wn","#we","#wp"].forEach(s=>$(s).value="");
+      await setDoc(doc(db,"users",cred.user.uid),{name,email,mobile:mobDigits($("#we").value)||"",role:"worker",canEdit:false,active:true,shift,pw:pass,createdAt:serverTimestamp()});
+      toast(`✅ ${name} जोड़ा गया — पासवर्ड: ${pass}`); ["#wn","#we"].forEach(s=>$(s).value=""); $("#wp").value=genPw();
     }catch(e){ toast(errMsg(e)); }
     try{ await signOut(getAuth(tmp)); await deleteApp(tmp); }catch(e){}
     b.disabled=false; b.textContent="वर्कर जोड़ें";
@@ -548,6 +551,7 @@ function pageWorkers(){
     $("#wl").innerHTML = rows.map(u=>{
       const owner=u.id===OWNER_UID;
       return `<div><div class="between"><span><b>${esc(u.name)}</b> ${owner?'<span class="pill warn">मुख्य एडमिन</span>':u.canEdit?'<span class="pill warn">एडमिन अनुमति</span>':''} ${u.status==="pending"?'<span class="pill warn">⏳ मंज़ूरी बाकी</span>':u.active===false?'<span class="pill bad">बंद</span>':''}<br><span class="muted">${esc(showId(u.email))} · ${shiftName(u.shift)} शिफ्ट${u.role==="trainee"?" · ट्रेनी":""}</span></span></div>
+      ${isOwner&&!owner&&u.pw?`<div class="muted" style="margin-top:4px">🔑 ${esc(u.pw)} <button class="pwcp" data-pw="${esc(u.pw)}" style="padding:2px 10px;font-size:13px;width:auto">📋 कॉपी</button></div>`:""}
       ${!owner&&payText(u.pay)?`<div class="muted" style="margin-top:4px">💰 ${esc(payText(u.pay))}</div>`:""}
       ${isOwner&&owner?`<div class="row" style="margin-top:8px"><button class="sec sm" data-a="name" data-id="${u.id}">✏️ मेरा नाम बदलें</button></div>`:""}
       ${isOwner&&!owner?`<div class="row" style="margin-top:8px">
