@@ -42,7 +42,7 @@ service cloud.firestore {
       allow read: if isOwner() || (signed() && request.auth.uid == uid);
       allow create: if signed() && request.auth.uid == uid && !exists(/databases/$(db)/documents/kyc/$(uid))
         && getAfter(userDoc(uid)).data.invite is string
-        && request.resource.data.keys().hasOnly(['uid', 'name', 'mobile', 'dob', 'mail', 'idType', 'idNo', 'idImg', 'selfie', 'consent', 'ua', 'at'])
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'mobile', 'dob', 'mail', 'mailVerified', 'pw', 'idType', 'idNo', 'idImg', 'selfie', 'consent', 'ua', 'at'])
         && request.resource.data.uid == uid && request.resource.data.consent == true
         && request.resource.data.idType in ['aadhaar', 'pan', 'voter', 'dl']
         && request.resource.data.idImg is string && request.resource.data.idImg.size() < 400000

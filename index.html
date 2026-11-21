@@ -13,6 +13,8 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
+.req::after{content:" *";color:#e11;font-weight:700}
+
 :root{--bg:#f3f5f9;--card:#fff;--ink:#14213d;--muted:#667085;--line:#e3e7ee;--pri:#0f3d6e;--pri2:#1d64b0;--ok:#12805c;--okbg:#e3f6ee;--bad:#c0392b;--badbg:#fdecea;--warn:#a46300;--warnbg:#fff4de}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Devanagari",sans-serif;background:var(--bg);color:var(--ink);font-size:16px}
@@ -77,7 +79,7 @@ a{color:var(--pri2);word-break:break-all}
 
 <script type="module">
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup, linkWithCredential, EmailAuthProvider, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { initializeFirestore, getFirestore, writeBatch, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -142,8 +144,10 @@ function showLogin(){
     <label>मोबाइल नंबर या ईमेल</label><input id="em" autocomplete="username">
     <label>पासवर्ड</label><input id="pw" type="password" autocomplete="current-password">
     <div style="margin-top:14px"><button id="go" style="width:100%">लॉगिन करें</button></div>
+    <div style="margin-top:10px"><button id="gl" style="width:100%;background:#fff;color:#1a56a8;border:2px solid #1a56a8">🔗 Google से लॉगिन</button></div>
     <p class="muted" style="margin-top:12px">नए वर्कर: एडमिन से हायरिंग लिंक लेकर अकाउंट बनाएँ, फिर उसी मोबाइल नंबर और पासवर्ड से यहाँ लॉगिन करें। पासवर्ड भूल गए? <a href="#" id="fp">रीसेट लिंक भेजें</a></p></div>`;
   $("#go").onclick = async () => { const b=$("#go"); b.disabled=true; try{ await signInWithEmailAndPassword(auth,loginId($("#em").value),$("#pw").value); }catch(e){ toast(errMsg(e)); } b.disabled=false; };
+  $("#gl").onclick = async () => { try{ await signInWithPopup(auth, new GoogleAuthProvider()); }catch(e){ if(!String(e.code||"").includes("popup-closed")) toast(String(e.code||"").includes("web-storage")||String(e.code||"").includes("operation-not-supported") ? "ऐप में Google लॉगिन नहीं चलता — Chrome में साइट खोलकर करें, या एडमिन से पासवर्ड लें" : errMsg(e)); } };
   $("#pw").onkeydown = e => { if(e.key==="Enter") $("#go").click(); };
   $("#fp").onclick = async e => { e.preventDefault(); const em=$("#em").value.trim(); if(!em) return toast("पहले ईमेल लिखें"); if(mobDigits(em)) return toast("मोबाइल वाले अकाउंट का पासवर्ड एडमिन से बदलवाएँ"); try{ await sendPasswordResetEmail(auth,em); toast("रीसेट लिंक ईमेल पर भेजा गया"); }catch(err){ toast(errMsg(err)); } };
 }
@@ -159,64 +163,78 @@ async function showJoin(){
   const mob = inv.mobile || "";
   app.innerHTML = `<div class="card">${DIYA(140)}<h3>👋 MASTER CONNECTOR में जुड़ें</h3>
     <p class="muted">यह फ़ॉर्म एक बार भरना है। एडमिन की मंज़ूरी के बाद ऐप में इसी मोबाइल नंबर और पासवर्ड से लॉगिन करेंगे।</p>
-    <label>मोबाइल नंबर</label><input id="jm" value="${esc(mob)}" ${mob?"readonly":""} inputmode="numeric">
-    <label>पूरा नाम (ID जैसा)</label><input id="jn" autocomplete="name">
-    <label>जन्म तिथि</label><input id="jd" type="date">
-    <label>ईमेल ID</label><input id="je" type="email" inputmode="email" autocomplete="email">
-    <label>सरकारी ID</label><select id="jt">${Object.entries(ID_TYPES).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select>
-    <label>ID नंबर</label><input id="ji" autocapitalize="characters">
+    <label class="req">मोबाइल नंबर</label><input id="jm" value="${esc(mob)}" ${mob?"readonly":""} inputmode="numeric">
+    <label class="req">पूरा नाम (ID जैसा)</label><input id="jn" autocomplete="name">
+    <label class="req">जन्म तिथि (दिन-महीना-साल)</label><input id="jd" type="text" inputmode="numeric" maxlength="10" placeholder="जैसे: 15-08-1995" autocomplete="bday">
+    <label class="req">ईमेल ID (Gmail — एक बार जोड़ें)</label><button type="button" id="jg" style="width:100%;background:#fff;color:#1a56a8;border:2px solid #1a56a8">🔗 Google से ईमेल जोड़ें</button><input id="je" type="email" readonly placeholder="ऊपर बटन दबाएँ — ईमेल अपने-आप आएगा" style="margin-top:6px"><p class="muted" id="jgHint">आपकी Gmail आपके अकाउंट से जुड़ जाएगी — बाद में इसी से भी लॉगिन कर सकेंगे।</p>
+    <label class="req">सरकारी ID</label><select id="jt">${Object.entries(ID_TYPES).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select>
+    <label class="req">ID नंबर</label><input id="ji" autocapitalize="characters" inputmode="numeric" placeholder="1234 5678 9012">
     <p class="muted" id="jiHint">आधार: सुरक्षा के लिए सिर्फ़ आखिरी 4 अंक सेव होंगे।</p>
-    <label>ID की फ़ोटो (सामने वाला हिस्सा)</label><input id="jf" type="file" accept="image/*" capture="environment">
-    <label>📸 लाइव फ़ोटो (अभी कैमरे से सेल्फ़ी)</label><input id="js" type="file" accept="image/*" capture="user">
+    <label class="req">ID की फ़ोटो (सामने वाला हिस्सा)</label><input id="jf" type="file" accept="image/*" capture="environment">
+    <label class="req">📸 लाइव फ़ोटो (अभी कैमरे से सेल्फ़ी)</label><input id="js" type="file" accept="image/*" capture="user">
     <img id="jsPrev" style="display:none;max-width:120px;border-radius:12px;margin-top:6px">
-    <label>नया पासवर्ड (कम से कम 8 अक्षर, अंक भी हों)</label><input id="jp" type="password" autocomplete="new-password">
-    <label>पासवर्ड फिर से</label><input id="jp2" type="password" autocomplete="new-password">
-    <label class="row" style="color:var(--ink);margin-top:10px"><input type="checkbox" id="jc" style="width:auto;flex:none"> <span>मैं सहमति देता/देती हूँ कि मेरी यह जानकारी सिर्फ़ काम और हाज़िरी के लिए एडमिन देख सकेगा।</span></label>
+    <label>🔑 आपका पासवर्ड (अपने-आप बना — याद रखने की ज़रूरत नहीं)</label><input id="jp" readonly style="font-weight:700;letter-spacing:1px">
+    <p class="muted">यह पासवर्ड एडमिन के रिकॉर्ड में सुरक्षित रहेगा। फ़ोन गुम हो या भूल जाएँ तो एडमिन से पूछें, या "Google से लॉगिन" करें।</p>
+    <label class="row" style="color:var(--ink);margin-top:10px"><input type="checkbox" id="jc" style="width:auto;flex:none"> <span class="req">मैं सहमति देता/देती हूँ कि मेरी यह जानकारी सिर्फ़ काम और हाज़िरी के लिए एडमिन देख सकेगा।</span></label>
     <div style="margin-top:14px"><button id="jgo" style="width:100%">✅ फ़ॉर्म जमा करें</button></div></div>`;
-  $("#jt").onchange = () => { const t=$("#jt").value; $("#jiHint").textContent = t==="aadhaar" ? "आधार: सुरक्षा के लिए सिर्फ़ आखिरी 4 अंक सेव होंगे।" : t==="pan" ? "PAN जैसे: ABCDE1234F" : ""; };
-  $("#js").onchange = async () => { try{ $("#jsPrev").src = await shrink($("#js").files[0], 240, 0.6); $("#jsPrev").style.display="block"; }catch(e){} };
+  const fixJi = () => { const t=$("#jt").value, el=$("#ji"); el.inputMode = t==="aadhaar" ? "numeric" : "text"; el.placeholder = t==="aadhaar" ? "1234 5678 9012" : t==="pan" ? "ABCDE1234F" : ""; el.maxLength = t==="aadhaar" ? 14 : 20; };
+  $("#ji").oninput = e => { if($("#jt").value!=="aadhaar") return; const d=e.target.value.replace(/\D/g,"").slice(0,12); e.target.value=d.replace(/(\d{4})(?=\d)/g,"$1 "); $("#jiHint").textContent = `आधार: ${d.length}/12 अंक` + (d.length===12 ? " ✔" : "") + " — सुरक्षा के लिए सिर्फ़ आखिरी 4 अंक सेव होंगे।"; };
+  $("#jt").onchange = () => { fixJi(); $("#ji").value=""; const t=$("#jt").value; $("#jiHint").textContent = t==="aadhaar" ? "आधार: सुरक्षा के लिए सिर्फ़ आखिरी 4 अंक सेव होंगे।" : t==="pan" ? "PAN जैसे: ABCDE1234F" : ""; };
+  const darkCheck = (src, cb) => { const im=new Image(); im.onload=()=>{ const c=document.createElement("canvas"); c.width=c.height=24; const x=c.getContext("2d"); x.drawImage(im,0,0,24,24); const d=x.getImageData(0,0,24,24).data; let t=0; for(let i=0;i<d.length;i+=4) t+=(d[i]*3+d[i+1]*6+d[i+2])/10; cb(t/(d.length/4)); }; im.src=src; };
+  $("#js").onchange = async () => { try{ const u = await shrink($("#js").files[0], 240, 0.6); $("#jsPrev").src=u; $("#jsPrev").style.display="block"; darkCheck(u, v => { if(v<45){ toast("⚠️ फ़ोटो बहुत अंधेरी है — रोशनी में चेहरा साफ़ दिखे, ऐसी सेल्फ़ी दोबारा लें"); $("#js").value=""; $("#jsPrev").style.display="none"; } }); }catch(e){} };
+  $("#jd").oninput = e => { let d=e.target.value.replace(/\D/g,"").slice(0,8); if(d.length>4) d=d.slice(0,2)+"-"+d.slice(2,4)+"-"+d.slice(4); else if(d.length>2) d=d.slice(0,2)+"-"+d.slice(2); e.target.value=d; };
+  let gApp=null, gUser=null;
+  { const A="abcdefghjkmnpqrstuvwxyz", r=crypto.getRandomValues(new Uint32Array(8)); let t="Dip-"; for(let i=0;i<4;i++) t+=A[r[i]%A.length]; for(let i=4;i<8;i++) t+=r[i]%10; $("#jp").value=t; }
+  $("#jg").onclick = async () => {
+    try{
+      if(!gApp) gApp = initializeApp(firebaseConfig, "join"+Date.now());
+      const r = await signInWithPopup(getAuth(gApp), new GoogleAuthProvider());
+      gUser = r.user; $("#je").value = gUser.email || "";
+      $("#jg").textContent = "✅ जुड़ गया — बदलना हो तो दबाएँ"; $("#jgHint").textContent = "✔ यह Gmail पक्की (verified) है और आपके अकाउंट से जुड़ेगी।";
+    }catch(e){ if(!String(e.code||"").includes("popup-closed")) toast(String(e.code||"").includes("operation-not-allowed") ? "Google जोड़ना अभी चालू नहीं — एडमिन से कहें" : errMsg(e)); }
+  };
   $("#jgo").onclick = async () => {
-    const m=mobDigits($("#jm").value), name=$("#jn").value.trim(), dob=$("#jd").value, mail=$("#je").value.trim().toLowerCase();
+    const dm=$("#jd").value.match(/^(\d{2})-(\d{2})-(\d{4})$/), dobOk=dm && +dm[1]>=1 && +dm[1]<=31 && +dm[2]>=1 && +dm[2]<=12;
+    const m=mobDigits($("#jm").value), name=$("#jn").value.trim(), dob=dobOk?`${dm[3]}-${dm[2]}-${dm[1]}`:"", mail=$("#je").value.trim().toLowerCase();
     const idt=$("#jt").value, idRaw=$("#ji").value.replace(/\s|-/g,"").toUpperCase(), pw=$("#jp").value;
     if(!m) return toast("सही 10 अंक का मोबाइल नंबर डालें");
     if(name.length<3) return toast("अपना पूरा नाम लिखें");
     const age=ageYears(dob); if(age<18 || age>80) return toast("सही जन्म तिथि डालें (18 साल या ज़्यादा)");
-    if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(mail)) return toast("सही ईमेल ID डालें");
-    if(idt==="aadhaar" && !/^[2-9]\d{11}$/.test(idRaw)) return toast("आधार 12 अंक का होना चाहिए");
+    if(!gUser || !mail) return toast("🔗 Google से ईमेल जोड़ें बटन दबाएँ");
+    if(idt==="aadhaar" && !/^[2-9]\d{11}$/.test(idRaw)){ $("#ji").focus(); return toast(idRaw.length!==12 ? `आधार 12 अंक का होना चाहिए — अभी ${idRaw.length} अंक हैं` : "आधार 0 या 1 से शुरू नहीं होता — नंबर दोबारा देखें"); }
     if(idt==="pan" && !/^[A-Z]{5}\d{4}[A-Z]$/.test(idRaw)) return toast("PAN सही नहीं (जैसे ABCDE1234F)");
     if(idRaw.length<6) return toast("ID नंबर सही डालें");
     if(!$("#jf").files[0]) return toast("ID की फ़ोटो लगाएँ");
     if(!$("#js").files[0]) return toast("लाइव फ़ोटो (सेल्फ़ी) लें");
-    if(pw.length<8 || !/\d/.test(pw) || !/[A-Za-z]/.test(pw)) return toast("पासवर्ड 8+ अक्षर का हो, अक्षर और अंक दोनों");
-    if(pw!==$("#jp2").value) return toast("दोनों पासवर्ड एक जैसे नहीं हैं");
     if(!$("#jc").checked) return toast("सहमति वाले डिब्बे पर ✔ लगाएँ");
     const b=$("#jgo"); b.disabled=true; b.textContent="जमा हो रहा है…";
     let idImg, selfie;
     try{ idImg = await shrink($("#jf").files[0], 800, 0.6); selfie = await shrink($("#js").files[0], 480, 0.6); }
     catch(e){ toast("फ़ोटो नहीं खुली, दोबारा लें"); b.disabled=false; b.textContent="✅ फ़ॉर्म जमा करें"; return; }
     const idNo = idt==="aadhaar" ? "XXXX-XXXX-"+idRaw.slice(-4) : idRaw;
-    const tmp = initializeApp(firebaseConfig, "join"+Date.now());
+    const tmp = gApp;
     try{
       const email = m+"@"+MOB_DOMAIN;
-      const cred = await createUserWithEmailAndPassword(getAuth(tmp), email, pw);
-      const uid = cred.user.uid, tdb = getFirestore(tmp), bt = writeBatch(tdb);
+      await linkWithCredential(gUser, EmailAuthProvider.credential(email, pw));
+      const uid = gUser.uid, tdb = getFirestore(tmp), bt = writeBatch(tdb);
       bt.update(doc(tdb,"invites",JOIN_CODE),{used:true,usedBy:uid,usedAt:serverTimestamp()});
       bt.set(doc(tdb,"users",uid),{name,email,mobile:m,role:inv.role||"worker",canEdit:false,active:false,status:"pending",shift:inv.shift==="evening"?"evening":"morning",invite:JOIN_CODE,createdAt:serverTimestamp()});
-      bt.set(doc(tdb,"kyc",uid),{uid,name,mobile:m,dob,mail,idType:idt,idNo,idImg,selfie,consent:true,ua:navigator.userAgent.slice(0,160),at:serverTimestamp()});
+      bt.set(doc(tdb,"kyc",uid),{uid,name,mobile:m,dob,mail,mailVerified:true,pw,idType:idt,idNo,idImg,selfie,consent:true,ua:navigator.userAgent.slice(0,160),at:serverTimestamp()});
       await bt.commit();
       try{ await signOut(getAuth(tmp)); await deleteApp(tmp); }catch(e){}
       app.innerHTML = `<div class="card">${DIYA(110)}<h3>✅ फ़ॉर्म जमा हो गया, ${esc(name)}!</h3>
         <p>एडमिन आपकी जानकारी देखकर मंज़ूरी देंगे। तब तक ऐप डाउनलोड कर लें:</p>
         <a href="${APK_URL}"><button class="ok" style="width:100%">📥 MASTER CONNECTOR ऐप डाउनलोड करें</button></a>
-        <p>1. ऐप इंस्टॉल करें (फ़ोन पूछे तो Allow)।<br>2. Location और Notification की अनुमति दें।<br>3. मंज़ूरी के बाद लॉगिन: मोबाइल <b>${m}</b> और आपका पासवर्ड।<br>4. <b>ड्यूटी शुरू करें</b> दबाएँ।</p></div>`;
+        <p>1. ऐप इंस्टॉल करें (फ़ोन पूछे तो Allow)।<br>2. Location और Notification की अनुमति दें।<br>3. मंज़ूरी के बाद लॉगिन: मोबाइल <b>${m}</b> और पासवर्ड <b>${esc(pw)}</b> — या सीधे <b>Google से लॉगिन</b>।<br>4. <b>ड्यूटी शुरू करें</b> दबाएँ।</p></div>`;
     }catch(e){
-      try{ await deleteApp(tmp); }catch(_){}
+      try{ await signOut(getAuth(tmp)); await deleteApp(tmp); }catch(_){} gApp=null; gUser=null; $("#je").value=""; $("#jg").textContent="🔗 Google से ईमेल जोड़ें";
       toast(String(e.code||"").includes("email-already-in-use") ? "इस मोबाइल नंबर से अकाउंट पहले से है — ऐप में लॉगिन करें" : errMsg(e));
       b.disabled=false; b.textContent="✅ फ़ॉर्म जमा करें";
     }
   };
 }
 
+document.addEventListener("click", e => { const b=e.target.closest(".pwcp"); if(b){ try{ navigator.clipboard.writeText(b.dataset.pw); toast("📋 पासवर्ड कॉपी हो गया"); }catch(_){} } });
 onAuthStateChanged(auth, async user => {
   clearSubs();
   if(JOIN_CODE && !user) return showJoin();
@@ -357,7 +375,7 @@ async function showKyc(u){
   let k=null; try{ const s=await getDoc(doc(db,"kyc",u.id)); k=s.exists()?s.data():null; }catch(e){ k=null; }
   p.innerHTML = `<div class="card" style="max-height:85vh;overflow:auto"><div class="between"><h3 style="margin:0">🪪 ${esc(u.name)}</h3><button class="sec sm" id="kx">बंद</button></div>
     ${!k?`<p class="muted">KYC नहीं मिली।</p>`:`
-    <p>📱 ${esc(k.mobile)}<br>🎂 ${esc(k.dob)} (${ageYears(k.dob)} साल)<br>✉️ ${esc(k.mail)}<br>🪪 ${esc(ID_TYPES[k.idType]||k.idType)}: <b>${esc(k.idNo)}</b><br><span class="muted">जमा: ${fmtD(k.at)} ${fmtT(k.at)}</span></p>
+    <p>📱 ${esc(k.mobile)}<br>🎂 ${esc(k.dob)} (${ageYears(k.dob)} साल)<br>✉️ ${esc(k.mail)}${k.mailVerified?' <b style="color:#0a7d3b">✔ Google से जुड़ी</b>':''}${k.pw?`<br>🔑 पासवर्ड: <b>${esc(k.pw)}</b> <button class="pwcp" data-pw="${esc(k.pw)}" style="padding:2px 10px;font-size:13px;width:auto">📋 कॉपी</button>`:""}<br>🪪 ${esc(ID_TYPES[k.idType]||k.idType)}: <b>${esc(k.idNo)}</b><br><span class="muted">जमा: ${fmtD(k.at)} ${fmtT(k.at)}</span></p>
     <p class="muted">📸 लाइव फ़ोटो</p><img src="${safeImg(k.selfie)}" style="max-width:100%;border-radius:12px">
     <p class="muted">ID फ़ोटो</p><img src="${safeImg(k.idImg)}" style="max-width:100%;border-radius:12px">`}</div>`;
   $("#kx").onclick=()=>p.classList.add("hidden");
