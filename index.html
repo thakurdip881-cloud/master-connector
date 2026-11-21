@@ -163,7 +163,7 @@ async function showJoin(){
   const mob = inv.mobile || "";
   app.innerHTML = `<div class="card">${DIYA(140)}<h3>👋 MASTER CONNECTOR में जुड़ें</h3>
     <p class="muted">यह फ़ॉर्म एक बार भरना है। एडमिन की मंज़ूरी के बाद ऐप में इसी मोबाइल नंबर और पासवर्ड से लॉगिन करेंगे।</p>
-    <label class="req">मोबाइल नंबर</label><input id="jm" value="${esc(mob)}" ${mob?"readonly":""} inputmode="numeric">
+    <label class="req">मोबाइल नंबर</label><input id="jm" value="${esc(mob)}" inputmode="numeric" maxlength="10" placeholder="10 अंक का मोबाइल नंबर"><p class="muted">नंबर बदलना हो तो यहाँ ठीक कर दें — इसी नंबर से लॉगिन होगा।</p>
     <label class="req">पूरा नाम (ID जैसा)</label><input id="jn" autocomplete="name">
     <label class="req">जन्म तिथि (दिन-महीना-साल)</label><input id="jd" type="text" inputmode="numeric" maxlength="10" placeholder="जैसे: 15-08-1995" autocomplete="bday">
     <label class="req">ईमेल ID (Gmail — एक बार जोड़ें)</label><button type="button" id="jg" style="width:100%;background:#fff;color:#1a56a8;border:2px solid #1a56a8">🔗 Google से ईमेल जोड़ें</button><input id="je" type="email" readonly placeholder="ऊपर बटन दबाएँ — ईमेल अपने-आप आएगा" style="margin-top:6px"><p class="muted" id="jgHint">आपकी Gmail आपके अकाउंट से जुड़ जाएगी — बाद में इसी से भी लॉगिन कर सकेंगे।</p>
