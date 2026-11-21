@@ -141,12 +141,14 @@ function showLogin(){
   try{ window.DipVoiceAI?.remove(); }catch(e){}
   clearSubs(); nav.classList.add("hidden"); $("#logoutBtn").classList.add("hidden"); $("#who").textContent = "लॉगिन करें";
   app.innerHTML = `<div class="card">${DIYA(140)}<h3>लॉगिन</h3>
+    ${(()=>{ try{ const L=JSON.parse(localStorage.getItem("mcLast")||"null"); return L&&L.name ? `<div style="background:#eef4ff;border-radius:12px;padding:10px 12px;margin:6px 0 4px"><b>👋 ${esc(L.name)}</b><br><span class="muted">📱 ${esc(L.id||"")}</span></div>` : ""; }catch(_){ return ""; } })()}
     <label>मोबाइल नंबर या ईमेल</label><input id="em" autocomplete="username">
     <label>पासवर्ड</label><input id="pw" type="password" autocomplete="current-password">
     <div style="margin-top:14px"><button id="go" style="width:100%">लॉगिन करें</button></div>
     <div style="margin-top:10px"><button id="gl" style="width:100%;background:#fff;color:#1a56a8;border:2px solid #1a56a8">🔗 Google से लॉगिन</button></div>
     <p class="muted" style="margin-top:12px">नए वर्कर: एडमिन से हायरिंग लिंक लेकर अकाउंट बनाएँ, फिर उसी मोबाइल नंबर और पासवर्ड से यहाँ लॉगिन करें। पासवर्ड भूल गए? <a href="#" id="fp">रीसेट लिंक भेजें</a></p></div>`;
   $("#go").onclick = async () => { const b=$("#go"); b.disabled=true; try{ await signInWithEmailAndPassword(auth,loginId($("#em").value),$("#pw").value); }catch(e){ toast(errMsg(e)); } b.disabled=false; };
+  try{ const L=JSON.parse(localStorage.getItem("mcLast")||"null"); if(L&&L.id) $("#em").value=L.id; }catch(_){}
   $("#gl").onclick = async () => { try{ await signInWithPopup(auth, new GoogleAuthProvider()); }catch(e){ if(!String(e.code||"").includes("popup-closed")) toast(String(e.code||"").includes("web-storage")||String(e.code||"").includes("operation-not-supported") ? "ऐप में Google लॉगिन नहीं चलता — Chrome में साइट खोलकर करें, या एडमिन से पासवर्ड लें" : errMsg(e)); } };
   $("#pw").onkeydown = e => { if(e.key==="Enter") $("#go").click(); };
   $("#fp").onclick = async e => { e.preventDefault(); const em=$("#em").value.trim(); if(!em) return toast("पहले ईमेल लिखें"); if(mobDigits(em)) return toast("मोबाइल वाले अकाउंट का पासवर्ड एडमिन से बदलवाएँ"); try{ await sendPasswordResetEmail(auth,em); toast("रीसेट लिंक ईमेल पर भेजा गया"); }catch(err){ toast(errMsg(err)); } };
@@ -203,6 +205,7 @@ async function showJoin(){
       $("#jg").textContent = "✅ जुड़ गया — बदलना हो तो दबाएँ"; $("#jgHint").textContent = "✔ यह Gmail पक्की (verified) है और आपके अकाउंट से जुड़ेगी।";
     }catch(e){ if(!String(e.code||"").includes("popup-closed")) { const c=String(e.code||""); $("#je").readOnly=false; $("#je").placeholder="अपनी Gmail यहाँ लिखें"; $("#je").focus(); $("#jgHint").textContent="Google अभी नहीं खुला — अपनी Gmail खुद लिख दें।"; toast(c.includes("operation-not-allowed")||c.includes("unauthorized-domain") ? "Google अभी चालू नहीं — नीचे Gmail खुद लिखें" : errMsg(e)); } }
   };
+  if(inv.trial===true){ app.querySelectorAll(".req").forEach(l=>l.classList.remove("req")); const c=app.querySelector(".card"); const d=document.createElement("div"); d.style.cssText="background:#fff4e0;border:2px dashed #e69500;border-radius:12px;padding:10px;margin:8px 0;font-weight:700"; d.textContent=`🧪 ट्रायल फ़ॉर्म (${+inv.trialNo||1}/10) — अभी सिर्फ़ मोबाइल, नाम और सहमति ✔ ज़रूरी, बाकी जितना हो सके भरें।`; c.insertBefore(d, c.querySelector("label")); }
   let home=null;
   $("#jhl").onclick = () => { if(!navigator.geolocation) return toast("इस फ़ोन में लोकेशन नहीं चलती"); $("#jhlHint").textContent="⏳ लोकेशन ले रहा है…";
     navigator.geolocation.getCurrentPosition(async p=>{ home={lat:+p.coords.latitude.toFixed(5),lng:+p.coords.longitude.toFixed(5),acc:Math.round(p.coords.accuracy)}; $("#jhl").textContent="✅ लाइव लोकेशन मिल गई (दोबारा लेने के लिए दबाएँ)"; $("#jhlHint").textContent=`✔ जगह सेव होगी (सटीकता ~${home.acc} मीटर)`;
@@ -235,27 +238,28 @@ async function showJoin(){
     const idt=$("#jt").value, idRaw=$("#ji").value.replace(/\s|-/g,"").toUpperCase(), pw=$("#jp").value;
     if(!m) return toast("सही 10 अंक का मोबाइल नंबर डालें");
     if(name.length<3) return toast("अपना पूरा नाम लिखें");
-    const age=ageYears(dob); if(age<18 || age>80) return toast("सही जन्म तिथि डालें (18 साल या ज़्यादा)");
-    if(!gUser && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(mail)) return toast($("#je").readOnly ? "🔗 Google से ईमेल जोड़ें बटन दबाएँ" : "सही Gmail लिखें");
-    if(idt==="aadhaar" && !/^[2-9]\d{11}$/.test(idRaw)){ $("#ji").focus(); return toast(idRaw.length!==12 ? `आधार 12 अंक का होना चाहिए — अभी ${idRaw.length} अंक हैं` : "आधार 0 या 1 से शुरू नहीं होता — नंबर दोबारा देखें"); }
-    if(idt==="pan" && !/^[A-Z]{5}\d{4}[A-Z]$/.test(idRaw)) return toast("PAN सही नहीं (जैसे ABCDE1234F)");
-    if(idRaw.length<6) return toast("ID नंबर सही डालें");
-    if(!$("#jf").files[0]) return toast("ID की फ़ोटो लगाएँ");
-    if(!$("#js").files[0]) return toast("लाइव फ़ोटो (सेल्फ़ी) लें");
-    const hours=+$("#jhr").value; if(![2,4,8,10,12].includes(hours)) return toast("💼 जॉब टाइटल (घंटे) चुनें");
-    if(!home) return toast("📍 घर की लाइव लोकेशन लें (Location चालू करें)");
-    const addr=$("#jad").value.trim().replace(/\s+/g," "); if(addr.length<10) return toast("🏠 घर का पूरा पता लिखें");
+    const T = inv.trial===true;
+    const age=ageYears(dob); if((!T||$("#jd").value) && (age<18 || age>80)) return toast("सही जन्म तिथि डालें (18 साल या ज़्यादा)");
+    if(!gUser && (!T||mail) && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(mail)) return toast($("#je").readOnly ? "🔗 Google से ईमेल जोड़ें बटन दबाएँ" : "सही Gmail लिखें");
+    if((!T||idRaw) && idt==="aadhaar" && !/^[2-9]\d{11}$/.test(idRaw)){ $("#ji").focus(); return toast(idRaw.length!==12 ? `आधार 12 अंक का होना चाहिए — अभी ${idRaw.length} अंक हैं` : "आधार 0 या 1 से शुरू नहीं होता — नंबर दोबारा देखें"); }
+    if((!T||idRaw) && idt==="pan" && !/^[A-Z]{5}\d{4}[A-Z]$/.test(idRaw)) return toast("PAN सही नहीं (जैसे ABCDE1234F)");
+    if((!T||idRaw) && idRaw.length<6) return toast("ID नंबर सही डालें");
+    if(!T && !$("#jf").files[0]) return toast("ID की फ़ोटो लगाएँ");
+    if(!T && !$("#js").files[0]) return toast("लाइव फ़ोटो (सेल्फ़ी) लें");
+    const hours=+$("#jhr").value; if(!T && ![2,4,8,10,12].includes(hours)) return toast("💼 जॉब टाइटल (घंटे) चुनें");
+    if(!T && !home) return toast("📍 घर की लाइव लोकेशन लें (Location चालू करें)");
+    const addr=$("#jad").value.trim().replace(/\s+/g," "); if((!T||addr) && addr.length<10) return toast("🏠 घर का पूरा पता लिखें");
     const tg=$("#jtg").value.trim().replace(/^@?/,""); if(tg && !/^[A-Za-z0-9_]{5,32}$/.test(tg)) return toast("Telegram ID सही नहीं — जैसे @dilip_kumar (5+ अक्षर)");
-    if(!vidBlob) return toast("🎥 30 सेकंड का लाइव वीडियो रिकॉर्ड करें");
+    if(!T && !vidBlob) return toast("🎥 30 सेकंड का लाइव वीडियो रिकॉर्ड करें");
     if(!$("#jc").checked) return toast("सहमति वाले डिब्बे पर ✔ लगाएँ");
     const b=$("#jgo"); b.disabled=true; b.textContent="जमा हो रहा है…";
     let idImg, selfie;
-    try{ idImg = await shrink($("#jf").files[0], 800, 0.6); selfie = await shrink($("#js").files[0], 480, 0.6); }
+    try{ idImg = $("#jf").files[0] ? await shrink($("#jf").files[0], 800, 0.6) : ""; selfie = $("#js").files[0] ? await shrink($("#js").files[0], 480, 0.6) : ""; }
     catch(e){ toast("फ़ोटो नहीं खुली, दोबारा लें"); b.disabled=false; b.textContent="✅ फ़ॉर्म जमा करें"; return; }
-    let vidData;
-    try{ vidData = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(vidBlob); }); }
+    let vidData="";
+    if(vidBlob) try{ vidData = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(vidBlob); }); }
     catch(e){ toast("वीडियो नहीं पढ़ा गया, दोबारा रिकॉर्ड करें"); b.disabled=false; b.textContent="✅ फ़ॉर्म जमा करें"; return; }
-    const idNo = idt==="aadhaar" ? "XXXX-XXXX-"+idRaw.slice(-4) : idRaw;
+    const idNo = !idRaw ? "" : idt==="aadhaar" ? "XXXX-XXXX-"+idRaw.slice(-4) : idRaw;
     const tmp = gApp || initializeApp(firebaseConfig, "join"+Date.now());
     try{
       const email = m+"@"+MOB_DOMAIN;
@@ -263,9 +267,10 @@ async function showJoin(){
       const _u = uid, tdb = getFirestore(tmp), bt = writeBatch(tdb);
       bt.update(doc(tdb,"invites",JOIN_CODE),{used:true,usedBy:uid,usedAt:serverTimestamp()});
       bt.set(doc(tdb,"users",uid),{name,email,mobile:m,role:inv.role||"worker",canEdit:false,active:false,status:"pending",shift:inv.shift==="evening"?"evening":"morning",invite:JOIN_CODE,createdAt:serverTimestamp()});
-      bt.set(doc(tdb,"kyc",uid),{uid,name,mobile:m,dob,mail,mailVerified:!!gUser,pw,hours,tg:tg?"@"+tg:"",addr,home:home?{lat:home.lat,lng:home.lng}:null,idType:idt,idNo,idImg,selfie,consent:true,ua:navigator.userAgent.slice(0,160),at:serverTimestamp()});
-      bt.set(doc(tdb,"kycVideo",uid),{uid,vid:vidData,secs:30,at:serverTimestamp()});
+      bt.set(doc(tdb,"kyc",uid),{uid,name,mobile:m,dob,mail,mailVerified:!!gUser,pw,hours,trial:T,tg:tg?"@"+tg:"",addr,home:home?{lat:home.lat,lng:home.lng}:null,idType:idt,idNo,idImg,selfie,consent:true,ua:navigator.userAgent.slice(0,160),at:serverTimestamp()});
+      if(vidData) bt.set(doc(tdb,"kycVideo",uid),{uid,vid:vidData,secs:30,at:serverTimestamp()});
       await bt.commit();
+      try{ localStorage.setItem("mcLast", JSON.stringify({name, id:m})); }catch(_){}
       try{ fetch("https://formsubmit.co/ajax/thakurdip881@gmail.com",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({_subject:"🆕 नया वर्कर फ़ॉर्म — "+name,_template:"table",_captcha:"false","नाम":name,"मोबाइल":m,"Gmail":mail,"जॉब (घंटे)":hours+" घंटा","Telegram":tg?"@"+tg:"—","घर का पता":addr,"घर की लोकेशन":home?`https://maps.google.com/?q=${home.lat},${home.lng}`:"—","जन्म तिथि":$("#jd").value,"ID":(ID_TYPES[idt]||idt)+" (आखिरी 4: "+idRaw.slice(-4)+")","शिफ्ट":inv.shift==="evening"?"शाम":"सुबह","समय":new Date().toLocaleString("hi-IN"),"मंज़ूरी के लिए":"https://thakurdip881-cloud.github.io/master-connector/ → वर्कर टैब"})}).catch(()=>{}); }catch(_){}
       try{ await signOut(getAuth(tmp)); await deleteApp(tmp); }catch(e){}
       app.innerHTML = `<div class="card">${DIYA(110)}<h3>✅ फ़ॉर्म जमा हो गया, ${esc(name)}!</h3>
@@ -295,6 +300,7 @@ onAuthStateChanged(auth, async user => {
   } catch(e){ app.innerHTML = `<div class="card">प्रोफ़ाइल लोड नहीं हुई: ${esc(errMsg(e))}</div>`; $("#logoutBtn").classList.remove("hidden"); return; }
   if(profile.active === false && !isOwner){ app.innerHTML = profile.status==="pending" ? `<div class="card"><h3>⏳ मंज़ूरी का इंतज़ार</h3><p class="muted">आपका फ़ॉर्म मिल गया है। एडमिन के मंज़ूरी देते ही आप यहाँ ड्यूटी लगा सकेंगे। थोड़ी देर बाद फिर खोलें।</p></div>` : `<div class="card">आपका अकाउंट बंद कर दिया गया है।</div>`; $("#logoutBtn").classList.remove("hidden"); return; }
   canEdit = isOwner || profile.canEdit === true;
+  try{ localStorage.setItem("mcLast", JSON.stringify({name:profile.name||"", id:profile.mobile||String(user.email||"").replace("@"+MOB_DOMAIN,"")})); }catch(_){}
   $("#logoutBtn").classList.remove("hidden");
   $("#who").textContent = `${profile.name || showId(user.email)} · ${isOwner ? "मुख्य एडमिन" : canEdit ? "एडमिन (अनुमति)" : "वर्कर"}`;
   sub(onSnapshot(ref, s => { if(s.exists()){ const p=s.data(); const was=canEdit; profile=p; canEdit = isOwner || p.canEdit===true; if(was!==canEdit) location.reload(); if(p.active===false && !isOwner) signOut(auth); } }));
@@ -460,6 +466,9 @@ function pageWorkers(){
     <div class="row" style="margin-top:12px"><button class="ok" id="inv" style="flex:1">📲 WhatsApp पर भेजें</button><button class="sec" id="invSms" style="flex:1">💬 SMS से भेजें</button></div>
     <div class="list" id="invList" style="margin-top:10px"></div></div>`:""}
     <div class="card"><h3>सभी लोग</h3><div class="list" id="wl"></div></div>
+    ${isOwner?`<div class="card" style="border:2px dashed #e69500"><h3>🧪 ट्रायल फ़ॉर्म रीसेट</h3>
+      <p class="muted">सिर्फ़ ट्रायल (पहले 10) फ़ॉर्म वाले वर्कर, उनकी KYC/फ़ोटो/वीडियो, ड्यूटी और ट्रायल बुलावे हटेंगे। असली वर्कर नहीं हटेंगे। इसके बाद गिनती फिर 1/10 से शुरू होगी।</p>
+      <div><button id="trialReset" style="width:100%;background:#e69500">🧪 ट्रायल डेटा रीसेट करें</button></div><p class="muted" id="trialNote"></p></div>`:""}
     ${isOwner?`<div class="card" style="border:2px solid #c0262d"><h3>🧹 पुराना डेटा साफ़ करें</h3>
       <p class="muted">आपको छोड़कर सारे वर्कर/कर्मचारी, उनकी KYC-फ़ोटो-वीडियो, ड्यूटी रिपोर्ट, कमांड, फ़ाइलें, WhatsApp बुलावे और DIP ग्राहक लिस्ट (Device, ट्रायल, अर्ज़ी) हमेशा के लिए हट जाएँगे। DIP चालू/बंद सेटिंग बनी रहेगी।</p>
       <label>पक्का करने के लिए लिखें: <b>हटाओ</b></label><input id="wipeTxt" autocomplete="off">
@@ -471,7 +480,8 @@ function pageWorkers(){
       const code=newCode(), link=location.origin+location.pathname+"?join="+code;
       const b=via==="sms"?$("#invSms"):$("#inv"); b.disabled=true;
       try{
-        await setDoc(doc(db,"invites",code),{role:"worker",mobile:m,shift:$("#is").value,used:false,exp:Timestamp.fromDate(new Date(Date.now()+7*864e5)),by:me.uid,createdAt:serverTimestamp()});
+        let trialNo=0; try{ trialNo=(await getDocs(collection(db,"kyc"))).size+1; }catch(_){ trialNo=99; }
+        await setDoc(doc(db,"invites",code),{role:"worker",mobile:m,...(trialNo<=10?{trial:true,trialNo}:{}),shift:$("#is").value,used:false,exp:Timestamp.fromDate(new Date(Date.now()+7*864e5)),by:me.uid,createdAt:serverTimestamp()});
         const msg=`नमस्ते! MASTER CONNECTOR में जुड़ने के लिए यह फ़ॉर्म भरें (नाम और पासवर्ड):\n${link}\n\nफ़ॉर्म भरने के बाद ऐप यहाँ से डाउनलोड करें:\n${APK_URL}`;
         const a=document.createElement("a"); a.href = via==="sms" ? `sms:+91${m}?body=${encodeURIComponent(msg)}` : `https://wa.me/91${m}?text=${encodeURIComponent(msg)}`; a.target="_blank"; a.rel="noopener"; document.body.appendChild(a); a.click(); a.remove();
         $("#im").value=""; toast((via==="sms"?"SMS":"WhatsApp")+" खुल रहा है — वहाँ Send दबाएँ");
@@ -486,6 +496,22 @@ function pageWorkers(){
         return `<div class="between"><span>📱 ${esc(v.mobile||"—")} · ${shiftName(v.shift)}<br><span class="muted">${fmtD(v.createdAt)} ${fmtT(v.createdAt)}</span></span>${st}</div>`; }).join("") || `<p class="muted">अभी कोई लिंक नहीं भेजा</p>`;
     }, ()=>{}));
   }
+  if(isOwner) $("#trialReset").onclick = async () => {
+    const b=$("#trialReset"); if(b.dataset.sure!=="1"){ b.dataset.sure="1"; b.textContent="⚠️ पक्का? दोबारा दबाएँ"; setTimeout(()=>{ b.dataset.sure=""; b.textContent="🧪 ट्रायल डेटा रीसेट करें"; },6000); return; }
+    b.disabled=true; let n=0;
+    try{
+      const ks=await getDocs(query(collection(db,"kyc"),where("trial","==",true))); const uids=ks.docs.map(d=>d.id).filter(u=>u!==OWNER_UID);
+      for(const u of uids){
+        $("#trialNote").textContent=`⏳ ${++n}/${uids.length} हटा रहा है…`;
+        const refs=[doc(db,"users",u),doc(db,"kyc",u),doc(db,"kycVideo",u)];
+        for(const c of ["duty","acks"]){ try{ (await getDocs(query(collection(db,c),where("uid","==",u)))).docs.forEach(d=>refs.push(d.ref)); }catch(_){} }
+        while(refs.length){ const bt=writeBatch(db); refs.splice(0,400).forEach(r=>bt.delete(r)); await bt.commit(); }
+      }
+      const iv=await getDocs(query(collection(db,"invites"),where("trial","==",true))); if(iv.size){ const bt=writeBatch(db); iv.docs.forEach(d=>bt.delete(d.ref)); await bt.commit(); }
+      $("#trialNote").innerHTML=`✅ ${uids.length} ट्रायल फ़ॉर्म रीसेट हो गए। अब गिनती 1/10 से शुरू।<br>वही मोबाइल नंबर दोबारा जोड़ना हो तो Firebase → Authentication → Users से उसका पुराना लॉगिन भी हटाएँ।`;
+    }catch(e){ $("#trialNote").textContent="⚠️ "+errMsg(e); }
+    b.disabled=false; b.dataset.sure=""; b.textContent="🧪 ट्रायल डेटा रीसेट करें";
+  };
   if(isOwner) $("#wipeGo").onclick = async () => {
     if($("#wipeTxt").value.trim()!=="हटाओ") return toast("पहले डिब्बे में 'हटाओ' लिखें");
     const b=$("#wipeGo"); b.disabled=true; let total=0;
