@@ -119,6 +119,7 @@ const JOIN_CODE = new URLSearchParams(location.search).get("join") || "";
 const newCode = () => { const a=new Uint8Array(15); crypto.getRandomValues(a); return btoa(String.fromCharCode(...a)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); };
 // फ़ोटो छोटी करके (कम डेटा) base64 — Firebase Storage नहीं (वो फ़्री नहीं)
 const shrink = (file, max=640, q=0.6) => new Promise((res,rej) => { if(!file) return rej(new Error("no file")); const r=new FileReader(); r.onload=()=>{ const im=new Image(); im.onload=()=>{ const k=Math.min(1,max/Math.max(im.width,im.height)); const c=document.createElement("canvas"); c.width=Math.round(im.width*k); c.height=Math.round(im.height*k); c.getContext("2d").drawImage(im,0,0,c.width,c.height); res(c.toDataURL("image/jpeg",q)); }; im.onerror=rej; im.src=r.result; }; r.onerror=rej; r.readAsDataURL(file); });
+const GOOGLE_ON = false;   // Firebase में Google लॉगिन चालू होने पर true करें
 const ageYears = d => { const b=new Date(d); if(isNaN(b)) return -1; const n=new Date(); let a=n.getFullYear()-b.getFullYear(); if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate())) a--; return a; };
 const ID_TYPES = {aadhaar:"आधार कार्ड", pan:"PAN कार्ड", voter:"वोटर ID", dl:"ड्राइविंग लाइसेंस"};
 const DIYA = sz => `<div class="diyaBig"><span class="diya" style="--s:${sz}px"><img class="b" src="img/diya-base.png" alt=""><span class="g"></span><img class="f" src="img/flame.png" alt=""></span></div>`;
@@ -149,6 +150,7 @@ function showLogin(){
     <p class="muted" style="margin-top:12px">नए वर्कर: एडमिन से हायरिंग लिंक लेकर अकाउंट बनाएँ, फिर उसी मोबाइल नंबर और पासवर्ड से यहाँ लॉगिन करें। पासवर्ड भूल गए? <a href="#" id="fp">रीसेट लिंक भेजें</a></p></div>`;
   $("#go").onclick = async () => { const b=$("#go"); b.disabled=true; try{ await signInWithEmailAndPassword(auth,loginId($("#em").value),$("#pw").value); }catch(e){ toast(errMsg(e)); } b.disabled=false; };
   try{ const L=JSON.parse(localStorage.getItem("mcLast")||"null"); if(L&&L.id) $("#em").value=L.id; }catch(_){}
+  if(!GOOGLE_ON) $("#gl").parentElement.style.display="none";
   $("#gl").onclick = async () => { try{ await signInWithPopup(auth, new GoogleAuthProvider()); }catch(e){ if(!String(e.code||"").includes("popup-closed")) toast(String(e.code||"").includes("web-storage")||String(e.code||"").includes("operation-not-supported") ? "ऐप में Google लॉगिन नहीं चलता — Chrome में साइट खोलकर करें, या एडमिन से पासवर्ड लें" : errMsg(e)); } };
   $("#pw").onkeydown = e => { if(e.key==="Enter") $("#go").click(); };
   $("#fp").onclick = async e => { e.preventDefault(); const em=$("#em").value.trim(); if(!em) return toast("पहले ईमेल लिखें"); if(mobDigits(em)) return toast("मोबाइल वाले अकाउंट का पासवर्ड एडमिन से बदलवाएँ"); try{ await sendPasswordResetEmail(auth,em); toast("रीसेट लिंक ईमेल पर भेजा गया"); }catch(err){ toast(errMsg(err)); } };
@@ -196,6 +198,7 @@ async function showJoin(){
   $("#js").onchange = async () => { try{ const u = await shrink($("#js").files[0], 240, 0.6); $("#jsPrev").src=u; $("#jsPrev").style.display="block"; darkCheck(u, v => { if(v<45){ toast("⚠️ फ़ोटो बहुत अंधेरी है — रोशनी में चेहरा साफ़ दिखे, ऐसी सेल्फ़ी दोबारा लें"); $("#js").value=""; $("#jsPrev").style.display="none"; } }); }catch(e){} };
   $("#jd").oninput = e => { let d=e.target.value.replace(/\D/g,"").slice(0,8); if(d.length>4) d=d.slice(0,2)+"-"+d.slice(2,4)+"-"+d.slice(4); else if(d.length>2) d=d.slice(0,2)+"-"+d.slice(2); e.target.value=d; };
   let gApp=null, gUser=null;
+  if(!GOOGLE_ON){ $("#jg").style.display="none"; $("#je").readOnly=false; $("#je").placeholder="अपनी Gmail लिखें (जैसे naam@gmail.com)"; $("#je").style.marginTop="0"; $("#jgHint").textContent="Gmail आपके रिकॉर्ड में रहेगी।"; }
   { const A="abcdefghjkmnpqrstuvwxyz", r=crypto.getRandomValues(new Uint32Array(8)); let t="Dip-"; for(let i=0;i<4;i++) t+=A[r[i]%A.length]; for(let i=4;i<8;i++) t+=r[i]%10; $("#jp").value=t; }
   $("#jg").onclick = async () => {
     try{
