@@ -112,7 +112,7 @@ const MOB_DOMAIN = "worker.masterconnector.app";
 const mobDigits = x => { let d=String(x||"").replace(/[\s\-+]/g,""); if(/^91\d{10}$/.test(d)) d=d.slice(2); if(/^0\d{10}$/.test(d)) d=d.slice(1); return /^[6-9]\d{9}$/.test(d) ? d : ""; };
 const loginId = x => { const d=mobDigits(x); return d ? d+"@"+MOB_DOMAIN : String(x||"").trim(); };
 const showId = e => String(e||"").endsWith("@"+MOB_DOMAIN) ? "📱 "+e.split("@")[0] : (e||"");
-const APK_URL = "https://github.com/thakurdip881-cloud/master-connector/releases/download/apk-v6/MasterConnector.apk";
+const APK_URL = "https://github.com/thakurdip881-cloud/master-connector/releases/latest/download/MasterConnector.apk";
 const JOIN_CODE = new URLSearchParams(location.search).get("join") || "";
 const newCode = () => { const a=new Uint8Array(15); crypto.getRandomValues(a); return btoa(String.fromCharCode(...a)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); };
 // फ़ोटो छोटी करके (कम डेटा) base64 — Firebase Storage नहीं (वो फ़्री नहीं)
