@@ -23,7 +23,7 @@ jobs:
           cat > firebase.json <<'EOF'
           {"auth":{"providers":{"googleSignIn":{"oAuthBrandDisplayName":"MASTER CONNECTOR","supportEmail":"thakurdip881@gmail.com","authorizedRedirectUris":["https://thakurdip881-cloud.github.io"]}}}}
           EOF
-          npx --yes firebase-tools@latest deploy --only auth --project master-connector-f2a0d --non-interactive || echo "::warning::firebase deploy auth नहीं चला"
+          echo "(provider console से चालू होगा)"
       - name: जाँच (कोई गुप्त चीज़ नहीं छपती)
         env: { SA: '${{ secrets.FIREBASE_SA }}' }
         run: |
@@ -35,6 +35,8 @@ jobs:
           (async()=>{ const c=await new GoogleAuth({scopes:["https://www.googleapis.com/auth/cloud-platform"]}).getClient();
             const B="https://identitytoolkit.googleapis.com/admin/v2/projects/master-connector-f2a0d";
             try{ const r=await c.request({url:B+"/defaultSupportedIdpConfigs"}); const g=(r.data.defaultSupportedIdpConfigs||[]).find(x=>x.name.endsWith("google.com")); console.log("GOOGLE_PROVIDER:", g? (g.enabled?"ENABLED":"DISABLED"):"MISSING"); }catch(e){ console.log("IDP_CHECK_ERR", e.response?.status, e.response?.data?.error?.message); }
-            try{ const r=await c.request({url:B+"/config"}); console.log("DOMAINS:", (r.data.authorizedDomains||[]).join(", ")); }catch(e){ console.log("CFG_ERR", e.response?.status, e.response?.data?.error?.message); }
+            try{ const r=await c.request({url:B+"/config"}); let d=r.data.authorizedDomains||[]; const want="thakurdip881-cloud.github.io";
+              if(!d.includes(want)){ d=[...d,want]; await c.request({url:B+"/config?updateMask=authorizedDomains",method:"PATCH",data:{authorizedDomains:d}}); console.log("DOMAIN_ADDED"); }
+              const r2=await c.request({url:B+"/config"}); console.log("DOMAINS:", (r2.data.authorizedDomains||[]).join(", ")); }catch(e){ console.log("CFG_ERR", e.response?.status, e.response?.data?.error?.message); }
           })();'
           rm -f "$RUNNER_TEMP/sa.json"
