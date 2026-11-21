@@ -64,12 +64,35 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
 
+    // ---------- ड्यूटी में फ़ोन से दूर होने पर 5 मिनट की रिकॉर्डिंग (टुकड़ों में) — वर्कर सिर्फ़ अपनी बना सके, देखे एडमिन ----------
+    match /dutyVid/{id} {
+      allow read: if editor();
+      allow create: if active() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'duty', 'rec', 'i', 'n', 'part', 'at'])
+        && request.resource.data.part is string && request.resource.data.part.size() < 800000;
+      allow update: if false;
+      allow delete: if isOwner();
+    }
+
+    // ---------- वर्कर की काम की रिपोर्ट (हर 12 घंटे) — वर्कर अपनी भेजे/देखे, एडमिन सब देखे ----------
+    match /reports/{id} {
+      allow read: if editor() || (signed() && resource.data.uid == request.auth.uid);
+      allow create: if active() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'mobile', 'text', 'cnt', 'amt', 'note', 'mail', 'at'])
+        && request.resource.data.text is string && request.resource.data.text.size() <= 600;
+      allow update: if false;
+      allow delete: if isOwner();
+    }
+
+    // ---------- 90 दिन वाली अपने-आप सफ़ाई की जानकारी (सिर्फ़ सर्वर लिखता है) ----------
+    match /meta/{d} { allow read: if isOwner(); allow write: if false; }
+
     // ---------- ड्यूटी (हाज़िरी + 2 km location जाँच) ----------
     match /duty/{id} {
       allow read: if editor() || (active() && resource.data.uid == request.auth.uid);
       allow create: if active() && request.resource.data.uid == request.auth.uid && request.resource.data.end == null;
       allow update: if editor() || (active() && resource.data.uid == request.auth.uid && resource.data.end == null
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['end', 'lastLat', 'lastLng', 'awayKm', 'lastAt', 'startLat', 'startLng']));
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['end', 'lastLat', 'lastLng', 'awayKm', 'lastAt', 'startLat', 'startLng', 'idleAlert', 'idleAt', 'chkAt', 'chkImg', 'vidRec', 'watchAt']));
       allow delete: if isOwner();
     }
 
@@ -129,6 +152,39 @@ service cloud.firestore {
         && request.resource.data.mobile is string && request.resource.data.mobile.matches('[6-9][0-9]{9}')
         && request.resource.data.plan in [30, 90, 180]
         && request.resource.data.at == request.time);
+    }
+
+    // ---------- 🧳 DIP Tour & Travels ग्राहक (वर्कर से अलग डेटा) ----------
+    function tCust() { return signed() && request.auth.token.email is string && request.auth.token.email.matches('.*@customer[.]diptour[.]app'); }
+    match /tour/config { allow read: if true; allow write: if editor(); }
+    match /tCustomers/{uid} {
+      allow read: if editor() || (tCust() && request.auth.uid == uid);
+      allow create: if tCust() && request.auth.uid == uid && !exists(/databases/$(db)/documents/tCustomers/$(uid))
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'mobile', 'wa', 'mail', 'tg', 'idType', 'idNo', 'consent', 'at'])
+        && request.resource.data.uid == uid && request.resource.data.consent == true
+        && (request.resource.data.idType != 'aadhaar' || request.resource.data.idNo.matches('XXXX-XXXX-[0-9]{4}'));
+      allow update: if editor();
+      allow delete: if isOwner();
+    }
+    match /tMsgs/{id} {
+      allow read: if editor() || (tCust() && resource.data.uid == request.auth.uid);
+      allow create: if (editor() && request.resource.data.from == 'a')
+        || (tCust() && request.resource.data.uid == request.auth.uid && request.resource.data.from == 'c'
+            && request.resource.data.keys().hasOnly(['uid', 'from', 'text', 'at']) && request.resource.data.text.size() <= 500);
+      allow update: if false;
+      allow delete: if isOwner();
+    }
+    match /tNotice/{id} { allow read: if editor() || tCust(); allow write: if editor(); }
+    match /tTxn/{id} {
+      allow read: if editor() || (tCust() && resource.data.uid == request.auth.uid);
+      allow write: if editor();
+    }
+    match /tDocs/{id} {
+      allow read: if editor() || (tCust() && resource.data.uid == request.auth.uid);
+      allow create: if tCust() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'img', 'at']) && request.resource.data.img.size() < 750000;
+      allow update: if false;
+      allow delete: if isOwner() || (tCust() && resource.data.uid == request.auth.uid);
     }
 
     // बाकी सब बंद
