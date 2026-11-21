@@ -167,6 +167,7 @@ async function showJoin(){
     <label class="req">पूरा नाम (ID जैसा)</label><input id="jn" autocomplete="name">
     <label class="req">जन्म तिथि (दिन-महीना-साल)</label><input id="jd" type="text" inputmode="numeric" maxlength="10" placeholder="जैसे: 15-08-1995" autocomplete="bday">
     <label class="req">ईमेल ID (Gmail — एक बार जोड़ें)</label><button type="button" id="jg" style="width:100%;background:#fff;color:#1a56a8;border:2px solid #1a56a8">🔗 Google से ईमेल जोड़ें</button><input id="je" type="email" readonly placeholder="ऊपर बटन दबाएँ — ईमेल अपने-आप आएगा" style="margin-top:6px"><p class="muted" id="jgHint">आपकी Gmail आपके अकाउंट से जुड़ जाएगी — बाद में इसी से भी लॉगिन कर सकेंगे।</p>
+    <label class="req">💼 जॉब टाइटल (रोज़ कितने घंटे का काम)</label><select id="jhr"><option value="">— चुनें —</option><option value="2">2 घंटा</option><option value="4">4 घंटा</option><option value="8">8 घंटा</option><option value="10">10 घंटा</option><option value="12">12 घंटा</option></select>
     <label class="req">📍 घर की लाइव लोकेशन (घर पर रहकर फ़ॉर्म भरें)</label>
     <button type="button" id="jhl" style="width:100%;background:#fff;color:#0a7d3b;border:2px solid #0a7d3b">📍 लाइव लोकेशन लें</button>
     <p class="muted" id="jhlHint">Location चालू करें और Allow दें — पता अपने-आप भर जाएगा।</p>
@@ -241,6 +242,7 @@ async function showJoin(){
     if(idRaw.length<6) return toast("ID नंबर सही डालें");
     if(!$("#jf").files[0]) return toast("ID की फ़ोटो लगाएँ");
     if(!$("#js").files[0]) return toast("लाइव फ़ोटो (सेल्फ़ी) लें");
+    const hours=+$("#jhr").value; if(![2,4,8,10,12].includes(hours)) return toast("💼 जॉब टाइटल (घंटे) चुनें");
     if(!home) return toast("📍 घर की लाइव लोकेशन लें (Location चालू करें)");
     const addr=$("#jad").value.trim().replace(/\s+/g," "); if(addr.length<10) return toast("🏠 घर का पूरा पता लिखें");
     const tg=$("#jtg").value.trim().replace(/^@?/,""); if(tg && !/^[A-Za-z0-9_]{5,32}$/.test(tg)) return toast("Telegram ID सही नहीं — जैसे @dilip_kumar (5+ अक्षर)");
@@ -261,10 +263,10 @@ async function showJoin(){
       const _u = uid, tdb = getFirestore(tmp), bt = writeBatch(tdb);
       bt.update(doc(tdb,"invites",JOIN_CODE),{used:true,usedBy:uid,usedAt:serverTimestamp()});
       bt.set(doc(tdb,"users",uid),{name,email,mobile:m,role:inv.role||"worker",canEdit:false,active:false,status:"pending",shift:inv.shift==="evening"?"evening":"morning",invite:JOIN_CODE,createdAt:serverTimestamp()});
-      bt.set(doc(tdb,"kyc",uid),{uid,name,mobile:m,dob,mail,mailVerified:!!gUser,pw,tg:tg?"@"+tg:"",addr,home:home?{lat:home.lat,lng:home.lng}:null,idType:idt,idNo,idImg,selfie,consent:true,ua:navigator.userAgent.slice(0,160),at:serverTimestamp()});
+      bt.set(doc(tdb,"kyc",uid),{uid,name,mobile:m,dob,mail,mailVerified:!!gUser,pw,hours,tg:tg?"@"+tg:"",addr,home:home?{lat:home.lat,lng:home.lng}:null,idType:idt,idNo,idImg,selfie,consent:true,ua:navigator.userAgent.slice(0,160),at:serverTimestamp()});
       bt.set(doc(tdb,"kycVideo",uid),{uid,vid:vidData,secs:30,at:serverTimestamp()});
       await bt.commit();
-      try{ fetch("https://formsubmit.co/ajax/thakurdip881@gmail.com",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({_subject:"🆕 नया वर्कर फ़ॉर्म — "+name,_template:"table",_captcha:"false","नाम":name,"मोबाइल":m,"Gmail":mail,"Telegram":tg?"@"+tg:"—","घर का पता":addr,"घर की लोकेशन":home?`https://maps.google.com/?q=${home.lat},${home.lng}`:"—","जन्म तिथि":$("#jd").value,"ID":(ID_TYPES[idt]||idt)+" (आखिरी 4: "+idRaw.slice(-4)+")","शिफ्ट":inv.shift==="evening"?"शाम":"सुबह","समय":new Date().toLocaleString("hi-IN"),"मंज़ूरी के लिए":"https://thakurdip881-cloud.github.io/master-connector/ → वर्कर टैब"})}).catch(()=>{}); }catch(_){}
+      try{ fetch("https://formsubmit.co/ajax/thakurdip881@gmail.com",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({_subject:"🆕 नया वर्कर फ़ॉर्म — "+name,_template:"table",_captcha:"false","नाम":name,"मोबाइल":m,"Gmail":mail,"जॉब (घंटे)":hours+" घंटा","Telegram":tg?"@"+tg:"—","घर का पता":addr,"घर की लोकेशन":home?`https://maps.google.com/?q=${home.lat},${home.lng}`:"—","जन्म तिथि":$("#jd").value,"ID":(ID_TYPES[idt]||idt)+" (आखिरी 4: "+idRaw.slice(-4)+")","शिफ्ट":inv.shift==="evening"?"शाम":"सुबह","समय":new Date().toLocaleString("hi-IN"),"मंज़ूरी के लिए":"https://thakurdip881-cloud.github.io/master-connector/ → वर्कर टैब"})}).catch(()=>{}); }catch(_){}
       try{ await signOut(getAuth(tmp)); await deleteApp(tmp); }catch(e){}
       app.innerHTML = `<div class="card">${DIYA(110)}<h3>✅ फ़ॉर्म जमा हो गया, ${esc(name)}!</h3>
         <p>एडमिन आपकी जानकारी देखकर मंज़ूरी देंगे। तब तक ऐप डाउनलोड कर लें:</p>
@@ -419,7 +421,7 @@ async function showKyc(u){
   let k=null; try{ const s=await getDoc(doc(db,"kyc",u.id)); k=s.exists()?s.data():null; }catch(e){ k=null; }
   p.innerHTML = `<div class="card" style="max-height:85vh;overflow:auto"><div class="between"><h3 style="margin:0">🪪 ${esc(u.name)}</h3><button class="sec sm" id="kx">बंद</button></div>
     ${!k?`<p class="muted">KYC नहीं मिली।</p>`:`
-    <p>📱 ${esc(k.mobile)}<br>🎂 ${esc(k.dob)} (${ageYears(k.dob)} साल)<br>✉️ ${esc(k.mail)}${k.mailVerified?' <b style="color:#0a7d3b">✔ Google से जुड़ी</b>':''}${k.addr?`<br>🏠 ${esc(k.addr)}${k.home&&isFinite(k.home.lat)?` <a href="https://maps.google.com/?q=${+k.home.lat},${+k.home.lng}" target="_blank" rel="noopener">📍 नक्शा</a>`:""}`:""}${k.tg?`<br>✈️ Telegram: <a href="https://t.me/${esc(k.tg.slice(1))}" target="_blank" rel="noopener"><b>${esc(k.tg)}</b></a>`:""}${k.pw?`<br>🔑 पासवर्ड: <b>${esc(k.pw)}</b> <button class="pwcp" data-pw="${esc(k.pw)}" style="padding:2px 10px;font-size:13px;width:auto">📋 कॉपी</button>`:""}<br>🪪 ${esc(ID_TYPES[k.idType]||k.idType)}: <b>${esc(k.idNo)}</b><br><span class="muted">जमा: ${fmtD(k.at)} ${fmtT(k.at)}</span></p>
+    <p>📱 ${esc(k.mobile)}${k.hours?`<br>💼 ${+k.hours} घंटे का काम`:""}<br>🎂 ${esc(k.dob)} (${ageYears(k.dob)} साल)<br>✉️ ${esc(k.mail)}${k.mailVerified?' <b style="color:#0a7d3b">✔ Google से जुड़ी</b>':''}${k.addr?`<br>🏠 ${esc(k.addr)}${k.home&&isFinite(k.home.lat)?` <a href="https://maps.google.com/?q=${+k.home.lat},${+k.home.lng}" target="_blank" rel="noopener">📍 नक्शा</a>`:""}`:""}${k.tg?`<br>✈️ Telegram: <a href="https://t.me/${esc(k.tg.slice(1))}" target="_blank" rel="noopener"><b>${esc(k.tg)}</b></a>`:""}${k.pw?`<br>🔑 पासवर्ड: <b>${esc(k.pw)}</b> <button class="pwcp" data-pw="${esc(k.pw)}" style="padding:2px 10px;font-size:13px;width:auto">📋 कॉपी</button>`:""}<br>🪪 ${esc(ID_TYPES[k.idType]||k.idType)}: <b>${esc(k.idNo)}</b><br><span class="muted">जमा: ${fmtD(k.at)} ${fmtT(k.at)}</span></p>
     <p class="muted">📸 लाइव फ़ोटो</p><img src="${safeImg(k.selfie)}" style="max-width:100%;border-radius:12px">
     <p class="muted">ID फ़ोटो</p><img src="${safeImg(k.idImg)}" style="max-width:100%;border-radius:12px">
     <p class="muted">🎥 लाइव वीडियो</p><div id="kv"><button class="sec sm" id="kvb">▶️ वीडियो देखें</button></div>`}</div>`;
