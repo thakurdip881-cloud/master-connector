@@ -1,0 +1,40 @@
+# Firebase में Google लॉगिन चालू करना (एक बार) — सेवा खाते से, फ़्री
+name: Enable Google login
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/enable-google.yml']
+permissions:
+  contents: read
+jobs:
+  enable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Google लॉगिन चालू करें
+        env: { SA: '${{ secrets.FIREBASE_SA }}' }
+        run: |
+          [ -z "$SA" ] && { echo "::error::सेवा खाता नहीं मिला"; exit 1; }
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          mkdir -p w && cd w
+          cat > firebase.json <<'EOF'
+          {"auth":{"providers":{"googleSignIn":{"oAuthBrandDisplayName":"MASTER CONNECTOR","supportEmail":"thakurdip881@gmail.com","authorizedRedirectUris":["https://thakurdip881-cloud.github.io"]}}}}
+          EOF
+          npx --yes firebase-tools@latest deploy --only auth --project master-connector-f2a0d --non-interactive || echo "::warning::firebase deploy auth नहीं चला"
+      - name: जाँच (कोई गुप्त चीज़ नहीं छपती)
+        env: { SA: '${{ secrets.FIREBASE_SA }}' }
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npm i --silent --no-save google-auth-library@9 >/dev/null 2>&1
+          node -e '
+          const {GoogleAuth}=require("google-auth-library");
+          (async()=>{ const c=await new GoogleAuth({scopes:["https://www.googleapis.com/auth/cloud-platform"]}).getClient();
+            const B="https://identitytoolkit.googleapis.com/admin/v2/projects/master-connector-f2a0d";
+            try{ const r=await c.request({url:B+"/defaultSupportedIdpConfigs"}); const g=(r.data.defaultSupportedIdpConfigs||[]).find(x=>x.name.endsWith("google.com")); console.log("GOOGLE_PROVIDER:", g? (g.enabled?"ENABLED":"DISABLED"):"MISSING"); }catch(e){ console.log("IDP_CHECK_ERR", e.response?.status, e.response?.data?.error?.message); }
+            try{ const r=await c.request({url:B+"/config"}); console.log("DOMAINS:", (r.data.authorizedDomains||[]).join(", ")); }catch(e){ console.log("CFG_ERR", e.response?.status, e.response?.data?.error?.message); }
+          })();'
+          rm -f "$RUNNER_TEMP/sa.json"
