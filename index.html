@@ -244,7 +244,13 @@ async function showJoin(){
       $("#jg").textContent = "✅ जुड़ गया — बदलना हो तो दबाएँ"; $("#jgHint").textContent = "✔ यह Gmail पक्की (verified) है और आपके अकाउंट से जुड़ेगी।";
     }catch(e){ if(!String(e.code||"").includes("popup-closed")) { const c=String(e.code||""); $("#je").readOnly=false; $("#je").placeholder="अपनी Gmail यहाँ लिखें"; $("#je").focus(); $("#jgHint").textContent="Google अभी नहीं खुला — अपनी Gmail खुद लिख दें।"; toast(c.includes("operation-not-allowed")||c.includes("unauthorized-domain") ? "Google अभी चालू नहीं — नीचे Gmail खुद लिखें" : errMsg(e)); } }
   };
-  if(inv.trial!==false){ app.querySelectorAll(".req").forEach(l=>l.classList.remove("req")); const c=app.querySelector(".card"); const d=document.createElement("div"); d.style.cssText="background:#fff4e0;border:2px dashed #e69500;border-radius:12px;padding:10px;margin:8px 0;font-weight:700"; d.textContent=`🧪 ट्रायल फ़ॉर्म (${+inv.trialNo||1}/10) — अभी सिर्फ़ मोबाइल, नाम और सहमति ✔ ज़रूरी, बाकी जितना हो सके भरें।`; c.insertBefore(d, c.querySelector("label")); }
+  if(inv.trial!==false){ app.querySelectorAll(".req").forEach(l=>l.classList.remove("req")); const c=app.querySelector(".card"); const d=document.createElement("div"); d.style.cssText="background:#fff4e0;border:2px dashed #e69500;border-radius:12px;padding:10px;margin:8px 0;font-weight:700"; d.textContent=`🧪 ट्रायल फ़ॉर्म (${+inv.trialNo||1}/10) — अभी सिर्फ़ मोबाइल, नाम और सहमति ✔ ज़रूरी, बाकी जितना हो सके भरें।`; c.insertBefore(d, c.querySelector("label"));
+    const tb=document.createElement("button"); tb.type="button"; tb.textContent="🧪 नकली डेटा अपने-आप भरें (सिर्फ़ जाँच के लिए)"; tb.style.cssText="width:100%;background:#e69500;margin-bottom:6px"; c.insertBefore(tb, d.nextSibling);
+    tb.onclick=()=>{ const n=Math.floor(Math.random()*900)+100, set=(id,v)=>{ const e=$(id); if(e){ e.value=v; e.dispatchEvent(new Event("input")); } };
+      set("#jn","Test Worker "+n); set("#jd","15-08-1995"); if(!$("#je").readOnly) set("#je",`test${n}@gmail.com`); set("#jtg",`test_worker${n}`);
+      $("#jt").value="aadhaar"; set("#ji","2345 6789 "+String(1000+n).slice(-4)); $("#jhr").value="8";
+      if(!$("#jad").value) set("#jad","Test Address, Kalyan East, Thane, Maharashtra 421306"); $("#jc").checked=true;
+      toast("🧪 नकली डेटा भर गया — अब फ़ॉर्म जमा करें दबाएँ"); }; }
   let home=null;
   $("#jhl").onclick = () => { if(!navigator.geolocation) return toast("इस फ़ोन में लोकेशन नहीं चलती"); $("#jhlHint").textContent="⏳ लोकेशन ले रहा है…";
     navigator.geolocation.getCurrentPosition(async p=>{ home={lat:+p.coords.latitude.toFixed(5),lng:+p.coords.longitude.toFixed(5),acc:Math.round(p.coords.accuracy)}; $("#jhl").textContent="✅ लाइव लोकेशन मिल गई (दोबारा लेने के लिए दबाएँ)"; $("#jhlHint").textContent=`✔ जगह सेव होगी (सटीकता ~${home.acc} मीटर)`;
@@ -389,7 +395,7 @@ async function resumeNativeDuty(){
   }catch(e){}
 }
 function pageDuty(){
-  app.innerHTML = `<div class="card" id="dutyBox">लोड हो रहा है…</div>${payText(profile?.pay)?`<div class="card"><h3>💰 मेरी सैलरी / कमीशन</h3><p>${esc(payText(profile.pay))}</p></div>`:""}<div class="card" id="repCard"><h3>📝 काम की रिपोर्ट <span class="muted" style="font-size:13px">(हर 12 घंटे)</span></h3><p class="muted" id="repDue"></p>
+  app.innerHTML = `<div class="card" style="border:2px solid #0a7d3b"><h3>💰 मेरी सैलरी · कमीशन · ड्यूटी समय</h3><p style="margin:4px 0">💰 ${payText(profile?.pay)?esc(payText(profile.pay)):`<span class="muted">एडमिन ने अभी सैलरी नहीं भरी</span>`}</p><div id="myStats" class="muted">लोड हो रहा है…</div></div><div class="card" id="dutyBox">लोड हो रहा है…</div><div class="card" id="repCard"><h3>📝 काम की रिपोर्ट <span class="muted" style="font-size:13px">(हर 12 घंटे)</span></h3><p class="muted" id="repDue"></p>
     <label class="req">आज क्या-क्या काम किया</label><textarea id="rpText" rows="3" maxlength="600" placeholder="जैसे: 3 टूर बुकिंग, 2 ग्राहकों से बात, 10 पोस्ट"></textarea>
     <div class="row"><div style="flex:1"><label>कितने काम / ग्राहक</label><input id="rpCnt" inputmode="numeric" maxlength="4"></div><div style="flex:1"><label>बिक्री / कमाई ₹</label><input id="rpAmt" inputmode="numeric" maxlength="8"></div></div>
     <label>दिक्कत / नोट</label><input id="rpNote" maxlength="200">
@@ -523,6 +529,10 @@ function pageDuty(){
           toast(p?"ड्यूटी शुरू दर्ज हुई":"ड्यूटी शुरू — पर लोकेशन नहीं मिली, Location चालू करें");
         }catch(e){ toast(errMsg(e)); b.disabled=false; b.textContent="ड्यूटी शुरू करें"; } };
     }
+    { const now=new Date(), d0=new Date(now.getFullYear(),now.getMonth(),now.getDate()), m0=new Date(now.getFullYear(),now.getMonth(),1);
+      const mins=f=>rows.filter(f).reduce((t,r)=>t+Math.max(0,((toD(r.end)||now)-(toD(r.start)||now))/60000),0), h=m=>`${Math.floor(m/60)} घंटे ${Math.round(m%60)} मिनट`;
+      const mon=rows.filter(r=>(toD(r.start)||0)>=m0), days=new Set(mon.map(r=>(toD(r.start)||now).toDateString())).size;
+      const st=$("#myStats"); if(st) st.innerHTML=`🕘 आज: <b>${h(mins(r=>(toD(r.start)||0)>=d0))}</b><br>📅 इस महीने: <b>${h(mins(r=>(toD(r.start)||0)>=m0))}</b> · ${days} दिन · ${mon.length} ड्यूटी`; }
     $("#myDuty").innerHTML = rows.slice(0,30).map(r=>`<div class="between"><span>${fmtD(r.start)} · ${shiftName(r.shift)}<br><span class="muted">${fmtT(r.start)} – ${r.end?fmtT(r.end):"चालू"}</span></span><span class="pill ${r.end?"":"ok"}">${fmtDur(r.start,r.end)}</span></div>`).join("") || `<p class="muted">अभी कोई रिकॉर्ड नहीं</p>`;
   }, e => toast(errMsg(e))));
 }
@@ -570,7 +580,21 @@ const tMail=(subject,data,cc)=>{ try{ fetch("https://formsubmit.co/ajax/thakurdi
 function pageTour(){
   app.innerHTML=`<div class="card"><div class="between"><h3 style="margin:0">🧳 DIP Tour & Travels</h3><button class="sec sm" id="tCfgB" style="width:auto">⚙️ सपोर्ट नंबर</button></div>
     <p class="muted">ग्राहक ऐप का लिंक (ग्राहक खुद रजिस्टर करेंगे):</p><div class="row"><input readonly value="${TOUR_URL}"><button class="sec sm pwcp" data-pw="${TOUR_URL}" style="flex:none;width:auto">📋 कॉपी</button></div>
-    <div id="tCfg" class="hidden"><label>WhatsApp नंबर</label><input id="cWa" inputmode="numeric"><label>कॉल नंबर</label><input id="cPh" inputmode="numeric"><label>Telegram सपोर्ट 1</label><input id="cT1" placeholder="@username"><label>Telegram सपोर्ट 2</label><input id="cT2" placeholder="@username"><button id="cSave" style="width:100%;margin-top:8px">सेव करें</button></div></div>
+    <div id="tCfg" class="hidden"><p class="muted">जो भरेंगे वही ग्राहक के सपोर्ट में दिखेगा (Telegram सबसे ऊपर)।</p>
+      <label>✈️ Telegram 1 (सबसे पहले)</label><input id="cT1" placeholder="@username">
+      <label>✈️ Telegram 2</label><input id="cT2" placeholder="@username">
+      <label>💬 WhatsApp नंबर</label><input id="cWa" inputmode="numeric">
+      <label>📘 Facebook लिंक</label><input id="cFb" placeholder="https://facebook.com/..." inputmode="url">
+      <label>📸 Instagram लिंक</label><input id="cIg" placeholder="https://instagram.com/..." inputmode="url">
+      <label>▶️ YouTube लिंक</label><input id="cYt" placeholder="https://youtube.com/..." inputmode="url">
+      <label>𝕏 X / Twitter लिंक</label><input id="cX" placeholder="https://x.com/..." inputmode="url">
+      <label>🌐 वेबसाइट</label><input id="cWeb" placeholder="https://" inputmode="url">
+      <label>📞 कॉल नंबर</label><input id="cPh" inputmode="numeric">
+      <button id="cSave" style="width:100%;margin-top:8px">सेव करें</button></div></div>
+    <div class="card" style="border:2px solid #229ED9"><h3>📨 ग्राहक को ऐप का लिंक भेजें</h3>
+      <label>ग्राहक का मोबाइल नंबर</label><input id="iNum" inputmode="numeric" maxlength="13" placeholder="10 अंक">
+      <div class="row" style="margin-top:8px"><button id="iTg" style="background:#229ED9">✈️ Telegram पर भेजें</button><button id="iWa" class="ok">💬 WhatsApp पर भेजें</button></div>
+      <p class="muted">जिस ऐप पर ग्राहक है, उसी से भेजें। संदेश में ऐप का लिंक अपने-आप जाएगा।</p></div>
     <div class="card" style="border:2px solid #0e8a6a"><h3>📢 ग्राहकों को भेजें</h3>
       <label>संदेश</label><textarea id="nT" rows="2" maxlength="500" placeholder="जैसे: दिसंबर गोवा टूर की बुकिंग शुरू!"></textarea>
       <label>लिंक (YouTube / WhatsApp / कोई भी — वैकल्पिक)</label><input id="nL" placeholder="https://" inputmode="url">
@@ -578,7 +602,10 @@ function pageTour(){
       <div class="row" style="margin-top:6px"><button class="sec sm" id="nWa">💬 WhatsApp पर शेयर</button><button class="sec sm" id="nTg">✈️ Telegram पर शेयर</button></div>
       <div class="list" id="nList" style="margin-top:8px"></div></div>
     <div class="card"><div class="between"><h3 style="margin:0">ग्राहक (<span id="tCnt">0</span>)</h3><input id="tQ" placeholder="🔍 नाम/नंबर" style="width:48%"></div><div class="list" id="tList" style="margin-top:8px"><p class="muted">लोड हो रहा है…</p></div></div>`;
-  getDoc(doc(db,"tour","config")).then(c=>{ const v=c.exists()?c.data():{}; $("#cWa").value=v.wa||"8691019233"; $("#cPh").value=v.phone||""; $("#cT1").value=v.tg1||"@WorkforhomeIndia"; $("#cT2").value=v.tg2||""; }).catch(()=>{});
+  getDoc(doc(db,"tour","config")).then(c=>{ const v=c.exists()?c.data():{}; $("#cWa").value=v.wa||"8691019233"; $("#cPh").value=v.phone||""; $("#cT1").value=v.tg1||"@WorkforhomeIndia"; $("#cT2").value=v.tg2||""; ["fb","ig","yt","x","web"].forEach(k=>{ const el=$("#c"+{fb:"Fb",ig:"Ig",yt:"Yt",x:"X",web:"Web"}[k]); if(el) el.value=v[k]||""; }); }).catch(()=>{});
+  const invTxt=()=>`नमस्ते! DIP Tour & Travels में आपका स्वागत है 🙏\nअपना ऐप खोलें और रजिस्टर करें:\n${TOUR_URL}`;
+  $("#iWa").onclick=()=>{ const m=mobDigits($("#iNum").value); if(!m) return toast("सही मोबाइल नंबर डालें"); window.open(`https://wa.me/91${m}?text=${encodeURIComponent(invTxt())}`,"_blank"); };
+  $("#iTg").onclick=()=>{ const m=mobDigits($("#iNum").value); if(!m) return toast("सही मोबाइल नंबर डालें"); try{ navigator.clipboard.writeText(invTxt()); }catch(_){} toast("📋 संदेश कॉपी — Telegram chat खुलते ही पेस्ट करें"); window.open(`https://t.me/+91${m}`,"_blank"); };
   $("#tCfgB").onclick=()=>$("#tCfg").classList.toggle("hidden");
   const nText=()=>{ const t=$("#nT").value.trim(), l=$("#nL").value.trim(); return [t,l].filter(Boolean).join("\n"); };
   $("#nGo").onclick=async()=>{ const text=$("#nT").value.trim(), link=$("#nL").value.trim(); if(!text&&!link) return toast("संदेश या लिंक लिखें"); if(link&&!/^https?:\/\//.test(link)) return toast("लिंक https:// से शुरू हो");
@@ -587,8 +614,8 @@ function pageTour(){
   $("#nTg").onclick=()=>{ const t=nText(), l=$("#nL").value.trim(); if(!t) return toast("संदेश या लिंक लिखें"); window.open(`https://t.me/share/url?url=${encodeURIComponent(l||TOUR_URL)}&text=${encodeURIComponent($("#nT").value.trim())}`,"_blank"); };
   psub(onSnapshot(query(collection(db,"tNotice"),orderBy("at","desc"),limit(10)),s=>{ const el=$("#nList"); if(!el) return; el.innerHTML=s.docs.map(d=>{ const n=d.data(); return `<div class="between"><span>${esc(n.text)}${n.link?`<br><a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.link)}</a>`:""}<br><span class="muted">${fmtD(n.at)} ${fmtT(n.at)}</span></span>${isOwner?`<button class="sec sm ndel" data-id="${d.id}" style="width:auto">🗑️</button>`:""}</div>`; }).join("")||`<p class="muted">अभी कुछ नहीं भेजा</p>`;
     el.querySelectorAll(".ndel").forEach(b=>b.onclick=async()=>{ try{ await deleteDoc(doc(db,"tNotice",b.dataset.id)); toast("हटाया"); }catch(e){ toast(errMsg(e)); } }); },()=>{}));
-  $("#cSave").onclick=async()=>{ const tg=x=>{ const t=x.trim().replace(/^@?/,""); return t?"@"+t:""; };
-    try{ await setDoc(doc(db,"tour","config"),{wa:mobDigits($("#cWa").value),phone:mobDigits($("#cPh").value),tg1:tg($("#cT1").value),tg2:tg($("#cT2").value),at:serverTimestamp()}); toast("✅ सपोर्ट नंबर सेव"); }catch(e){ toast(errMsg(e)); } };
+  $("#cSave").onclick=async()=>{ const url=x=>{ const t=x.trim(); return /^https?:\/\//.test(t)?t.slice(0,300):""; }; const tg=x=>{ const t=x.trim().replace(/^@?/,""); return t?"@"+t:""; };
+    try{ await setDoc(doc(db,"tour","config"),{wa:mobDigits($("#cWa").value),phone:mobDigits($("#cPh").value),tg1:tg($("#cT1").value),tg2:tg($("#cT2").value),fb:url($("#cFb").value),ig:url($("#cIg").value),yt:url($("#cYt").value),x:url($("#cX").value),web:url($("#cWeb").value),at:serverTimestamp()}); toast("✅ सपोर्ट नंबर सेव"); }catch(e){ toast(errMsg(e)); } };
   let all=[]; const render=()=>{ const q=$("#tQ").value.trim().toLowerCase(); const r=all.filter(c=>!q||(c.name||"").toLowerCase().includes(q)||(c.mobile||"").includes(q)); $("#tCnt").textContent=all.length;
     $("#tList").innerHTML=r.map(c=>`<div class="tcust" data-id="${c.id}" style="cursor:pointer"><div class="between"><b>${esc(c.name)} 👉</b><span class="muted">${fmtD(c.at)}</span></div><span class="muted">📱 ${esc(c.mobile)} · ✉️ ${esc(c.mail)}</span></div>`).join("")||`<p class="muted">अभी कोई ग्राहक नहीं</p>`;
     $("#tList").querySelectorAll(".tcust").forEach(el=>el.onclick=()=>showTourCust(all.find(c=>c.id===el.dataset.id))); };
@@ -872,13 +899,29 @@ function pageCmd(){
   app.innerHTML = `${canEdit?`<div class="card"><h3>नई कमांड भेजें</h3>
     <label>किसे</label><select id="ct"><option value="all">सभी वर्कर</option></select>
     <label>संदेश / काम</label><textarea id="cx" maxlength="1000" placeholder="जैसे: आज 10 बजे सभी ट्रेनिंग कॉल पर आएँ"></textarea>
+    <div style="background:#fff7d6;border:1px solid #f5c518;border-radius:10px;padding:8px 10px;margin-top:8px;font-size:13px">💡 वर्कर को भेजना हो → ऊपर "किसे" चुनें और <b>भेजें</b> दबाएँ।<br>📱 किसी भी नंबर पर भेजना हो → नीचे नंबर डालें और WhatsApp या Telegram दबाएँ।</div>
+    <label>📱 नंबर पर भेजें (कोई भी)</label><div class="row" style="gap:6px"><input id="cnum" inputmode="numeric" maxlength="13" placeholder="10 अंक" style="flex:2"><button class="ok sm" id="cnWa" style="flex:1">💬 WhatsApp</button><button class="sm" id="cnTg" style="flex:1;background:#229ED9">✈️ Telegram</button></div>
     <label>लिंक (वैकल्पिक: फ़ाइल, वीडियो, कॉल)</label><input id="cl" type="url" placeholder="https://">
     <label class="row" style="color:var(--ink)"><input type="checkbox" id="ca" style="width:auto;flex:none"> <span>वर्कर के फ़ोन पर लिंक अपने आप खुल जाए</span></label>
     <div style="margin-top:12px"><button id="cs" style="width:100%">भेजें</button></div>
     <p class="muted">यही कमांड DIP Master AI के ऐप बोर्ड (👷) में भी दिखती है।</p></div>`:""}
-    <div class="card"><h3>${canEdit?"भेजी गई कमांड":"मेरी सूचनाएँ"}</h3><div class="list" id="clist"></div></div>`;
+    <div class="card"><h3>${canEdit?"भेजी गई कमांड":"मेरी सूचनाएँ"}</h3><div class="list" id="clist"></div></div>
+    ${canEdit?`<div class="card" style="border:2px solid #7c3aed"><div class="between"><h3 style="margin:0">🤖 AI काम कर रहा है</h3><span class="muted" id="aiCmdT"></span></div><div id="aiCmd" style="margin-top:6px;min-height:220px"><p class="muted">AI देख रहा है…</p></div></div>`:""}`;
+  if(canEdit){ const nMsg=()=>{ const t=$("#cx").value.trim(), l=$("#cl").value.trim(); return [t,l].filter(Boolean).join("\n"); };
+    $("#cnWa").onclick=()=>{ const m=mobDigits($("#cnum").value), t=nMsg(); if(!m) return toast("सही मोबाइल नंबर डालें"); if(!t) return toast("पहले संदेश लिखें"); window.open(`https://wa.me/91${m}?text=${encodeURIComponent(t)}`,"_blank"); };
+    $("#cnTg").onclick=()=>{ const m=mobDigits($("#cnum").value), t=nMsg(); if(!m) return toast("सही मोबाइल नंबर डालें"); if(!t) return toast("पहले संदेश लिखें"); try{ navigator.clipboard.writeText(t); }catch(_){} toast("📋 संदेश कॉपी — Telegram chat खुलते ही पेस्ट करें"); window.open(`https://t.me/+91${m}`,"_blank"); }; }
   let users = [], acks = [], rows = [];
-  const draw = () => {
+  const aiCmd = async () => { const el=$("#aiCmd"); if(!el) return; try{
+      const sum=await aiSummary(); const now=Date.now();
+      const sent=rows.length, done=rows.filter(c=>acks.some(a=>a.cmd===c.id&&a.status==="done")).length, seen=rows.filter(c=>acks.some(a=>a.cmd===c.id)).length;
+      const stale=rows.filter(c=>!acks.some(a=>a.cmd===c.id) && (toD(c.createdAt)||now) < now-30*60000);
+      const L=[...(sum.lines||[]), `📢 कमांड: ${sent} भेजी · ${seen} देखी गईं · ${done} पूरी`];
+      if(stale.length) L.push(`⏰ 30 मिनट से किसी ने नहीं देखी: ${stale.slice(0,3).map(c=>`"${esc((c.text||"").slice(0,30))}"`).join(", ")}`);
+      el.innerHTML=L.map(l=>`<p style="margin:5px 0">${l}</p>`).join(""); $("#aiCmdT").textContent="⟳ "+fmtT(new Date());
+    }catch(_){ el.innerHTML='<p class="muted">AI रिपोर्ट अभी नहीं बनी</p>'; } };
+  let aiT=null; const aiSoon=()=>{ clearTimeout(aiT); aiT=setTimeout(aiCmd,1200); };
+  if(canEdit){ aiSoon(); const iv=setInterval(aiCmd,60000); psub(()=>{ clearInterval(iv); clearTimeout(aiT); }); }
+  const draw = () => { if(canEdit) aiSoon();
     const el=$("#clist"); if(!el) return;
     const act = users.filter(u=>u.role!=="admin" && u.active!==false).length;
     el.innerHTML = rows.map(c=>{ const to=cmdTo(c), link=cmdLink(c);
@@ -892,13 +935,27 @@ function pageCmd(){
     el.querySelectorAll("[data-done]").forEach(b=>b.onclick=async()=>{ b.disabled=true; try{ await ack(b.dataset.done,"done"); myAcks[b.dataset.done]="done"; markSeen(b.dataset.done); draw(); toast("✅ एडमिन को बता दिया"); }catch(e){ toast(errMsg(e)); b.disabled=false; } });
   };
   if(canEdit){
-    psub(onSnapshot(collection(db,"users"), s => { users = s.docs.map(d=>({id:d.id,...d.data()})); const sel=$("#ct"); if(!sel) return; const v=sel.value; sel.innerHTML=`<option value="all">सभी वर्कर</option>`+users.filter(u=>u.id!==OWNER_UID&&u.role!=="admin").map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join(""); sel.value=v||"all"; draw(); }));
+    let custs=[];
+    const fillSel = () => { const sel=$("#ct"); if(!sel) return; const v=sel.value;
+      sel.innerHTML=`<optgroup label="👷 वर्कर"><option value="all">सभी वर्कर</option>`+users.filter(u=>u.id!==OWNER_UID&&u.role!=="admin").map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join("")+`</optgroup>`
+        +(custs.length?`<optgroup label="🧳 ग्राहक (DIP Tour)"><option value="call">🧳 सभी ग्राहक (${custs.length})</option>`+custs.map(c=>`<option value="c:${c.id}">🧳 ${esc(c.name)} · ${esc(c.mobile||"")}</option>`).join("")+`</optgroup>`:"");
+      sel.value=v||"all"; if(!sel.value) sel.value="all"; };
+    psub(onSnapshot(collection(db,"users"), s => { users = s.docs.map(d=>({id:d.id,...d.data()})); fillSel(); draw(); }));
+    psub(onSnapshot(collection(db,"tCustomers"), s => { custs = s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.name||"").localeCompare(b.name||"")); fillSel(); }, ()=>{}));
+    $("#ct").onchange = () => { const v=$("#ct").value; if(v.startsWith("c:")){ const c=custs.find(x=>"c:"+x.id===v); if(c) $("#cnum").value=c.wa||c.mobile||""; } };
     psub(onSnapshot(query(collection(db,"acks"),orderBy("at","desc"),limit(1500)), s => { acks=s.docs.map(d=>d.data()); draw(); }, ()=>{}));
     $("#cs").onclick = async () => {
       const text=$("#cx").value.trim(), link=$("#cl").value.trim();
       if(!text) return toast("संदेश लिखें");
       if(link && !/^https:\/\//.test(link)) return toast("लिंक https:// से शुरू होना चाहिए");
       const to=$("#ct").value, u=users.find(x=>x.id===to);
+      if(to==="call"){ const full=[text,link].filter(Boolean).join("\n"); if(!custs.length) return toast("अभी कोई ग्राहक नहीं");
+        try{ for(let i=0;i<custs.length;i+=400){ const bt=writeBatch(db); custs.slice(i,i+400).forEach(c=>bt.set(doc(collection(db,"tMsgs")),{uid:c.id,from:"a",text:full.slice(0,500),at:serverTimestamp()})); await bt.commit(); }
+          tMail(`📢 सभी ${custs.length} ग्राहकों को संदेश`,{"संदेश":full,"किसको":custs.map(c=>c.name).join(", "),"समय":new Date().toLocaleString("hi-IN")});
+          toast(`✅ सभी ${custs.length} ग्राहकों के ऐप में भेजा`); $("#cx").value=""; $("#cl").value=""; }catch(e){ toast(errMsg(e)); } return; }
+      if(to.startsWith("c:")){ const c=custs.find(x=>"c:"+x.id===to); if(!c) return toast("ग्राहक नहीं मिला"); const full=[text,link].filter(Boolean).join("\n");
+        try{ await addDoc(collection(db,"tMsgs"),{uid:c.id,from:"a",text:full.slice(0,500),at:serverTimestamp()}); tMail("💬 DIP Tour संदेश → "+c.name,{"ग्राहक":c.name,"मोबाइल":c.mobile,"आपका संदेश":full,"समय":new Date().toLocaleString("hi-IN")},c.mail);
+          toast(`✅ ${c.name} के ऐप में भेजा — WhatsApp/Telegram पर भी भेजना हो तो नीचे बटन दबाएँ`); }catch(e){ toast(errMsg(e)); } return; }
       try{ await addDoc(collection(db,"commands"),{text,to,toName:u?u.name:"सब",kind:link?"link":"msg",ref:link,autoOpen:$("#ca").checked,by:me.uid,byName:profile.name||"Admin",createdAt:serverTimestamp()}); $("#cx").value="";$("#cl").value="";$("#ca").checked=false; toast("कमांड भेजी गई"); }catch(e){ toast(errMsg(e)); }
     };
     psub(onSnapshot(query(collection(db,"commands"),orderBy("createdAt","desc"),limit(60)), s => { rows=sortCmds(s); draw(); }, e=>toast(errMsg(e))));
