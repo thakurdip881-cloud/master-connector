@@ -1,0 +1,36 @@
+# एडमिन ↔ वर्कर जुड़ाव की जाँच — सिर्फ़ पढ़ता है, कुछ नहीं बदलता; repo public है इसलिए सिर्फ़ गिनती छपती है (नाम/नंबर नहीं)
+name: Connect check
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/connect-check.yml']
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Firebase डेटा जाँच (सिर्फ़ पढ़ना)
+        env: { SA: '${{ secrets.FIREBASE_SA }}' }
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npm i --silent --no-save firebase-admin@12 >/dev/null 2>&1
+          node -e '
+          const a=require("firebase-admin"); a.initializeApp({credential:a.credential.applicationDefault(),projectId:"master-connector-f2a0d"});
+          const db=a.firestore(), au=a.auth(), ago=t=>t&&t.toDate?Math.round((Date.now()-t.toDate())/60000)+" मिनट पहले":"-";
+          (async()=>{
+            const us=(await db.collection("users").get()).docs.map(d=>({id:d.id,...d.data()}));
+            console.log("USERS:",us.length,"| worker:",us.filter(u=>u.role!=="admin").length,"| pending:",us.filter(u=>u.status==="pending").length,"| active:",us.filter(u=>u.active!==false).length,"| pay set:",us.filter(u=>u.pay).length);
+            console.log("KYC:",(await db.collection("kyc").count().get()).data().count,"| video:",(await db.collection("kycVideo").count().get()).data().count);
+            const iv=(await db.collection("invites").get()).docs.map(d=>d.data()); console.log("INVITES:",iv.length,"| used:",iv.filter(i=>i.used).length);
+            const du=(await db.collection("duty").orderBy("start","desc").limit(20).get()).docs.map(d=>d.data()); console.log("DUTY:",du.length,"| open:",du.filter(d=>!d.end).length,"| latest:",du[0]?ago(du[0].start):"-");
+            const cm=(await db.collection("commands").orderBy("createdAt","desc").limit(10).get()).docs; let withAck=0; for(const c of cm){ if(!(await db.collection("acks").where("cmd","==",c.id).limit(1).get()).empty) withAck++; }
+            console.log("COMMANDS:",cm.length,"| जवाब आए:",withAck,"| latest:",cm[0]?ago(cm[0].data().createdAt):"-");
+            const ctl=(await db.doc("dip/control").get()); console.log("DIP CONTROL:",ctl.exists?"है":"नहीं","| updated:",ctl.exists?ago(ctl.data().updatedAt):"-");
+            const auth=(await au.listUsers(200)).users; console.log("AUTH LOGINS:",auth.length,"| बिना users रिकॉर्ड:",auth.filter(x=>!us.find(u=>u.id===x.uid)).length);
+          })().catch(e=>{console.log("ERR",e.code||"");process.exit(1)});'
+          rm -f "$RUNNER_TEMP/sa.json"
