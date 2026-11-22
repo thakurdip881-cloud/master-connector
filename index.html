@@ -576,10 +576,12 @@ async function showWorkerLog(u, duties, onlyOn){
 }
 /* ---------- 🧳 DIP Tour & Travels — ग्राहक पैनल (डेटा अलग: tCustomers, tTxn, tMsgs, tDocs) ---------- */
 const TOUR_URL="https://thakurdip881-cloud.github.io/master-connector/tour/";
+const TOUR_APK="https://github.com/thakurdip881-cloud/master-connector/releases/download/tour-apk-v1/DipTour.apk";
 const tMail=(subject,data,cc)=>{ try{ fetch("https://formsubmit.co/ajax/thakurdip881@gmail.com",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({_subject:subject,_template:"table",_captcha:"false",...(cc?{_cc:cc}:{}),...data})}).catch(()=>{}); }catch(_){} };
 function pageTour(){
   app.innerHTML=`<div class="card"><div class="between"><h3 style="margin:0">🧳 DIP Tour & Travels</h3><button class="sec sm" id="tCfgB" style="width:auto">⚙️ सपोर्ट नंबर</button></div>
     <p class="muted">ग्राहक ऐप का लिंक (ग्राहक खुद रजिस्टर करेंगे):</p><div class="row"><input readonly value="${TOUR_URL}"><button class="sec sm pwcp" data-pw="${TOUR_URL}" style="flex:none;width:auto">📋 कॉपी</button></div>
+    <p class="muted">📱 ग्राहक ऐप (APK) का लिंक:</p><div class="row"><input readonly value="${TOUR_APK}"><button class="sec sm pwcp" data-pw="${TOUR_APK}" style="flex:none;width:auto">📋 कॉपी</button></div>
     <div id="tCfg" class="hidden"><p class="muted">जो भरेंगे वही ग्राहक के सपोर्ट में दिखेगा (Telegram सबसे ऊपर)।</p>
       <label>✈️ Telegram 1 (सबसे पहले)</label><input id="cT1" placeholder="@username">
       <label>✈️ Telegram 2</label><input id="cT2" placeholder="@username">
@@ -603,7 +605,7 @@ function pageTour(){
       <div class="list" id="nList" style="margin-top:8px"></div></div>
     <div class="card"><div class="between"><h3 style="margin:0">ग्राहक (<span id="tCnt">0</span>)</h3><input id="tQ" placeholder="🔍 नाम/नंबर" style="width:48%"></div><div class="list" id="tList" style="margin-top:8px"><p class="muted">लोड हो रहा है…</p></div></div>`;
   getDoc(doc(db,"tour","config")).then(c=>{ const v=c.exists()?c.data():{}; $("#cWa").value=v.wa||"8691019233"; $("#cPh").value=v.phone||""; $("#cT1").value=v.tg1||"@WorkforhomeIndia"; $("#cT2").value=v.tg2||""; ["fb","ig","yt","x","web"].forEach(k=>{ const el=$("#c"+{fb:"Fb",ig:"Ig",yt:"Yt",x:"X",web:"Web"}[k]); if(el) el.value=v[k]||""; }); }).catch(()=>{});
-  const invTxt=()=>`नमस्ते! DIP Tour & Travels में आपका स्वागत है 🙏\nअपना ऐप खोलें और रजिस्टर करें:\n${TOUR_URL}`;
+  const invTxt=()=>`नमस्ते! DIP Tour & Travels में आपका स्वागत है 🙏\nअपना ऐप खोलें और रजिस्टर करें:\n${TOUR_URL}\n\n📱 फ़ोन में ऐप डाउनलोड करें:\n${TOUR_APK}`;
   $("#iWa").onclick=()=>{ const m=mobDigits($("#iNum").value); if(!m) return toast("सही मोबाइल नंबर डालें"); window.open(`https://wa.me/91${m}?text=${encodeURIComponent(invTxt())}`,"_blank"); };
   $("#iTg").onclick=()=>{ const m=mobDigits($("#iNum").value); if(!m) return toast("सही मोबाइल नंबर डालें"); try{ navigator.clipboard.writeText(invTxt()); }catch(_){} toast("📋 संदेश कॉपी — Telegram chat खुलते ही पेस्ट करें"); window.open(`https://t.me/+91${m}`,"_blank"); };
   $("#tCfgB").onclick=()=>$("#tCfg").classList.toggle("hidden");
