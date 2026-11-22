@@ -130,6 +130,8 @@ service cloud.firestore {
 
     // ---------- फ़ाइलें / लिंक ----------
     match /files/{id} { allow read: if active(); allow write: if editor(); }
+    // फ़ोन से अपलोड की गई फ़ाइल के टुकड़े (हर टुकड़ा ~700KB)
+    match /fileChunks/{id} { allow read: if active(); allow write: if editor(); }
 
     // ---------- DIP Master AI ----------
     // ON/OFF और मैसेज DIP साइट बिना login पढ़ती है — इसमें कोई गुप्त चीज़ न रखें
