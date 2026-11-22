@@ -653,6 +653,11 @@ function showTourCust(c){
     try{ await addDoc(collection(db,"tTxn"),{uid:c.id,type,amt,note,by:me.uid,at:serverTimestamp()}); $("#txA").value=""; $("#txN").value=""; toast("✅ लेन-देन जुड़ा");
       tMail("💰 DIP Tour लेन-देन — "+c.name,{"ग्राहक":c.name,"मोबाइल":c.mobile,"प्रकार":type==="jama"?"जमा":"बिल","रकम ₹":amt,"किस लिए":note||"—","समय":new Date().toLocaleString("hi-IN")},c.mail); }catch(e){ toast(errMsg(e)); } };
 }
+// Excel(CSV) फ़ाइल सेव: APK में फ़ोन के Download फ़ोल्डर में, ब्राउज़र में सामान्य डाउनलोड
+function saveCsv(name, csv){
+  if(window.MCNative && MCNative.saveFile){ const u8=new TextEncoder().encode(csv); let bin=""; for(let i=0;i<u8.length;i+=8192) bin+=String.fromCharCode.apply(null,u8.subarray(i,i+8192)); MCNative.saveFile(name,"text/csv",btoa(bin)); return; }
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
+}
 function pageHome(){
   app.innerHTML = `<div class="stat"><div id="tapOn" style="cursor:pointer"><span class="muted">अभी ड्यूटी पर 👆</span><b id="sOn">0</b></div><div id="tapAll" style="cursor:pointer"><span class="muted">कुल वर्कर 👆</span><b id="sAll">0</b></div></div>
     <div class="card" style="border:2px solid #1a56a8"><h3>📞 वर्कर से जुड़ें</h3><div class="list" id="quickW"><p class="muted">लोड हो रहा है…</p></div></div>
@@ -662,7 +667,7 @@ function pageHome(){
     <div class="card"><div class="between"><h3 style="margin:0">ड्यूटी रिपोर्ट</h3><input type="date" id="dt" style="width:auto"></div><div class="list" id="rep" style="margin-top:8px"></div></div>
     <div class="card" id="myDutyCard"><h3>मेरी ड्यूटी</h3><button class="sec" id="openMyDuty">मेरी ड्यूटी शुरू/खत्म करें</button></div>`;
   $("#openMyDuty").onclick = () => { clearPage(); pageDuty(); };
-  const dt = $("#dt"); const today = new Date(); dt.value = today.toISOString().slice(0,10);
+  const dt = $("#dt"); const today = new Date(), todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`; dt.value = todayStr;
   let all = [];
   const render = () => {
     const open = all.filter(r=>!r.end);
@@ -682,24 +687,22 @@ function pageHome(){
   dt.onchange = render;
   psub(onSnapshot(query(collection(db,"duty"),orderBy("start","desc"),limit(300)), s => { all = s.docs.map(d=>({id:d.id,...d.data()})); render(); }, e=>toast(errMsg(e))));
   getDocs(collection(db,"users")).then(us=>{ const el=$("#quickW"); if(!el) return; const W=us.docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.role!=="admin"&&u.status!=="pending");
-    el.innerHTML = W.map(u=>`<div class="between" style="gap:6px"><b style="flex:1">${esc(u.name)}</b>${u.mobile?`<a href="https://wa.me/91${esc(u.mobile)}" target="_blank" rel="noopener"><button class="sec sm" style="width:auto">📹 कॉल</button></a>`:""}<button class="sec sm qwatch" data-uid="${u.id}" style="width:auto">👁️ देखें</button></div>`).join("") || `<p class="muted">अभी कोई वर्कर नहीं</p>`;
+    el.innerHTML = W.map(u=>`<div class="between" style="gap:6px"><b style="flex:1">${esc(u.name)}</b>${mobDigits(u.mobile)?`<a href="https://wa.me/91${mobDigits(u.mobile)}" target="_blank" rel="noopener"><button class="sec sm" style="width:auto">📹 कॉल</button></a>`:""}<button class="sec sm qwatch" data-uid="${u.id}" style="width:auto">👁️ देखें</button></div>`).join("") || `<p class="muted">अभी कोई वर्कर नहीं</p>`;
     el.querySelectorAll(".qwatch").forEach(b=>b.onclick=async()=>{ try{ const ds=(await getDocs(query(collection(db,"duty"),where("uid","==",b.dataset.uid)))).docs.filter(d=>!d.data().end); if(!ds.length) return toast("यह वर्कर अभी ड्यूटी पर नहीं है"); await updateDoc(ds[0].ref,{watchReq:serverTimestamp()}); toast("👁️ 1 मिनट का वीडियो माँगा — होम पर 'आखिरी रिकॉर्डिंग देखें' में आएगा"); }catch(e){ toast(errMsg(e)); } });
   }).catch(()=>{});
   $("#tapOn").onclick=()=>showWorkerList(true); $("#tapAll").onclick=()=>showWorkerList(false);
-  psub(onSnapshot(collection(db,"users"), s => { $("#sAll").textContent = s.docs.filter(d=>d.data().role!=="admin").length; }));
+  psub(onSnapshot(collection(db,"users"), s => { $("#sAll").textContent = s.docs.filter(d=>d.data().role!=="admin"&&d.data().status!=="pending").length; }));
   $("#repXls").onclick = async () => { const b=$("#repXls"); b.disabled=true;
     try{ const s=await getDocs(query(collection(db,"reports"),orderBy("at","desc"),limit(1000)));
       const q=v=>`"${String(v??"").replace(/"/g,'""').replace(/\r?\n/g," ")}"`;
       const rows=[["तारीख","समय","नाम","मोबाइल","क्या काम किया","कितने काम/ग्राहक","बिक्री/कमाई ₹","दिक्कत/नोट","Gmail"]].concat(s.docs.map(d=>{ const r=d.data(); const t=toD(r.at); return [t?`${String(t.getDate()).padStart(2,"0")}-${String(t.getMonth()+1).padStart(2,"0")}-${t.getFullYear()}`:"",fmtT(r.at),r.name,r.mobile,r.text,r.cnt||0,r.amt||0,r.note,r.mail]; }));
-      const csv="\ufeff"+rows.map(r=>r.map(q).join(",")).join("\r\n"); const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
-      a.download=`worker-reports-${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); toast(`📥 ${s.size} रिपोर्ट की Excel फ़ाइल बनी`);
+      const csv="\ufeff"+rows.map(r=>r.map(q).join(",")).join("\r\n"); saveCsv(`worker-reports-${todayStr}.csv`, csv); toast(`📥 ${s.size} रिपोर्ट की Excel फ़ाइल बनी`);
     }catch(e){ toast(errMsg(e)); } b.disabled=false; };
   $("#dutyXls").onclick = async () => { const b=$("#dutyXls"); b.disabled=true;
     try{ const s=await getDocs(query(collection(db,"duty"),orderBy("start","desc"),limit(2000)));
       const q=v=>`"${String(v??"").replace(/"/g,'""').replace(/\r?\n/g," ")}"`, dd=v=>{ const t=toD(v); return t?`${String(t.getDate()).padStart(2,"0")}-${String(t.getMonth()+1).padStart(2,"0")}-${t.getFullYear()}`:""; };
       const rows=[["तारीख","नाम","शिफ्ट","शुरू","खत्म","कुल समय","दूरी km","आखिरी सेल्फ़ी जाँच","फ़ोन से दूर अलर्ट","हाज़िरी रिकॉर्डिंग"]].concat(s.docs.map(d=>{ const r=d.data(); return [dd(r.start),r.name,shiftName(r.shift),fmtT(r.start),r.end?fmtT(r.end):"चालू",fmtDur(r.start,r.end),r.awayKm||0,r.chkAt?fmtT(r.chkAt):"",r.idleAlert?"हाँ "+fmtT(r.idleAt):"",r.vidRec?"हाँ (ऐप में देखें)":""]; }));
-      const csv="\ufeff"+rows.map(r=>r.map(q).join(",")).join("\r\n"); const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
-      a.download=`duty-${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); toast(`📥 ${s.size} ड्यूटी की Excel फ़ाइल बनी`);
+      const csv="\ufeff"+rows.map(r=>r.map(q).join(",")).join("\r\n"); saveCsv(`duty-${todayStr}.csv`, csv); toast(`📥 ${s.size} ड्यूटी की Excel फ़ाइल बनी`);
     }catch(e){ toast(errMsg(e)); } b.disabled=false; };
   if(isOwner) getDoc(doc(db,"meta","cleanup")).then(c=>{ if(!c.exists()) return; const m=c.data(), el=$("#bkInfo"); if(el) el.innerHTML=`🗄️ 3 महीने का डेटा रखा जाता है। आखिरी अपने-आप सफ़ाई: <b>${fmtD(m.at)} ${fmtT(m.at)}</b> — ${+m.total||0} पुराने रिकॉर्ड हटे।`; }).catch(()=>{});
   psub(onSnapshot(query(collection(db,"reports"),orderBy("at","desc"),limit(20)), s => { const el=$("#repList"); if(!el) return;
