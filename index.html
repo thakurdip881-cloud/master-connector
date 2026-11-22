@@ -967,27 +967,62 @@ function pageCmd(){
 }
 
 /* ---------- FILES ---------- */
+const FILE_MAX = 5*1024*1024, CHUNK = 700000;   // फ़ोन से अपलोड: 5MB तक, Firestore में ~700KB के टुकड़ों में (मुफ़्त)
+const fSize = n => n>=1048576 ? (n/1048576).toFixed(1)+" MB" : Math.max(1,Math.round(n/1024))+" KB";
+const readB64 = f => new Promise((ok,no)=>{ const r=new FileReader(); r.onload=()=>ok(String(r.result).split(",")[1]||""); r.onerror=()=>no(r.error); r.readAsDataURL(f); });
+async function saveUpload(id, f){
+  const parts=[]; for(let i=0;i<f.chunks;i++){ const c=await getDoc(doc(db,"fileChunks",id+"_"+i)); if(!c.exists()) throw new Error("फ़ाइल का हिस्सा नहीं मिला"); parts.push(c.data().d); }
+  const b64=parts.join(""), name=f.name||"file", mime=f.mime||"application/octet-stream";
+  if(window.MCNative && MCNative.saveFile){ MCNative.saveFile(name, mime, b64); return; }
+  const bin=atob(b64), u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+  const url=URL.createObjectURL(new Blob([u8],{type:mime})), a=document.createElement("a");
+  a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000);
+  toast("⬇️ डाउनलोड हो गया");
+}
 function pageFiles(){
   app.innerHTML = `${canEdit?`<div class="card"><h3>फ़ाइल / लिंक शेयर करें</h3>
     <label>नाम</label><input id="fn" placeholder="जैसे: ट्रेनिंग वीडियो 1">
-    <label>लिंक (Google Drive, YouTube आदि)</label><input id="fl" type="url" placeholder="https://">
+    <label>📎 फ़ोन से फ़ाइल चुनें (5 MB तक — फ़ोटो, PDF, डॉक्यूमेंट)</label><input id="ff" type="file">
+    <div class="muted" id="ffInfo"></div>
+    <label>या लिंक डालें (Google Drive, YouTube आदि)</label><input id="fl" type="url" placeholder="https://">
     <label>नोट (वैकल्पिक)</label><input id="fx">
     <div style="margin-top:12px"><button id="fs" style="width:100%">शेयर करें</button></div>
-    <p class="muted">Google Drive की फ़ाइल हो तो उसकी शेयरिंग "Anyone with the link" रखें।</p></div>`:""}
+    <p class="muted">बड़ी फ़ाइल/वीडियो (5 MB से ज़्यादा) के लिए Google Drive लिंक डालें, शेयरिंग "Anyone with the link" रखें।</p></div>`:""}
     <div class="card"><h3>फ़ाइलें</h3><div class="list" id="flist"></div></div>`;
-  if(canEdit) $("#fs").onclick = async () => {
-    const title=$("#fn").value.trim(), url=$("#fl").value.trim(), note=$("#fx").value.trim();
-    if(!title||!/^https?:\/\//.test(url)) return toast("नाम और सही लिंक (https://) डालें");
-    try{ await addDoc(collection(db,"files"),{title,url,note,by:me.uid,createdAt:serverTimestamp()}); ["#fn","#fl","#fx"].forEach(s=>$(s).value=""); toast("शेयर हो गया"); }catch(e){ toast(errMsg(e)); }
-  };
+  if(canEdit){
+    $("#ff").onchange = () => { const f=$("#ff").files[0]; if(!f){ $("#ffInfo").textContent=""; return; }
+      if(f.size>FILE_MAX){ $("#ff").value=""; $("#ffInfo").textContent=""; return toast("⚠️ फ़ाइल 5 MB से बड़ी है — Google Drive लिंक डालें"); }
+      $("#ffInfo").textContent=`✅ ${f.name} (${fSize(f.size)})`; if(!$("#fn").value.trim()) $("#fn").value=f.name.replace(/\.[^.]+$/,""); };
+    $("#fs").onclick = async () => {
+      const btn=$("#fs"), title=$("#fn").value.trim(), note=$("#fx").value.trim(), file=$("#ff").files[0];
+      if(!title) return toast("नाम डालें");
+      if(file){
+        if(file.size>FILE_MAX) return toast("⚠️ फ़ाइल 5 MB से बड़ी है");
+        btn.disabled=true; const ref=doc(collection(db,"files"));
+        try{
+          const b64=await readB64(file), n=Math.max(1,Math.ceil(b64.length/CHUNK));
+          for(let i=0;i<n;i++){ btn.textContent=`⏳ अपलोड ${Math.round(i*100/n)}%`; await setDoc(doc(db,"fileChunks",ref.id+"_"+i),{fid:ref.id,i,d:b64.slice(i*CHUNK,(i+1)*CHUNK)}); }
+          await setDoc(ref,{title,note,name:file.name,mime:file.type||"",size:file.size,chunks:n,by:me.uid,createdAt:serverTimestamp()});
+          ["#fn","#fl","#fx","#ff"].forEach(s=>$(s).value=""); $("#ffInfo").textContent=""; toast("✅ फ़ाइल शेयर हो गई");
+        }catch(e){ toast(errMsg(e)); }
+        btn.disabled=false; btn.textContent="शेयर करें"; return;
+      }
+      let url=$("#fl").value.trim(); if(url && !/^[a-z]+:/i.test(url)) url="https://"+url;
+      if(!/^https?:\/\//.test(url)) return toast("फ़ाइल चुनें या सही लिंक डालें");
+      try{ await addDoc(collection(db,"files"),{title,url,note,by:me.uid,createdAt:serverTimestamp()}); ["#fn","#fl","#fx"].forEach(s=>$(s).value=""); toast("शेयर हो गया"); }catch(e){ toast(errMsg(e)); }
+    };
+  }
+  let rows={};
   psub(onSnapshot(query(collection(db,"files"),orderBy("createdAt","desc"),limit(100)), s => {
-    const el=$("#flist"); if(!el) return;
-    el.innerHTML = s.docs.map(d=>{ const f=d.data(); return `<div><div class="between"><b>${esc(f.title)}</b><span class="muted">${fmtD(f.createdAt)}</span></div>
-      ${f.note?`<div class="muted">${esc(f.note)}</div>`:""}
-      <div class="row" style="margin-top:8px"><button class="ok sm" data-open="${esc(f.url)}">खोलें / डाउनलोड</button><button class="sec sm" data-copy="${esc(f.url)}">लिंक कॉपी</button>${canEdit?`<button class="sec sm" data-del="${d.id}">हटाएँ</button>`:""}</div></div>`; }).join("") || `<p class="muted">अभी कोई फ़ाइल नहीं</p>`;
+    const el=$("#flist"); if(!el) return; rows={};
+    el.innerHTML = s.docs.map(d=>{ const f=d.data(); rows[d.id]=f; const up=!!f.chunks; return `<div><div class="between"><b>${up?"📎 ":"🔗 "}${esc(f.title)}</b><span class="muted">${fmtD(f.createdAt)}</span></div>
+      ${up?`<div class="muted">${esc(f.name)} · ${fSize(f.size||0)}</div>`:""}${f.note?`<div class="muted">${esc(f.note)}</div>`:""}
+      <div class="row" style="margin-top:8px">${up?`<button class="ok sm" data-dl="${d.id}">⬇️ डाउनलोड</button>`:`<button class="ok sm" data-open="${esc(f.url)}">खोलें / डाउनलोड</button><button class="sec sm" data-copy="${esc(f.url)}">लिंक कॉपी</button>`}${canEdit?`<button class="sec sm" data-del="${d.id}">हटाएँ</button>`:""}</div></div>`; }).join("") || `<p class="muted">अभी कोई फ़ाइल नहीं</p>`;
     el.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>window.open(b.dataset.open,"_blank"));
     el.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{ try{ await navigator.clipboard.writeText(b.dataset.copy); toast("लिंक कॉपी हुआ"); }catch(e){ prompt("लिंक कॉपी करें:",b.dataset.copy); } });
-    el.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{ if(confirm("ये फ़ाइल हटाएँ?")) try{ await deleteDoc(doc(db,"files",b.dataset.del)); }catch(e){ toast(errMsg(e)); } });
+    el.querySelectorAll("[data-dl]").forEach(b=>b.onclick=async()=>{ const t=b.textContent; b.disabled=true; b.textContent="⏳ ला रहा है…"; try{ await saveUpload(b.dataset.dl, rows[b.dataset.dl]); }catch(e){ toast(errMsg(e)); } b.disabled=false; b.textContent=t; });
+    el.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{ if(!confirm("ये फ़ाइल हटाएँ?")) return; const id=b.dataset.del, n=(rows[id]&&rows[id].chunks)||0;
+      try{ for(let i=0;i<n;i++) await deleteDoc(doc(db,"fileChunks",id+"_"+i)); await deleteDoc(doc(db,"files",id)); toast("हटा दी"); }catch(e){ toast(errMsg(e)); } });
   }, e=>toast(errMsg(e))));
 }
 

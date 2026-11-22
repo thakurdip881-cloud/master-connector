@@ -19,6 +19,12 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.os.Environment;
+import android.util.Base64;
+import android.widget.Toast;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
@@ -216,7 +222,7 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void stopDuty() { runOnUiThread(() -> DutyService.stop(MainActivity.this)); }
         @JavascriptInterface
-        public int version() { return 4; }
+        public int version() { return 5; }
         /** 🎙️ बोलकर पूछें — Google की फ़्री बोलने-से-लिखने वाली सुविधा; नतीजा window.__dipVoice(text) में */
         @JavascriptInterface
         public void listen(String lang) {
@@ -230,6 +236,37 @@ public class MainActivity extends Activity {
                     startActivityForResult(i, REQ_VOICE);
                 } catch (Exception e) { voiceResult("!"); }
             });
+        }
+        /** 📎 फ़ाइलें टैब: अपलोड की गई फ़ाइल फ़ोन के Download फ़ोल्डर में सेव करके खोलना */
+        @JavascriptInterface
+        public void saveFile(String name, String mime, String b64) {
+            new Thread(() -> {
+                try {
+                    byte[] data = Base64.decode(b64, Base64.DEFAULT);
+                    String safe = name.replaceAll("[\\\\/:*?\"<>|]", "_");
+                    String mt = (mime == null || mime.isEmpty()) ? "application/octet-stream" : mime;
+                    Uri uri;
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        ContentValues cv = new ContentValues();
+                        cv.put(MediaStore.Downloads.DISPLAY_NAME, safe);
+                        cv.put(MediaStore.Downloads.MIME_TYPE, mt);
+                        cv.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/MASTER CONNECTOR");
+                        uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+                        try (OutputStream o = getContentResolver().openOutputStream(uri)) { o.write(data); }
+                    } else {
+                        File f = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), safe);
+                        try (FileOutputStream o = new FileOutputStream(f)) { o.write(data); }
+                        uri = null;
+                    }
+                    final Uri u = uri; final String m = mt;
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, "⬇️ सेव हुई: Download/MASTER CONNECTOR/" + safe, Toast.LENGTH_LONG).show();
+                        if (u != null) try { startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(u, m).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)); } catch (Exception e) { }
+                    });
+                } catch (Exception e) {
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "फ़ाइल सेव नहीं हुई", Toast.LENGTH_LONG).show());
+                }
+            }).start();
         }
         /** 🔊 बोलकर बताना (फ़ोन की अपनी आवाज़, फ़्री) */
         @JavascriptInterface
