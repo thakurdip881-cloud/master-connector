@@ -10,6 +10,10 @@ import android.os.Bundle;
 import android.webkit.CookieManager;
 import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
+import android.webkit.ValueCallback;
+import android.content.ContentValues;
+import android.provider.MediaStore;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -25,7 +29,10 @@ import java.util.List;
 
 public class MainActivity extends Activity {
     private static final String APP_URL = "https://thakurdip881-cloud.github.io/master-connector/";
-    private static final int REQ_PERM = 7, REQ_VOICE = 8;
+    private static final int REQ_PERM = 7, REQ_VOICE = 8, REQ_FILE = 9, REQ_MEDIA = 10;
+    private PermissionRequest mediaReq;
+    private ValueCallback<Uri[]> fileCb;
+    private Uri camUri;
     private TextToSpeech tts; private boolean ttsReady = false;
     private WebView web;
     private GeolocationPermissions.Callback geoCb;
@@ -53,6 +60,46 @@ public class MainActivity extends Activity {
                 if (hasLocation()) { callback.invoke(origin, true, false); return; }
                 geoOrigin = origin; geoCb = callback;
                 askPermissions();
+            }
+            /** सेल्फ़ी / 30 सेकंड वीडियो / ड्यूटी कैमरा जाँच — web का कैमरा-माइक */
+            @Override
+            public void onPermissionRequest(PermissionRequest request) {
+                runOnUiThread(() -> {
+                    if (hasMedia()) { grantMedia(request); return; }
+                    mediaReq = request;
+                    requestPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO}, REQ_MEDIA);
+                });
+            }
+            /** फ़ोटो चुनना / खींचना (आधार, सेल्फ़ी, दस्तावेज़) */
+            @Override
+            public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
+                if (fileCb != null) fileCb.onReceiveValue(null);
+                fileCb = cb; camUri = null;
+                Intent pick;
+                try { pick = p.createIntent(); } catch (Exception e) { pick = new Intent(Intent.ACTION_GET_CONTENT).setType("image/*"); }
+                pick.addCategory(Intent.CATEGORY_OPENABLE);
+                Intent cam = null;
+                if (hasCamera()) {
+                    try {
+                        ContentValues cv = new ContentValues();
+                        cv.put(MediaStore.Images.Media.DISPLAY_NAME, "mc_" + System.currentTimeMillis() + ".jpg");
+                        cv.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                        camUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv);
+                        cam = new Intent(MediaStore.ACTION_IMAGE_CAPTURE).putExtra(MediaStore.EXTRA_OUTPUT, camUri);
+                        cam.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                    } catch (Exception e) { cam = null; camUri = null; }
+                } else if (Build.VERSION.SDK_INT >= 23) {
+                    requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_PERM);
+                }
+                Intent go;
+                if (cam != null && p.isCaptureEnabled()) go = cam;
+                else {
+                    go = Intent.createChooser(pick, "फ़ोटो चुनें");
+                    if (cam != null) go.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{cam});
+                }
+                try { startActivityForResult(go, REQ_FILE); }
+                catch (Exception e) { fileCb.onReceiveValue(null); fileCb = null; return false; }
+                return true;
             }
         });
         web.setWebViewClient(new WebViewClient() {
@@ -83,6 +130,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
+        if (req == REQ_FILE) { fileDone(res, data); return; }
         if (req != REQ_VOICE) return;
         ArrayList<String> r = data == null ? null : data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
         voiceResult(res == RESULT_OK && r != null && !r.isEmpty() ? r.get(0) : "?");
@@ -90,6 +138,33 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() { if (tts != null) tts.shutdown(); super.onDestroy(); }
+
+    private void fileDone(int res, Intent data) {
+        if (fileCb == null) return;
+        Uri[] out = null;
+        if (res == RESULT_OK) {
+            if (data != null && data.getData() != null) out = new Uri[]{data.getData()};
+            else if (data != null && data.getClipData() != null && data.getClipData().getItemCount() > 0) out = new Uri[]{data.getClipData().getItemAt(0).getUri()};
+            else if (camUri != null) out = new Uri[]{camUri};
+        }
+        if (camUri != null && (out == null || !camUri.equals(out[0]))) { try { getContentResolver().delete(camUri, null, null); } catch (Exception ignored) { } }
+        fileCb.onReceiveValue(out); fileCb = null; camUri = null;
+    }
+
+    private boolean hasCamera() {
+        return Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+    }
+    private boolean hasMedia() {
+        return hasCamera() && (Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
+    }
+    private void grantMedia(PermissionRequest r) {
+        List<String> ok = new ArrayList<>();
+        for (String x : r.getResources()) {
+            if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(x) && hasCamera()) ok.add(x);
+            if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(x) && (Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)) ok.add(x);
+        }
+        if (ok.isEmpty()) r.deny(); else r.grant(ok.toArray(new String[0]));
+    }
 
     private boolean hasLocation() {
         return Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -122,6 +197,7 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
         super.onRequestPermissionsResult(code, perms, res);
+        if (code == REQ_MEDIA) { if (mediaReq != null) { grantMedia(mediaReq); mediaReq = null; } return; }
         boolean ok = hasLocation();
         if (ok) askBattery();
         if (geoCb != null) { geoCb.invoke(geoOrigin, ok, false); geoCb = null; }
@@ -140,7 +216,7 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void stopDuty() { runOnUiThread(() -> DutyService.stop(MainActivity.this)); }
         @JavascriptInterface
-        public int version() { return 3; }
+        public int version() { return 4; }
         /** 🎙️ बोलकर पूछें — Google की फ़्री बोलने-से-लिखने वाली सुविधा; नतीजा window.__dipVoice(text) में */
         @JavascriptInterface
         public void listen(String lang) {
