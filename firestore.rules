@@ -189,6 +189,14 @@ service cloud.firestore {
       allow delete: if isOwner() || (tCust() && resource.data.uid == request.auth.uid);
     }
 
+    // ---------- 🗄️ 30% Partner ऑनलाइन बैकअप — हर खाता सिर्फ़ अपना एक डिब्बा (कोई दूसरा नहीं देख सकता) ----------
+    match /partnerBackup/{uid} {
+      allow read, delete: if signed() && request.auth.uid == uid;
+      allow create, update: if active() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['app', 'v', 'at', 'n', 'data'])
+        && request.resource.data.data is string && request.resource.data.data.size() < 300000;
+    }
+
     // बाकी सब बंद
     match /{document=**} { allow read, write: if false; }
   }
