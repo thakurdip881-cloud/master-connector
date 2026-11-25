@@ -117,6 +117,12 @@ async function custVidUpload(uid,blob){
   const CH=700000, n=Math.min(Math.ceil(url.length/CH),8), rec=uid+"_"+Date.now();
   for(let i=0;i<n;i++) await setDoc(doc(db,"custVid",rec+"_"+i),{uid,rec,i,n,part:url.slice(i*CH,(i+1)*CH),at:serverTimestamp()});
 }
+// 🆔 दोस्त/वर्कर का ID — कोई भी रूप (8 अंक, 10 अंक, अक्षर): पहले वर्कर ID से मिलाएँ, फिर ग्राहक ID से; न मिले तो जैसा भरा वैसा सेव (एडमिन बाद में देखे)
+const refClean=v=>String(v||"").replace(/[^A-Za-z0-9]/g,"").toUpperCase().slice(0,30);
+async function resolveRef(txt,kind,selfUid){ const c=refClean(txt); if(c.length<3) return null; const out={refRaw:c,refKind:kind||"?"};
+  try{ const g=await getDoc(doc(db,"refCodes",c)); if(g.exists()){ out.ref=g.data().uid; out.refCode=c; out.refKind="worker"; return out; } }catch(_){}
+  try{ const g=await getDoc(doc(db,"custCodes",c)); if(g.exists() && g.data().uid!==selfUid){ out.refBy=g.data().uid; out.refKind="friend"; return out; } }catch(_){}
+  return out; }
 let subs=[]; const clear=()=>{ subs.forEach(u=>{try{u()}catch(_){}}); subs=[]; };
 $("#out").onclick=async()=>{ if(confirm("लॉग आउट करें?")){ clear(); await signOut(auth); } };
 
@@ -134,7 +140,7 @@ function showAuth(reg){
     <label class="req">ID नंबर</label><input id="rI" autocapitalize="characters" inputmode="numeric" placeholder="1234 5678 9012"><p class="muted" id="rIh">आधार: सुरक्षा के लिए सिर्फ़ आखिरी 4 अंक सेव होंगे।</p>
     <label class="req">पासवर्ड बनाएँ (कम से कम 6 अक्षर)</label><input id="rP" type="password" autocomplete="new-password">
     <label class="req">पासवर्ड फिर से</label><input id="rP2" type="password" autocomplete="new-password">
-    <label>🆔 दोस्त का ID — जिसने आपको link भेजा (8 अंक, जैसे 13174393)</label><input id="rRef" inputmode="numeric" maxlength="12" placeholder="13174393" value="${esc(/^(\d{8}|DIP[A-Z0-9]{4,6})$/i.test(REF)?REF.toUpperCase():"")}"><p class="muted" style="margin:2px 0 0">यह आपके दोस्त का ID है, आपका अपना ID अलग बनेगा। अभी नहीं पता तो खाली छोड़ें — 7 दिन के अंदर भर दें।</p>
+    <label>🆔 दोस्त या वर्कर का ID — जिसने आपको link भेजा</label><div class="row" style="gap:10px;margin:2px 0 4px"><label style="color:var(--ink)"><input type="radio" name="rK" value="friend" checked style="width:auto"> 👥 दोस्त</label><label style="color:var(--ink)"><input type="radio" name="rK" value="worker" style="width:auto"> 👷 वर्कर</label></div><input id="rRef" maxlength="30" placeholder="जैसा ID मिला वैसा लिखें" value="${esc(refClean(REF).length<=12?refClean(REF):"")}"><p class="muted" style="margin:2px 0 0">यह आपके दोस्त का ID है, आपका अपना ID अलग बनेगा। अभी नहीं पता तो खाली छोड़ें — 7 दिन के अंदर भर दें।</p>
     <label class="row" style="color:var(--ink);margin-top:10px"><input type="checkbox" id="rC" style="width:auto;flex:none"> <span class="req">मैं सहमति देता/देती हूँ कि मेरी जानकारी सिर्फ़ यात्रा के रिकॉर्ड के लिए DIP Tour & Travels देख सकेगा।</span></label>
     <label class="row" style="color:var(--ink);margin-top:8px"><input type="checkbox" id="rS" style="width:auto;flex:none" checked> <span>🔐 पासवर्ड इस फ़ोन में याद रखें</span></label>
     <button id="rGo" style="width:100%;margin-top:12px">✅ रजिस्टर करें</button>`
@@ -143,7 +149,7 @@ function showAuth(reg){
     <label>पासवर्ड</label><div class="row" style="gap:6px"><input id="lP" type="password" autocomplete="current-password" style="flex:1" value="${esc(last.pw||"")}"><button type="button" class="sec" id="lEye" style="width:auto;flex:none">👁️</button></div>
     <label class="row" style="color:var(--ink);margin-top:8px"><input type="checkbox" id="lS" style="width:auto;flex:none" ${last.pw!==""?"checked":""}> <span>🔐 पासवर्ड इस फ़ोन में याद रखें</span></label>
     <button id="lGo" style="width:100%;margin-top:12px">लॉगिन करें</button><p class="muted">पासवर्ड भूल गए? सपोर्ट पर WhatsApp/Telegram करें।</p>`}</div>`;
-  GUIDE=reg?"नया रजिस्ट्रेशन। अपना पूरा नाम, मोबाइल नंबर, जीमेल और आईडी भरें। फिर पासवर्ड बनाएँ। सबसे नीचे अपने दोस्त का आठ अंक का आईडी भरें, जिसने आपको लिंक भेजा। लिंक से आए हैं तो यह अपने-आप भरा होगा। अभी नहीं पता तो सात दिन के अंदर भर सकते हैं। आखिर में सहमति पर टिक लगाकर रजिस्टर करें दबाएँ।":"लॉगिन। अपना मोबाइल नंबर और पासवर्ड डालकर लॉगिन करें दबाएँ। पहली बार आए हैं तो ऊपर नया रजिस्ट्रेशन दबाएँ।";
+  GUIDE=reg?"नया रजिस्ट्रेशन। अपना पूरा नाम, मोबाइल नंबर, जीमेल और आईडी भरें। फिर पासवर्ड बनाएँ। सबसे नीचे उस दोस्त या वर्कर का आईडी भरें, जिसने आपको लिंक भेजा। लिंक से आए हैं तो यह अपने-आप भरा होगा। अभी नहीं पता तो सात दिन के अंदर भर सकते हैं। आखिर में सहमति पर टिक लगाकर रजिस्टर करें दबाएँ।":"लॉगिन। अपना मोबाइल नंबर और पासवर्ड डालकर लॉगिन करें दबाएँ। पहली बार आए हैं तो ऊपर नया रजिस्ट्रेशन दबाएँ।";
   $("#tL").onclick=()=>{ custRecDrop(); showAuth(false); }; $("#tR").onclick=()=>showAuth(true);
   if(reg) custRecStart();
   if(!reg){ $("#lEye").onclick=()=>{ const p=$("#lP"); p.type=p.type==="password"?"text":"password"; };
@@ -157,17 +163,17 @@ function showAuth(reg){
     if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(mail)) return toast("सही Gmail लिखें"); if(tg && !/^[A-Za-z0-9_]{5,32}$/.test(tg)) return toast("Telegram ID सही नहीं");
     if(it==="aadhaar" && !/^[2-9]\d{11}$/.test(raw)) return toast("आधार 12 अंक का होना चाहिए"); if(it==="pan" && !/^[A-Z]{5}\d{4}[A-Z]$/.test(raw)) return toast("PAN सही नहीं"); if(raw.length<5) return toast("ID नंबर सही डालें");
     if(p.length<6) return toast("पासवर्ड कम से कम 6 अक्षर"); if(p!==$("#rP2").value) return toast("दोनों पासवर्ड एक जैसे नहीं"); if(!$("#rC").checked) return toast("सहमति पर ✔ लगाएँ");
-    const rc=$("#rRef").value.replace(/[^A-Za-z0-9]/g,"").toUpperCase(); let refUid="";
-    if(rc){ if(!/^(\d{8}|DIP[A-Z0-9]{4,6})$/.test(rc)) return toast("दोस्त का ID 8 अंक का होना चाहिए (जैसे 13174393)"); try{ const g=await getDoc(doc(db,"refCodes",rc)); if(!g.exists()) return toast("यह ID नहीं मिला — अपने दोस्त से दोबारा पूछें"); refUid=g.data().uid; }catch(_){ return toast("रेफर ID जाँच नहीं हो पाई, इंटरनेट देखें"); } }
-    else if(REF && !/^(\d{8}|DIP.*)$/i.test(REF)) refUid=REF;   // पुराना लंबा link
+    const rcTxt=$("#rRef").value, rK=(document.querySelector('input[name="rK"]:checked')||{}).value||"friend"; let refUid="", refX=null;
+    if(refClean(rcTxt).length>=3){ refX=await resolveRef(rcTxt,rK,""); if(refX&&refX.ref) refUid=refX.ref; }
+    else if(REF && refClean(REF).length>12) refUid=REF;   // पुराना लंबा link
     const idNo=it==="aadhaar"?"XXXX-XXXX-"+raw.slice(-4):raw, b=$("#rGo"); b.disabled=true; b.textContent="रजिस्टर हो रहा है…";
     try{ const c=await createUserWithEmailAndPassword(auth,m+"@"+DOM,p);
-      const rec={uid:c.user.uid,name,mobile:m,wa,mail,tg:tg?"@"+tg:"",idType:it,idNo,consent:true,at:serverTimestamp(),...(rc&&refUid?{refCode:rc}:{})};
+      const rec={uid:c.user.uid,name,mobile:m,wa,mail,tg:tg?"@"+tg:"",idType:it,idNo,consent:true,at:serverTimestamp(),...(refX?(({ref,...o})=>o)(refX):{})};
       try{ sessionStorage.setItem("tourNew","1"); }catch(_){}
       b.textContent="🎥 वीडियो भेजा जा रहा है…"; try{ const bl=await custRecFinish(); if(bl) await custVidUpload(c.user.uid,bl); }catch(_){}
-      try{ await setDoc(doc(db,"tCustomers",c.user.uid),refUid?{...rec,ref:refUid}:rec); }catch(e1){ if(!refUid) throw e1; const {refCode,...r2}=rec; await setDoc(doc(db,"tCustomers",c.user.uid),r2); }
+      try{ await setDoc(doc(db,"tCustomers",c.user.uid),refUid?{...rec,ref:refUid}:rec); }catch(e1){ if(!refUid) throw e1; const {refCode,refBy,refRaw,refKind,...r2}=rec; await setDoc(doc(db,"tCustomers",c.user.uid),r2); }
       try{ localStorage.setItem("tourLast",JSON.stringify({name,id:m,pw:$("#rS")&&$("#rS").checked?p:""})); }catch(_){}
-      mailCopy("🧳 नया ग्राहक — "+name,{"नाम":name,"मोबाइल":m,"WhatsApp":wa,"Gmail":mail,"Telegram":tg?"@"+tg:"—","ID":it+": "+idNo,"रेफर ID":rc||(refUid?"पुराना link":"—"),"समय":new Date().toLocaleString("hi-IN")},mail);
+      mailCopy("🧳 नया ग्राहक — "+name,{"नाम":name,"मोबाइल":m,"WhatsApp":wa,"Gmail":mail,"Telegram":tg?"@"+tg:"—","ID":it+": "+idNo,"दोस्त/वर्कर ID":refClean(rcTxt)||(refUid?"पुराना link":"—"),"समय":new Date().toLocaleString("hi-IN")},mail);
       toast("✅ रजिस्ट्रेशन हो गया");
     }catch(e){ toast(errM(e)); b.disabled=false; b.textContent="✅ रजिस्टर करें"; } };
 }
@@ -182,29 +188,31 @@ async function showHome(user){
   const tgA=t=>String(t||"").replace(/^@/,""), custId="C"+String(me.mobile||"").slice(-4)+String(user.uid).slice(0,3).toUpperCase();
   // 🆔 दोस्त का ID: 7 दिन तक छूट (हर बार याद), 7 दिन बाद भरे बिना आगे बंद · भरते ही याद दिलाना बंद
   let refHtml="", refLeft=0;
-  if(!me.ref){
+  // custId सबके लिए खोजने लायक (दूसरा ग्राहक दोस्त के रूप में यही भरे)
+  setDoc(doc(db,"custCodes",custId),{uid:user.uid}).catch(()=>{});
+  if(!me.ref && !me.refBy && !me.refRaw){
     const days=Math.floor((Date.now()-(toD(me.at)?.getTime()||Date.now()))/864e5); refLeft=Math.max(0,7-days); const block=refLeft<=0;
     refHtml=`<div class="card" style="border:2px solid ${block?"#c0262d":"#d97706"};background:#fff7e6"><h3 style="margin:0">${block?"🔒 दोस्त का ID भरें — तभी आगे खुलेगा":"⏳ याद दिलाना: दोस्त का ID भरें"}</h3>
-      <p style="margin:6px 0">जिस दोस्त ने आपको link भेजा, उससे उसका <b>8 अंक का ID</b> पूछें और नीचे भरें। ${block?"<b>7 दिन पूरे हो गए — ID भरे बिना आगे का काम बंद है।</b>":`अभी आप काम जारी रख सकते हैं — <b>${refLeft} दिन बाकी</b>, उसके बाद ID भरे बिना आगे का काम रुक जाएगा।`}</p>
+      <p style="margin:6px 0">जिस दोस्त ने आपको link भेजा, उससे उसका <b>ID</b> पूछें और नीचे भरें — नंबर हो या अक्षर, जैसा मिला वैसा। ${block?"<b>7 दिन पूरे हो गए — ID भरे बिना आगे का काम बंद है।</b>":`अभी आप काम जारी रख सकते हैं — <b>${refLeft} दिन बाकी</b>, उसके बाद ID भरे बिना आगे का काम रुक जाएगा।`}</p>
       <p class="muted" style="margin:0 0 6px">🆔 आपका अपना ID: <b>${esc(custId)}</b> (यह आपका है, अलग है)</p>
-      <label class="req">🆔 दोस्त का ID</label><input id="gRef" inputmode="numeric" maxlength="12" placeholder="13174393" value="${esc(/^(\d{8}|DIP[A-Z0-9]{4,6})$/i.test(REF)?REF.toUpperCase():"")}">
+      <label class="req">🆔 किसका ID है?</label><div class="row" style="gap:10px;margin:2px 0 4px"><label style="color:var(--ink)"><input type="radio" name="gK" value="friend" checked style="width:auto"> 👥 दोस्त</label><label style="color:var(--ink)"><input type="radio" name="gK" value="worker" style="width:auto"> 👷 वर्कर</label></div><input id="gRef" maxlength="30" placeholder="जैसा ID मिला वैसा लिखें (नंबर या अक्षर)" value="${esc(refClean(REF).length<=12?refClean(REF):"")}">
       <button id="gGo" class="ok" style="width:100%;margin-top:10px">✅ जमा करें</button>
       <a href="https://wa.me/91${esc(cfg.wa)}?text=${encodeURIComponent("नमस्ते, मुझे दोस्त का ID चाहिए — "+me.name+" ("+me.mobile+")")}" target="_blank" rel="noopener"><button class="sec" style="width:100%;margin-top:8px">💬 ID नहीं पता? WhatsApp पर पूछें</button></a></div>`;
     if(block){
-      GUIDE="नमस्ते "+me.name+"। सात दिन पूरे हो गए हैं और आपके दोस्त का आईडी अभी नहीं भरा है। जिस दोस्त ने आपको लिंक भेजा, उससे आठ अंक का आईडी पूछें, खाने में भरें और जमा करें दबाएँ। आईडी भरते ही आगे का काम खुल जाएगा।";
+      GUIDE="नमस्ते "+me.name+"। सात दिन पूरे हो गए हैं और आपके दोस्त का आईडी अभी नहीं भरा है। जिस दोस्त ने आपको लिंक भेजा, उससे उसका आईडी पूछें, खाने में भरें और जमा करें दबाएँ। आईडी भरते ही आगे का काम खुल जाएगा।";
       app.innerHTML=refHtml; refHook(); return; }
   }
-  function refHook(){ const gb=$("#gGo"); if(!gb) return; gb.onclick=async()=>{ const rc=$("#gRef").value.replace(/[^A-Za-z0-9]/g,"").toUpperCase(); if(!/^(\d{8}|DIP[A-Z0-9]{4,6})$/.test(rc)) return toast("दोस्त का ID 8 अंक का होना चाहिए (जैसे 13174393)");
-      const b=$("#gGo"); b.disabled=true; b.textContent="जाँच हो रही है…";
-      try{ const g=await getDoc(doc(db,"refCodes",rc)); if(!g.exists()){ toast("यह ID नहीं मिला — अपने दोस्त से दोबारा पूछें"); b.disabled=false; b.textContent="✅ जमा करें"; return; }
-        await updateDoc(doc(db,"tCustomers",user.uid),{ref:g.data().uid,refCode:rc}); try{ sessionStorage.setItem("tourNew","1"); }catch(_){}
-        mailCopy("🆔 ग्राहक ने दोस्त का ID भरा — "+me.name,{"ग्राहक":me.name,"मोबाइल":me.mobile,"दोस्त का ID":rc,"समय":new Date().toLocaleString("hi-IN")});
-        toast("✅ ID जुड़ गया — याद दिलाना बंद"); showHome(user);
+  function refHook(){ const gb=$("#gGo"); if(!gb) return; gb.onclick=async()=>{ const txt=$("#gRef").value, k=(document.querySelector('input[name="gK"]:checked')||{}).value||"friend";
+      if(refClean(txt).length<3) return toast("ID लिखें — जैसा मिला वैसा (नंबर या अक्षर)");
+      const b=$("#gGo"); b.disabled=true; b.textContent="जमा हो रहा है…";
+      try{ const r=await resolveRef(txt,k,user.uid); await updateDoc(doc(db,"tCustomers",user.uid),r); try{ sessionStorage.setItem("tourNew","1"); }catch(_){}
+        mailCopy("🆔 ग्राहक ने ID भरा — "+me.name,{"ग्राहक":me.name,"मोबाइल":me.mobile,"भरा ID":r.refRaw,"किसका (ग्राहक ने चुना)":k==="worker"?"वर्कर":"दोस्त","मिलान":r.ref?"✅ वर्कर से मिला":r.refBy?"✅ ग्राहक (दोस्त) से मिला":"❓ नहीं मिला — एडमिन देखें","समय":new Date().toLocaleString("hi-IN")});
+        toast(r.ref||r.refBy?"✅ ID मिल गया और जुड़ गया":"✅ ID सेव हो गया — टीम जाँचकर जोड़ देगी"); showHome(user);
       }catch(e){ toast("जमा नहीं हुआ, इंटरनेट देखकर फिर कोशिश करें"); b.disabled=false; b.textContent="✅ जमा करें"; } }; }
-  GUIDE=(refHtml?"नमस्ते "+me.name+"। एक काम बाकी है। जिस दोस्त ने आपको लिंक भेजा, उससे उसका आठ अंक का आईडी पूछकर ऊपर के खाने में भरें। अभी "+refLeft+" दिन बाकी हैं, तब तक आप काम जारी रख सकते हैं। ":"")+"यह आपका DIP Tour and Travels खाता है। ऊपर आपका ग्राहक आईडी लिखा है। नीचे के बटन से व्हाट्सऐप या टेलीग्राम पर हमसे बात करें। सूचना वाले हिस्से में नई जानकारी आती रहेगी।";
+  GUIDE=(refHtml?"नमस्ते "+me.name+"। एक काम बाकी है। जिस दोस्त ने आपको लिंक भेजा, उससे उसका आईडी पूछकर ऊपर के खाने में भरें। अभी "+refLeft+" दिन बाकी हैं, तब तक आप काम जारी रख सकते हैं। ":"")+"यह आपका DIP Tour and Travels खाता है। ऊपर आपका ग्राहक आईडी लिखा है। नीचे के बटन से व्हाट्सऐप या टेलीग्राम पर हमसे बात करें। सूचना वाले हिस्से में नई जानकारी आती रहेगी।";
   app.innerHTML=refHtml+`
-  ${(()=>{ let n=""; try{ n=sessionStorage.getItem("tourNew"); sessionStorage.removeItem("tourNew"); }catch(_){} return n?`<div class="card" style="border:2px solid #0e8a6a;background:#e8f6f1"><h3 style="margin:0">✅ आपका अकाउंट खुल गया!</h3><p style="margin:6px 0 0">🆔 आपका ग्राहक ID: <b>${esc(custId)}</b>${me.refCode?`<br>👥 दोस्त का ID: <b>${esc(me.refCode)}</b>`:""}</p></div>`:""; })()}
-  <div class="card"><h3>👤 मेरी जानकारी</h3><p class="muted" style="margin:0 0 4px">🆔 ग्राहक ID: <b>${esc(custId)}</b>${me.refCode?` · 👥 दोस्त का ID: <b>${esc(me.refCode)}</b>`:""}</p><p style="margin:0">${esc(me.name)}<br><span class="muted">📱 ${esc(me.mobile)} · WhatsApp ${esc(me.wa)}<br>✉️ ${esc(me.mail)}${me.tg?` · ✈️ ${esc(me.tg)}`:""}<br>🪪 ${esc(me.idType)}: ${esc(me.idNo)}</span></p></div>
+  ${(()=>{ let n=""; try{ n=sessionStorage.getItem("tourNew"); sessionStorage.removeItem("tourNew"); }catch(_){} return n?`<div class="card" style="border:2px solid #0e8a6a;background:#e8f6f1"><h3 style="margin:0">✅ आपका अकाउंट खुल गया!</h3><p style="margin:6px 0 0">🆔 आपका ग्राहक ID: <b>${esc(custId)}</b>${(me.refCode||me.refRaw)?`<br>👥 दोस्त/वर्कर ID: <b>${esc(me.refCode||me.refRaw)}</b>`:""}</p></div>`:""; })()}
+  <div class="card"><h3>👤 मेरी जानकारी</h3><p class="muted" style="margin:0 0 4px">🆔 ग्राहक ID: <b>${esc(custId)}</b>${(me.refCode||me.refRaw)?` · 👥 दोस्त/वर्कर ID: <b>${esc(me.refCode||me.refRaw)}</b>`:""}</p><p style="margin:0">${esc(me.name)}<br><span class="muted">📱 ${esc(me.mobile)} · WhatsApp ${esc(me.wa)}<br>✉️ ${esc(me.mail)}${me.tg?` · ✈️ ${esc(me.tg)}`:""}<br>🪪 ${esc(me.idType)}: ${esc(me.idNo)}</span></p></div>
   <div class="card" id="ntc" style="border:2px solid #0e8a6a"><h3>📢 DIP Tour & Travels की सूचना</h3><div id="nList" class="list"><p class="muted">लोड हो रहा है…</p></div></div>
   <div class="card"><h3>💬 बात करें</h3><div class="chat" id="chat"></div><div class="row" style="margin-top:6px"><input id="mT" maxlength="500" placeholder="संदेश लिखें…" style="flex:1"><button id="mS" style="flex:none;width:auto">भेजें</button></div></div>
   <div class="card"><h3>📄 मेरे डॉक्यूमेंट</h3><label class="sec" style="display:block;text-align:center;padding:12px;border-radius:10px;background:#e8eef7;color:var(--pri);cursor:pointer">📤 फ़ोटो/डॉक्यूमेंट जोड़ें<input id="dF" type="file" accept="image/*" style="display:none"></label><input id="dN" placeholder="नाम (जैसे: आधार, टिकट)" maxlength="40" style="margin-top:6px"><div id="docs" class="list" style="margin-top:8px"></div></div>
