@@ -87,7 +87,7 @@ service cloud.firestore {
     // ---------- 90 दिन वाली अपने-आप सफ़ाई की जानकारी (सिर्फ़ सर्वर लिखता है) ----------
     match /meta/{d} { allow read: if isOwner(); allow write: if false; }
 
-    // ---------- ड्यूटी (हाज़िरी + 2 km location जाँच) ----------
+    // ---------- ड्यूटी (हाज़िरी + 30 km location जाँच) ----------
     match /duty/{id} {
       allow read: if editor() || (active() && resource.data.uid == request.auth.uid);
       allow create: if active() && request.resource.data.uid == request.auth.uid && request.resource.data.end == null;
@@ -195,6 +195,20 @@ service cloud.firestore {
       allow create, update: if active() && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['app', 'v', 'at', 'n', 'data'])
         && request.resource.data.data is string && request.resource.data.data.size() < 300000;
+    }
+
+    // ---------- 🆘 वर्कर की अर्ज़ी: पासवर्ड भूल गए / मोबाइल नंबर बदला (बिना लॉगिन भेज सके, पढ़े सिर्फ़ एडमिन) ----------
+    match /help/{id} {
+      allow read, delete: if editor();
+      allow create, update: if editor() || (
+        request.resource.data.keys().hasOnly(['type', 'name', 'mobile', 'newMobile', 'at'])
+        && request.resource.data.type in ['pw', 'mob']
+        && request.resource.data.mobile is string && request.resource.data.mobile.matches('[6-9][0-9]{9}')
+        && id == request.resource.data.type + '_' + request.resource.data.mobile
+        && request.resource.data.name is string && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 60
+        && request.resource.data.newMobile is string
+        && (request.resource.data.type == 'pw' || request.resource.data.newMobile.matches('[6-9][0-9]{9}'))
+        && request.resource.data.at == request.time);
     }
 
     // बाकी सब बंद

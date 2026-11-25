@@ -178,7 +178,9 @@ function showLogin(){
     <label>पासवर्ड</label><div class="row" style="gap:6px"><input id="pw" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" style="flex:1"><button type="button" id="pwEye" class="sec" style="width:auto;flex:none">👁️</button></div>
     <div style="margin-top:14px"><button id="go" style="width:100%">लॉगिन करें</button></div>
     <div style="margin-top:10px"><button id="gl" style="width:100%;background:#fff;color:#1a56a8;border:2px solid #1a56a8">🔗 Google से लॉगिन</button></div>
-    <p class="muted" style="margin-top:12px">नए वर्कर: एडमिन से हायरिंग लिंक लेकर अकाउंट बनाएँ, फिर उसी मोबाइल नंबर और पासवर्ड से यहाँ लॉगिन करें। पासवर्ड भूल गए? <a href="#" id="fp">रीसेट लिंक भेजें</a></p></div>`;
+    <p class="muted" style="margin-top:12px">नए वर्कर: एडमिन से हायरिंग लिंक लेकर अकाउंट बनाएँ, फिर उसी मोबाइल नंबर और पासवर्ड से यहाँ लॉगिन करें। एडमिन (Gmail) पासवर्ड भूले? <a href="#" id="fp">रीसेट लिंक भेजें</a></p>
+    <div class="row" style="margin-top:8px;gap:6px"><button class="sec sm" id="hpw" style="flex:1">🔑 पासवर्ड भूल गए (वर्कर)</button><button class="sec sm" id="hmob" style="flex:1">📱 मोबाइल नंबर बदल गया</button></div></div>`;
+  $("#hpw").onclick = () => helpForm("pw"); $("#hmob").onclick = () => helpForm("mob");
   $("#pwEye").onclick = () => { const p=$("#pw"); p.type = p.type==="password" ? "text" : "password"; };
   $("#go").onclick = async () => { const raw=$("#em").value.trim(), pass=$("#pw").value.trim();
     if(!raw) return toast("अपना मोबाइल नंबर डालें"); if(!pass) return toast("पासवर्ड डालें");
@@ -191,7 +193,7 @@ function showLogin(){
   if(!GOOGLE_ON) $("#gl").parentElement.style.display="none";
   $("#gl").onclick = async () => { try{ await signInWithPopup(auth, new GoogleAuthProvider()); }catch(e){ if(!String(e.code||"").includes("popup-closed")) toast(String(e.code||"").includes("web-storage")||String(e.code||"").includes("operation-not-supported") ? "ऐप में Google लॉगिन नहीं चलता — Chrome में साइट खोलकर करें, या एडमिन से पासवर्ड लें" : errMsg(e)); } };
   $("#pw").onkeydown = e => { if(e.key==="Enter") $("#go").click(); };
-  $("#fp").onclick = async e => { e.preventDefault(); const em=$("#em").value.trim(); if(!em) return toast("पहले ईमेल लिखें"); if(mobDigits(em)) return toast("मोबाइल वाले अकाउंट का पासवर्ड एडमिन से बदलवाएँ"); try{ await sendPasswordResetEmail(auth,em); toast("रीसेट लिंक ईमेल पर भेजा गया"); }catch(err){ toast(errMsg(err)); } };
+  $("#fp").onclick = async e => { e.preventDefault(); const em=$("#em").value.trim(); if(!em) return toast("पहले ईमेल लिखें"); if(mobDigits(em)) return helpForm("pw"); try{ await sendPasswordResetEmail(auth,em); toast("रीसेट लिंक ईमेल पर भेजा गया"); }catch(err){ toast(errMsg(err)); } };
 }
 
 /* ---------- वर्कर खुद जुड़े: WhatsApp वाला लिंक (?join=CODE) ---------- */
@@ -313,7 +315,7 @@ async function showJoin(){
       const uid = gUser ? (await linkWithCredential(gUser, EmailAuthProvider.credential(email, pw))).user.uid : (await createUserWithEmailAndPassword(getAuth(tmp), email, pw)).user.uid;
       const _u = uid, tdb = getFirestore(tmp), bt = writeBatch(tdb);
       bt.update(doc(tdb,"invites",JOIN_CODE),{used:true,usedBy:uid,usedAt:serverTimestamp()});
-      bt.set(doc(tdb,"users",uid),{name,email,mobile:m,role:inv.role||"worker",canEdit:false,active:false,status:"pending",shift:inv.shift==="evening"?"evening":"morning",invite:JOIN_CODE,createdAt:serverTimestamp()});
+      bt.set(doc(tdb,"users",uid),{name,email,mobile:m,role:inv.role||"worker",canEdit:false,active:!!(idImg&&selfie),status:(idImg&&selfie)?"auto":"pending",shift:inv.shift==="evening"?"evening":"morning",invite:JOIN_CODE,createdAt:serverTimestamp()});
       bt.set(doc(tdb,"kyc",uid),{uid,name,mobile:m,dob,mail,mailVerified:!!gUser,pw,hours,trial:T,tg:tg?"@"+tg:"",addr,home:home?{lat:home.lat,lng:home.lng}:null,idType:idt,idNo,idImg,selfie,consent:true,ua:navigator.userAgent.slice(0,160),at:serverTimestamp()});
       if(vidData) bt.set(doc(tdb,"kycVideo",uid),{uid,vid:vidData,secs:30,at:serverTimestamp()});
       await bt.commit();
@@ -882,7 +884,8 @@ function watchCommands(){
   if(canEdit) return;
   let first = true;
   sub(onSnapshot(query(collection(db,"acks"),where("uid","==",me.uid),limit(500)), s => { myAcks={}; s.docs.forEach(d=>{ const a=d.data(); myAcks[a.cmd]=a.status; }); }, ()=>{}));
-  sub(onSnapshot(myCmdQuery(), s => {
+  let myCmds = []; workerReminder(() => myCmds);
+  sub(onSnapshot(myCmdQuery(), s => { myCmds = sortCmds(s);
     const seen=JSON.parse(localStorage.getItem("mc_seen")||"[]");
     if(first) sortCmds(s).filter(c=>!seen.includes(c.id)&&!myAcks[c.id]).slice(0,5).reverse().forEach(c=>showCommandPopup(c.id,c));
     else s.docChanges().forEach(ch=>{ if(ch.type==="added" && !seen.includes(ch.doc.id)) showCommandPopup(ch.doc.id,ch.doc.data()); });
@@ -1133,6 +1136,8 @@ async function vaPending(speakIt){
   try{ const ds = (await getDocs(query(collection(db,"duty"),orderBy("start","desc"),limit(100)))).docs.map(d=>d.data()).filter(d=>!d.end); const idle = ds.filter(d=>d.idleAlert);
     parts.push(`${ds.length} वर्कर अभी ड्यूटी पर`); if(idle.length) parts.push(`${idle.length} ने हाज़िरी फ़ोटो नहीं दी — ${idle.map(d=>d.name).slice(0,3).join(", ")}`); }catch(_){}
   if(isOwner) try{ const n = (await getDocs(query(collection(db,"dipPlanReq"),limit(200)))).size; if(n) parts.push(`${n} DIP प्लान अर्ज़ियाँ बाकी`); }catch(_){}
+  try{ const hs=(await getDocs(collection(db,"help"))).docs.map(d=>d.data()).filter(h=>!h.done); if(hs.length) parts.push(`${hs.length} वर्कर अर्ज़ी (पासवर्ड/नंबर) बाकी`); }catch(_){}
+  try{ const st=await stuckCmds(); if(st.length) parts.push(`${st.length} आदेश 2 घंटे से अधूरे — ${st.slice(0,2).map(x=>x.left.slice(0,2).join(", ")).join("; ")}`); }catch(_){}
   const msg = parts.length ? "पेंडिंग काम: " + parts.join("। ") : "कोई पेंडिंग काम नहीं";
   if(speakIt) vaSay(msg); return msg;
 }
@@ -1150,18 +1155,24 @@ function startVoiceAlerts(){
     p.innerHTML = `<div class="card"><div class="between"><h3 style="margin:0">🔔 बोलकर सूचना</h3><button class="sec sm" id="vpX">बंद</button></div>
       <p class="muted">नई जॉइनिंग, वर्कर रिपोर्ट, ड्यूटी शुरू/खत्म, हाज़िरी फ़ोटो न देना, आदेश पूरा, ग्राहक मैसेज और प्लान अर्ज़ी आते ही घंटी बजेगी और फ़ोन बोलकर बताएगा (ऐप खुला या पीछे चलता हो तब)।</p>
       <p><b>${esc(msg)}</b></p>
-      <div class="row"><button class="ok sm" id="vpS">🔊 पेंडिंग काम सुनाओ</button><button class="sec sm" id="vpT">${vaOn()?"🔕 सूचना बंद करें":"🔔 सूचना चालू करें"}</button><button class="sec sm" id="vpR">🔔 घंटी जाँचें</button>${window.Notification&&Notification.permission!=="granted"?`<button class="sec sm" id="vpN">📲 फ़ोन सूचना की अनुमति</button>`:""}</div></div>`;
+      <div class="row"><button class="ok sm" id="vpS">🔊 पेंडिंग काम सुनाओ</button><button class="sec sm" id="vpT">${vaOn()?"🔕 सूचना बंद करें":"🔔 सूचना चालू करें"}</button><button class="sec sm" id="vpR">🔔 घंटी जाँचें</button><button class="sec sm" id="vpH">🆘 वर्कर अर्ज़ियाँ</button>${window.Notification&&Notification.permission!=="granted"?`<button class="sec sm" id="vpN">📲 फ़ोन सूचना की अनुमति</button>`:""}</div></div>`;
     p.classList.remove("hidden");
     $("#vpX").onclick = () => p.classList.add("hidden");
-    $("#vpS").onclick = () => vaSay(msg);
+    $("#vpS").onclick = () => vaSay(msg); $("#vpH").onclick = showHelpList;
     $("#vpR").onclick = () => { vaRing(); setTimeout(()=>vaSay("घंटी और आवाज़ ठीक चल रही है"), 2500); };
     $("#vpT").onclick = () => { try{ localStorage.setItem(VA_KEY, vaOn() ? "0" : "1"); }catch(_){} paint(); p.classList.add("hidden"); toast(vaOn() ? "🔔 बोलकर सूचना चालू" : "🔕 बोलकर सूचना बंद"); };
     const n = $("#vpN"); if(n) n.onclick = async () => { try{ const r = await Notification.requestPermission(); toast(r==="granted" ? "✅ अनुमति मिल गई" : "अनुमति नहीं मिली"); }catch(_){ toast("इस ऐप में फ़ोन सूचना नहीं चलती — घंटी और आवाज़ चलेंगी"); } };
   };
   /* नई जॉइनिंग (मंज़ूरी/एक्सेस माँगना) */
   sub(onSnapshot(collection(db,"users"), vaFirst((s, first) => { if(first) return;
-    s.docChanges().forEach(c => { const u = c.doc.data(); if(c.type==="added" && u.status==="pending") vaPush(`नई जॉइनिंग: ${u.name||"नया वर्कर"} — मंज़ूरी और अनुमति दें`, tabGo("workers")); });
+    s.docChanges().forEach(c => { const u = c.doc.data(); if(c.type==="added" && u.status==="pending") { vaPush(`नई जॉइनिंग: ${u.name||"नया वर्कर"} — KYC जाँचकर अपने-आप मंज़ूरी दे रहा हूँ`, tabGo("workers")); setTimeout(autoApprove, 8000); }
+      if(c.type==="added" && u.status==="auto") vaPush(`नई जॉइनिंग अपने-आप मंज़ूर: ${u.name||"नया वर्कर"} — KYC पूरी थी, लॉगिन चालू`, tabGo("workers")); });
   }), ()=>{}));
+  /* 🆘 पासवर्ड भूले / नंबर बदला अर्ज़ी */
+  sub(onSnapshot(collection(db,"help"), vaFirst((s, first) => { if(first) return;
+    s.docChanges().forEach(c => { const h = c.doc.data(); if((c.type==="added"||c.type==="modified") && !h.done && !c.doc.metadata.hasPendingWrites) vaPush(h.type==="pw" ? `${h.name} (${h.mobile}) पासवर्ड भूल गए — एक टैप में WhatsApp पर भेजें` : `${h.name} का मोबाइल नंबर बदला: ${h.newMobile} — एक टैप में नया खाता बनाएँ`, showHelpList); });
+  }), ()=>{}));
+  setTimeout(autoApprove, 5000); watchStuck();
   /* वर्कर रिपोर्ट */
   sub(onSnapshot(query(collection(db,"reports"),orderBy("at","desc"),limit(5)), vaFirst((s, first) => { if(first) return;
     s.docChanges().forEach(c => { if(c.type==="added" && !c.doc.metadata.hasPendingWrites){ const r = c.doc.data(); vaPush(`${r.name||"वर्कर"} की नई काम रिपोर्ट आई`, tabGo("home")); } });
@@ -1192,7 +1203,7 @@ function startVoiceAlerts(){
     s.docChanges().forEach(c => { const v = c.doc.data(); if(c.type==="added") vaPush(`नई DIP प्लान अर्ज़ी: ${v.name||""}`, tabGo("dip")); });
   }), ()=>{}));
   /* खुलते ही एक बार पेंडिंग काम बोलकर (दिन में हर 3 घंटे में एक बार से ज़्यादा नहीं) */
-  try{ const last = +localStorage.getItem("mcVaSaid")||0; if(vaOn() && Date.now()-last > 3*3600e3) setTimeout(async () => { const m = await vaPending(false); if(/मंज़ूरी|फ़ोटो|अर्ज़ि/.test(m)) vaPush(m.replace(/^पेंडिंग काम: /,"पेंडिंग काम — "), tabGo("workers")); try{ localStorage.setItem("mcVaSaid", String(Date.now())); }catch(_){} }, 4000); }catch(_){}
+  try{ const last = +localStorage.getItem("mcVaSaid")||0; if(vaOn() && Date.now()-last > 3*3600e3) setTimeout(async () => { const m = await vaPending(false); if(/मंज़ूरी|फ़ोटो|अर्ज़|अधूरे/.test(m)) vaPush(m.replace(/^पेंडिंग काम: /,"पेंडिंग काम — "), tabGo("workers")); try{ localStorage.setItem("mcVaSaid", String(Date.now())); }catch(_){} }, 4000); }catch(_){}
 }
 
 /* 📘 AI गाइड — पूरी ऐप चलाने का तरीका (🎙️ पूछें / 🤖 AI में पूछने पर यही बताता है) */
@@ -1200,6 +1211,10 @@ const GUIDE_ADMIN = [
   {t:"वर्कर लॉगिन कैसे करें (मोबाइल नंबर + पासवर्ड)", k:"वर्कर लॉगिन login कैसे करे खाता अकाउंट ऑनलाइन नहीं जा रहा मोबाइल नंबर", d:"1. ऊपर वाले खाने में सिर्फ़ 10 अंक का मोबाइल नंबर (Gmail नहीं, +91 या 0 नहीं)\n2. नीचे पासवर्ड वैसा ही जैसा 🔑 में है, जैसे Dip-abcd1234 (बड़ा D और डैश -)\n3. 👁️ दबाकर देख लें, फिर 'लॉगिन करें'\n4. लॉगिन के बाद लॉगआउट न करें — दोबारा पासवर्ड नहीं माँगेगा"},
   {t:"Gmail से लॉगिन क्यों नहीं होता", k:"gmail जीमेल ईमेल email लॉगिन नहीं हो रहा गलत", d:"वर्कर के खाते मोबाइल नंबर से बने हैं — उनकी Gmail से लॉगिन कभी नहीं होगा। Gmail से सिर्फ़ मुख्य एडमिन (आप) लॉगिन करते हैं। वर्कर हमेशा मोबाइल नंबर + Dip-… पासवर्ड डालें।"},
   {t:"वर्कर का पासवर्ड कहाँ मिलेगा / कैसे ढूँढें", k:"पासवर्ड password ढूँढें कहाँ मिलेगा भूल गया पता नहीं गलत", d:"1. नीचे 👥 वर्कर टैब खोलें\n2. 'सभी लोग' में वर्कर के नाम के नीचे 🔑 पासवर्ड दिखेगा\n3. 📋 कॉपी या 📲 WhatsApp दबाएँ — लॉगिन का तरीका + पासवर्ड वर्कर को चला जाएगा\n(आप यहाँ 'Raj का पासवर्ड' जैसा भी पूछ सकते हैं)"},
+  {t:"वर्कर ने 'पासवर्ड भूल गए' की अर्ज़ी भेजी", k:"पासवर्ड भूल गए अर्ज़ी help 🆘 अपने-आप", d:"वर्कर लॉगिन पेज पर '🔑 पासवर्ड भूल गए' दबाता है → आपके फ़ोन में घंटी + आवाज़ → पीली पट्टी में '👉 खोलें' → '📲 WhatsApp पर पासवर्ड भेजें' (हमेशा उसके रजिस्टर्ड नंबर पर, ताकि कोई दूसरा न ले)। बाद में भी: 🔔 सूचना → 🆘 वर्कर अर्ज़ियाँ।"},
+  {t:"वर्कर का मोबाइल नंबर बदल गया", k:"मोबाइल नंबर बदल गया बदला नया नंबर खो गया सिम", d:"वर्कर लॉगिन पेज पर '📱 मोबाइल नंबर बदल गया' से नया नंबर भेजता है → आपको घंटी → 🆘 अर्ज़ियाँ में '🔁 नए नंबर से खाता बनाएँ' → नया खाता (वही नाम, शिफ्ट, सैलरी) बनेगा, पुराना बंद होगा → '📲 नए नंबर के WhatsApp पर भेजें'।"},
+  {t:"नई जॉइनिंग अपने-आप मंज़ूर कैसे होती है", k:"अपने-आप मंज़ूर auto approve जॉइनिंग ऑटो", d:"हायरिंग फ़ॉर्म में लाइव फ़ोटो + ID फ़ोटो हों तो लॉगिन अपने-आप चालू हो जाता है और आपको घंटी के साथ रिपोर्ट मिलती है। अधूरी KYC वाले ⏳ मंज़ूरी बाकी में रहते हैं। एडमिन (पूरी) अनुमति कभी अपने-आप नहीं मिलती — वह आप 👥 वर्कर में 'एडमिन अनुमति दें' से देते हैं।"},
+  {t:"रुका / अधूरा काम कैसे पता चले", k:"रुका अधूरा काम अटका पेंडिंग याद reminder", d:"कोई आदेश 2 घंटे में पूरा न हो तो वर्कर के फ़ोन में हर 30 मिनट घंटी + बोलकर याद आती है, और आपको '... आदेश 2 घंटे से अधूरे (नाम)' की घंटी वाली रिपोर्ट। हाज़िरी फ़ोटो छूटे या 30 km से दूर जाए तो भी घंटी। 🔔 सूचना → 'पेंडिंग काम सुनाओ' से पूरी सूची।"},
   {t:"पासवर्ड रिकॉर्ड में नहीं है तो नया पासवर्ड कैसे बनाएँ", k:"नया पासवर्ड बदलें बदलना रीसेट reset पासवर्ड नहीं दिख रहा", d:"ऐप में किसी वर्कर का पासवर्ड बदलने का बटन नहीं है। तरीका:\n1. Firebase Console → Authentication → Users में उस मोबाइल नंबर वाला लॉगिन हटाएँ\n2. 👥 वर्कर टैब → 'नया वर्कर जोड़ें' में नाम + वही मोबाइल नंबर डालें (पासवर्ड अपने-आप बनता है)\n3. 'वर्कर जोड़ें' दबाएँ → नया 🔑 पासवर्ड लिस्ट में दिखेगा, WhatsApp से भेजें"},
   {t:"एडमिन (आपका) पासवर्ड भूल गए तो", k:"एडमिन मेरा पासवर्ड भूल गया रीसेट लिंक gmail", d:"लॉगिन पेज पर ऊपर अपनी Gmail लिखें → नीचे 'रीसेट लिंक भेजें' दबाएँ → Gmail में आए लिंक से नया पासवर्ड बनाएँ → उसी Gmail + नए पासवर्ड से लॉगिन करें।"},
   {t:"नई जॉइनिंग की मंज़ूरी कैसे दें", k:"नई जॉइनिंग joining मंज़ूरी approve नया वर्कर फ़ॉर्म आया एक्सेस अनुमति", d:"1. घंटी/सूचना आए तो '👉 खोलें / मंज़ूरी दें' दबाएँ (या 👥 वर्कर टैब)\n2. ⏳ मंज़ूरी बाकी वाले वर्कर पर 🪪 KYC दबाकर फ़ोटो/ID/वीडियो देखें\n3. ठीक हो तो '✅ मंज़ूरी दें' → अब वह लॉगिन कर सकता है\n4. उसका 🔑 पासवर्ड 📲 WhatsApp से भेज दें"},
@@ -1233,10 +1248,101 @@ async function pwFacts(){
   return out;
 }
 
+/* 🆘 वर्कर की अर्ज़ी (बिना लॉगिन): पासवर्ड भूल गए / मोबाइल नंबर बदला → help/{type_mobile} */
+function helpForm(type){
+  const p=$("#popup"); const pre=mobDigits($("#em")?.value||"");
+  p.innerHTML=`<div class="card"><div class="between"><h3 style="margin:0">${type==="pw"?"🔑 पासवर्ड भूल गए":"📱 मोबाइल नंबर बदल गया"}</h3><button class="sec sm" id="hX">बंद</button></div>
+    <p class="muted">${type==="pw"?"अर्ज़ी एडमिन के फ़ोन पर तुरंत घंटी के साथ जाएगी। एडमिन आपके पुराने (रजिस्टर्ड) नंबर के WhatsApp पर पासवर्ड भेजेंगे।":"एडमिन नए नंबर से आपका खाता बना देंगे और नया पासवर्ड नए नंबर के WhatsApp पर भेजेंगे।"}</p>
+    <label>आपका नाम</label><input id="hN" maxlength="60">
+    <label>${type==="pw"?"आपका रजिस्टर्ड मोबाइल नंबर":"पुराना (रजिस्टर्ड) मोबाइल नंबर"}</label><input id="hM" inputmode="numeric" maxlength="13" value="${esc(pre)}">
+    ${type==="mob"?`<label>नया मोबाइल नंबर</label><input id="hNew" inputmode="numeric" maxlength="13">`:""}
+    <div style="margin-top:12px"><button class="ok" id="hGo" style="width:100%">📨 एडमिन को भेजें</button></div></div>`;
+  p.classList.remove("hidden"); $("#hX").onclick=()=>p.classList.add("hidden");
+  $("#hGo").onclick=async()=>{ const name=$("#hN").value.trim(), m=mobDigits($("#hM").value), nm=type==="mob"?mobDigits($("#hNew").value):"";
+    if(name.length<2) return toast("अपना नाम लिखें"); if(!m) return toast("10 अंक का सही मोबाइल नंबर लिखें"); if(type==="mob"&&(!nm||nm===m)) return toast("नया 10 अंक का नंबर लिखें");
+    const b=$("#hGo"); b.disabled=true; b.textContent="भेज रहा है…";
+    try{ await setDoc(doc(db,"help",type+"_"+m),{type,name:name.slice(0,60),mobile:m,newMobile:nm,at:serverTimestamp()});
+      p.innerHTML=`<div class="card"><h3>✅ अर्ज़ी एडमिन को चली गई</h3><p>${type==="pw"?"थोड़ी देर में आपके WhatsApp पर पासवर्ड आएगा। उसे वैसा ही (बड़ा D और डैश -) लिखें।":"नया खाता बनते ही नए नंबर के WhatsApp पर पासवर्ड आएगा। फिर नए नंबर से लॉगिन करें।"}</p><button class="sec" id="hX2" style="width:100%">ठीक है</button></div>`;
+      $("#hX2").onclick=()=>p.classList.add("hidden");
+    }catch(e){ b.disabled=false; b.textContent="📨 एडमिन को भेजें"; toast("अर्ज़ी नहीं गई — एडमिन को फ़ोन/WhatsApp करें ("+errMsg(e)+")"); } };
+}
+const waTo = (m,t) => `https://wa.me/91${m}?text=${encodeURIComponent(t)}`;
+async function findPw(u){ if(u.pw) return u.pw; if(u.id in kycPw) return kycPw[u.id]; try{ const ks=await getDoc(doc(db,"kyc",u.id)); return kycPw[u.id]=ks.exists()?(ks.data().pw||""):""; }catch(_){ return kycPw[u.id]=""; } }
+async function showHelpList(){
+  const p=$("#popup"); p.innerHTML=`<div class="card">लोड हो रहा है…</div>`; p.classList.remove("hidden");
+  let hs=[], us=[];
+  try{ hs=(await getDocs(collection(db,"help"))).docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(toD(b.at)||0)-(toD(a.at)||0)); us=(await getDocs(collection(db,"users"))).docs.map(d=>({id:d.id,...d.data()})); }
+  catch(e){ p.innerHTML=`<div class="card"><h3>🆘 अर्ज़ियाँ</h3><p class="muted">अर्ज़ियाँ नहीं खुलीं: ${esc(errMsg(e))}<br>Firebase नियम एक बार अपडेट करने होंगे: rules.html पेज से कॉपी करके Publish करें।</p><button class="sec" onclick="this.closest('.popup').classList.add('hidden')">बंद</button></div>`; return; }
+  const rows=[];
+  for(const h of hs){ const u=us.find(x=>x.mobile===h.mobile || x.email===h.mobile+"@"+MOB_DOMAIN); const pw=u?await findPw(u):"";
+    rows.push(`<div style="border-bottom:1px solid #e5e7eb;padding:8px 0;${h.done?"opacity:.55":""}"><b>${h.type==="pw"?"🔑 पासवर्ड भूले":"📱 नंबर बदला"}</b> — ${esc(h.name)} · ${esc(h.mobile)}${h.type==="mob"?` → <b>${esc(h.newMobile)}</b>`:""}<br>
+      <span class="muted">${h.at?fmtD(h.at)+" "+fmtT(h.at):""} · ${u?`खाता: ${esc(u.name)}${u.active===false?" (बंद)":""}`:"⚠️ इस नंबर का कोई खाता नहीं मिला"}${h.done?" · ✅ हो गया":""}</span>
+      <div class="row" style="margin-top:6px">${!h.done&&h.type==="pw"&&u&&pw?`<a class="ok sm" style="text-decoration:none;padding:6px 10px;border-radius:8px" data-hd="${esc(h.id)}" target="_blank" rel="noopener" href="${waTo(h.mobile,`नमस्ते ${u.name}, MASTER CONNECTOR लॉगिन:\nमोबाइल: ${h.mobile}\nपासवर्ड: ${pw}\n(बड़ा D और डैश - वैसे ही लिखें)`)}">📲 WhatsApp पर पासवर्ड भेजें</a>`:""}
+      ${!h.done&&h.type==="pw"&&u&&!pw?`<span class="muted">पासवर्ड रिकॉर्ड में नहीं — 'नंबर बदला' की तरह नया खाता बनाएँ: </span><button class="ok sm" data-hn="${esc(h.id)}">🔁 नया पासवर्ड वाला खाता</button>`:""}
+      ${!h.done&&h.type==="mob"&&u&&isOwner?`<button class="ok sm" data-hn="${esc(h.id)}">🔁 नए नंबर से खाता बनाएँ</button>`:""}
+      ${!h.done?`<button class="sec sm" data-hok="${esc(h.id)}">✅ हो गया</button>`:""}<button class="sec sm" data-hdel="${esc(h.id)}">🗑️</button></div></div>`); }
+  p.innerHTML=`<div class="card" style="max-height:85vh;overflow:auto"><div class="between"><h3 style="margin:0">🆘 वर्कर की अर्ज़ियाँ</h3><button class="sec sm" id="hlX">बंद</button></div>
+    <p class="muted">पासवर्ड हमेशा रजिस्टर्ड नंबर के WhatsApp पर जाता है, ताकि कोई दूसरा न ले सके।</p>${rows.join("")||"<p class='muted'>कोई अर्ज़ी नहीं 🎉</p>"}</div>`;
+  $("#hlX").onclick=()=>p.classList.add("hidden");
+  const done=id=>updateDoc(doc(db,"help",id),{done:true,doneAt:serverTimestamp()}).catch(()=>{});
+  p.querySelectorAll("[data-hd]").forEach(a=>a.addEventListener("click",()=>{ done(a.dataset.hd); setTimeout(showHelpList,1500); }));
+  p.querySelectorAll("[data-hok]").forEach(b=>b.onclick=async()=>{ await done(b.dataset.hok); showHelpList(); });
+  p.querySelectorAll("[data-hdel]").forEach(b=>b.onclick=async()=>{ try{ await deleteDoc(doc(db,"help",b.dataset.hdel)); }catch(e){ toast(errMsg(e)); } showHelpList(); });
+  p.querySelectorAll("[data-hn]").forEach(b=>b.onclick=async()=>{ const h=hs.find(x=>x.id===b.dataset.hn), u=us.find(x=>x.mobile===h.mobile || x.email===h.mobile+"@"+MOB_DOMAIN);
+    if(!isOwner) return toast("यह सिर्फ़ मुख्य एडमिन कर सकते हैं");
+    const nm = h.type==="mob" ? h.newMobile : h.mobile;
+    if(h.type==="pw") return toast("पासवर्ड रिकॉर्ड में नहीं — Firebase → Authentication से यह नंबर हटाकर 👥 वर्कर → 'नया वर्कर जोड़ें' से दोबारा जोड़ें");
+    if(!confirm(`${u.name} का नया खाता ${nm} नंबर से बनाएँ? पुराना खाता (${h.mobile}) बंद हो जाएगा।`)) return;
+    b.disabled=true; b.textContent="बना रहा है…";
+    const tmp=initializeApp(firebaseConfig,"mv"+Date.now()), pass=genPw2();
+    try{ const cred=await createUserWithEmailAndPassword(getAuth(tmp), nm+"@"+MOB_DOMAIN, pass);
+      const nd={name:u.name,email:nm+"@"+MOB_DOMAIN,mobile:nm,role:u.role==="trainee"?"trainee":"worker",canEdit:false,active:true,shift:u.shift||"morning",pw:pass,from:u.id,createdAt:serverTimestamp()}; if(u.pay) nd.pay=u.pay;
+      await setDoc(doc(db,"users",cred.user.uid),nd);
+      await updateDoc(doc(db,"users",u.id),{active:false,movedTo:cred.user.uid}).catch(()=>{});
+      await done(h.id);
+      p.innerHTML=`<div class="card"><h3>✅ नया खाता बन गया</h3><p>${esc(u.name)} — मोबाइल ${esc(nm)}<br>पासवर्ड: <b>${esc(pass)}</b></p><a class="ok" style="display:block;text-align:center;text-decoration:none;padding:10px;border-radius:10px" target="_blank" rel="noopener" href="${waTo(nm,`नमस्ते ${u.name}, आपका MASTER CONNECTOR खाता नए नंबर से बन गया:\nमोबाइल: ${nm}\nपासवर्ड: ${pass}\n(बड़ा D और डैश - वैसे ही लिखें)`)}">📲 नए नंबर के WhatsApp पर भेजें</a><button class="sec" id="mvX" style="width:100%;margin-top:8px">बंद</button></div>`;
+      $("#mvX").onclick=()=>p.classList.add("hidden");
+    }catch(e){ toast(errMsg(e)+(String(e.code||"").includes("email-already")?" — यह नया नंबर पहले से किसी खाते में है":"")); b.disabled=false; b.textContent="🔁 नए नंबर से खाता बनाएँ"; }
+    try{ await signOut(getAuth(tmp)); await deleteApp(tmp); }catch(_){} });
+}
+const genPw2 = () => { const A="abcdefghjkmnpqrstuvwxyz", r=crypto.getRandomValues(new Uint32Array(8)); let t="Dip-"; for(let i=0;i<4;i++) t+=A[r[i]%A.length]; for(let i=4;i<8;i++) t+=r[i]%10; return t; };
+/* ✅ नई जॉइनिंग अपने-आप मंज़ूर — KYC में फ़ोटो + ID हो तो (सिर्फ़ लॉगिन; एडमिन अनुमति कभी अपने-आप नहीं) */
+async function autoApprove(){
+  if(!isOwner) return;
+  try{ const us=(await getDocs(collection(db,"users"))).docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.status==="pending");
+    for(const u of us){ try{ const k=(await getDoc(doc(db,"kyc",u.id))).data(); if(k && k.selfie && k.idImg){ await updateDoc(doc(db,"users",u.id),{active:true,status:"auto",autoAt:serverTimestamp()}); vaPush(`${u.name} की जॉइनिंग अपने-आप मंज़ूर हो गई — KYC पूरी थी`, ()=>go("workers")); } }catch(_){} }
+  }catch(_){}
+}
+/* ⏰ रुके काम: 2 घंटे से अधूरे आदेश */
+async function stuckCmds(){
+  const now=Date.now(), [cs,as,us]=await Promise.all([getDocs(query(collection(db,"commands"),orderBy("createdAt","desc"),limit(40))),getDocs(query(collection(db,"acks"),orderBy("at","desc"),limit(1500))),getDocs(collection(db,"users"))]);
+  const acks=as.docs.map(d=>d.data()), act=us.docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.active!==false && u.id!==OWNER_UID && u.role!=="admin" && !u.canEdit);
+  const out=[];
+  cs.docs.forEach(d=>{ const c=d.data(), t=toD(c.createdAt)?.getTime()||now, age=now-t; if(age<2*3600e3 || age>3*86400e3) return;
+    const who = c.to==="all" ? act : act.filter(u=>u.id===c.to); const left = who.filter(u=>!acks.some(a=>a.cmd===d.id && a.uid===u.id && a.status==="done"));
+    if(left.length) out.push({text:c.text, left:left.map(u=>u.name), hrs:Math.round(age/3600e3)}); });
+  return out;
+}
+let vaStuckN = -1;
+function watchStuck(){
+  const chk = async () => { try{ const st=await stuckCmds(); if(st.length > vaStuckN && vaStuckN >= 0) vaPush(`${st.length} आदेश 2 घंटे से अधूरे — ${st.slice(0,2).map(x=>`"${String(x.text).slice(0,30)}" (${x.left.slice(0,3).join(", ")})`).join("; ")}। वर्कर को अपने-आप याद दिलाया जा रहा है`, ()=>go("cmd")); vaStuckN=st.length; }catch(_){} };
+  setTimeout(()=>{ vaStuckN=0; chk(); }, 60e3); sub((()=>{ const iv=setInterval(chk, 30*60e3); return ()=>clearInterval(iv); })());
+}
+/* वर्कर के फ़ोन में: 2 घंटे से अधूरा आदेश हो तो हर 30 मिनट घंटी + बोलकर याद */
+function workerReminder(getCmds){
+  const chk = () => { if(canEdit) return; const now=Date.now();
+    const st=getCmds().filter(c=>{ const t=toD(c.createdAt)?.getTime(); return t && now-t>2*3600e3 && now-t<3*86400e3 && myAcks[c.id]!=="done"; });
+    if(!st.length) return;
+    try{ navigator.vibrate?.([500,200,500,200,500]); }catch(_){}
+    vaSay(`याद दिलाना: ${st.length} आदेश अभी पूरा नहीं हुआ। ${String(st[0].text).slice(0,80)}। काम हो जाए तो हो गया दबाएँ।`);
+    showCommandPopup(st[0].id, st[0]); };
+  setTimeout(chk, 3*60e3); sub((()=>{ const iv=setInterval(chk, 30*60e3); return ()=>clearInterval(iv); })());
+}
+
 function startVoiceAI(){
   if(!window.DipVoiceAI){ if(vaTry++<20) setTimeout(startVoiceAI,500); return; }
   DipVoiceAI.init({ title: canEdit ? "MASTER CONNECTOR" : "मेरा काम", bottom: 78,
-    chips: canEdit ? ["आज का हाल बताओ","कितने काम बाकी हैं?","वर्कर लॉगिन कैसे करें?","पासवर्ड कहाँ मिलेगा?","सभी वर्कर के पासवर्ड","नई जॉइनिंग मंज़ूरी कैसे?","खाता बंद कैसे करें?","ग्राहक मैसेज का जवाब कैसे?"] : ["मेरे कितने आदेश बाकी हैं?","मेरी ड्यूटी का हाल","आज का हाल बताओ"],
+    chips: canEdit ? ["आज का हाल बताओ","कितने काम बाकी हैं?","वर्कर लॉगिन कैसे करें?","पासवर्ड कहाँ मिलेगा?","सभी वर्कर के पासवर्ड","नई जॉइनिंग मंज़ूरी कैसे?","खाता बंद कैसे करें?","मोबाइल नंबर बदल गया","रुका काम कैसे पता चले?","ग्राहक मैसेज का जवाब कैसे?"] : ["मेरे कितने आदेश बाकी हैं?","मेरी ड्यूटी का हाल","आज का हाल बताओ"],
     facts: async () => {
       const F = [], now = new Date(), day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const acksQ = canEdit ? query(collection(db,"acks"),orderBy("at","desc"),limit(1500)) : query(collection(db,"acks"),where("uid","==",me.uid),limit(500));
