@@ -396,7 +396,22 @@ function buildNav(){
   nav.querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.k));
   go(tabs[0][0]);
 }
-function go(k){ tab=k; clearPage(); nav.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.k===k)); window.scrollTo(0,0); ({home:pageHome,workers:pageWorkers,duty:pageDuty,cmd:pageCmd,files:pageFiles,tour:(canEdit?pageTour:pageMyCust),dip:pageDip})[k](); }
+// 🔊 AI से सुनें — हर पेज बोलकर समझाए (फ़ोन की अपनी आवाज़, डेटा नहीं लगता)
+const GUIDE_A={home:"यह होम पेज है। ऊपर अभी ड्यूटी पर या कुल वर्कर का डिब्बा दबाएँ। फिर किसी वर्कर का नाम दबाएँ। अगर वह ड्यूटी पर है तो हरा स्क्रीन और चेहरा देखें बटन दबाकर देखें कि वह सच में काम कर रहा है या नहीं।",
+  workers:"यह वर्कर पेज है। नाम के आगे लाल बंद लिखा हो तो हरा चालू करें बटन दबाएँ। पासवर्ड, शिफ्ट, सैलरी, एडमिन अनुमति और टेलीग्राम यहीं से बदलें।",
+  tour:"यह ग्राहक लिस्ट है। हर ग्राहक के नीचे दिखता है कि वह किस वर्कर का है। चाहें तो वहीं से वर्कर बदल सकते हैं। स्थिति में नया, बात हुई या पूरा चुनें।",
+  cmd:"यह कमांड पेज है। आदेश लिखें, वर्कर चुनें और भेजें दबाएँ। वर्कर के फ़ोन पर तुरंत पहुँच जाएगा।",
+  files:"यह फ़ाइलें पेज है। यहाँ फ़ाइल डालें, वर्कर इसे अपने फ़ोन में खोल या डाउनलोड कर सकेंगे।",
+  dip:"यह डीआईपी पेज है। यहाँ से डीआईपी मास्टर ऐप चालू या बंद करें।"};
+const GUIDE_W={duty:"यह ड्यूटी पेज है। काम शुरू करते समय ड्यूटी शुरू करें दबाएँ। फ़ोन लोकेशन, कैमरा या स्क्रीन की अनुमति माँगे तो अनुमति दें। ड्यूटी के समय कोई निजी वीडियो न खोलें। काम खत्म होने पर ड्यूटी खत्म करें दबाएँ और रिपोर्ट भरें।",
+  tour:"यह ग्राहक पेज है। ऊपर आपका रेफर आईडी और लिंक है। कॉपी बटन से या व्हाट्सऐप पर भेजें बटन से लिंक ग्राहक को भेजें। जो ग्राहक इस लिंक से या आपका रेफर आईडी लिखकर रजिस्टर करेगा, वह नीचे आपकी लिस्ट में आएगा। हर ग्राहक से बात करके फॉलो-अप लिखें।",
+  cmd:"यह सूचना पेज है। एडमिन के आदेश यहाँ आते हैं। आदेश पढ़कर ठीक है दबाएँ और काम पूरा करें।",
+  files:"यह फ़ाइलें पेज है। एडमिन की भेजी फ़ाइलें यहाँ हैं, इन्हें खोलें या डाउनलोड करें।",
+  dip:"यह डीआईपी पेज है। यहाँ डीआईपी मास्टर की जानकारी है।"};
+function guideBtn(k){ let g=$("#guideBtn"); if(!g){ g=document.createElement("button"); g.id="guideBtn"; g.style.cssText="position:fixed;left:12px;bottom:150px;z-index:40;width:auto;padding:9px 14px;border-radius:24px;box-shadow:0 3px 10px rgba(0,0,0,.25)"; document.body.appendChild(g); }
+  const txt=(canEdit?GUIDE_A:GUIDE_W)[k]||""; g.classList.toggle("hidden",!txt); try{ speechSynthesis.cancel(); }catch(_){} g.textContent="🔊 AI से सुनें";
+  g.onclick=()=>{ try{ if(speechSynthesis.speaking){ speechSynthesis.cancel(); g.textContent="🔊 AI से सुनें"; return; } const u=new SpeechSynthesisUtterance(txt); u.lang="hi-IN"; u.rate=0.95; u.onend=u.onerror=()=>{ g.textContent="🔊 AI से सुनें"; }; speechSynthesis.speak(u); g.textContent="⏹ रोकें"; }catch(_){ try{ vaSay(txt); }catch(__){} } }; }
+function go(k){ tab=k; clearPage(); guideBtn(k); nav.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.k===k)); window.scrollTo(0,0); ({home:pageHome,workers:pageWorkers,duty:pageDuty,cmd:pageCmd,files:pageFiles,tour:(canEdit?pageTour:pageMyCust),dip:pageDip})[k](); }
 
 /* ---------- 🖥️ स्क्रीन + 🙂 चेहरा — PC/लैपटॉप: ब्राउज़र स्क्रीन-शेयर · फ़ोन ऐप: native (MainActivity) ---------- */
 let scrStream = null, scrStopIv = null, scrStopLive = null, scrReqUnsub = null, scrFor = null, scrNativeAsked = false;

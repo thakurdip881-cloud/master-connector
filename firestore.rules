@@ -169,7 +169,7 @@ service cloud.firestore {
       // वर्कर सिर्फ़ अपने link (ref) से जुड़े ग्राहक देख सके
       allow read: if editor() || (tCust() && request.auth.uid == uid) || (active() && resource.data.ref == request.auth.uid);
       allow create: if tCust() && request.auth.uid == uid && !exists(/databases/$(db)/documents/tCustomers/$(uid))
-        && request.resource.data.keys().hasOnly(['uid', 'name', 'mobile', 'wa', 'mail', 'tg', 'idType', 'idNo', 'consent', 'at', 'ref'])
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'mobile', 'wa', 'mail', 'tg', 'idType', 'idNo', 'consent', 'at', 'ref', 'refCode'])
         && (!('ref' in request.resource.data) || (request.resource.data.ref is string && request.resource.data.ref.size() < 64 && exists(userDoc(request.resource.data.ref))))
         && request.resource.data.uid == uid && request.resource.data.consent == true
         && (request.resource.data.idType != 'aadhaar' || request.resource.data.idNo.matches('XXXX-XXXX-[0-9]{4}'));
