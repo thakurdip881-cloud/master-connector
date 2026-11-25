@@ -340,7 +340,7 @@ async function showJoin(){
 }
 
 document.addEventListener("click", async e => { const w=e.target.closest(".watchreq"); if(!w) return; w.disabled=true;
-  try{ await updateDoc(doc(db,"duty",w.dataset.id),{watchReq:serverTimestamp()}); toast("👁️ स्क्रीन + चेहरे का 30 सेकंड वीडियो माँगा"); if(w.dataset.uid) showScreen(w.dataset.uid, w.dataset.name||"वर्कर"); }catch(err){ toast(errMsg(err)); } setTimeout(()=>{ w.disabled=false; },3000); });
+  try{ await updateDoc(doc(db,"duty",w.dataset.id),{watchReq:serverTimestamp()}); toast("👁️ स्क्रीन + चेहरे का 30 सेकंड वीडियो माँगा"); if(w.dataset.uid) showScreen(w.dataset.uid, w.dataset.name||"वर्कर", w.dataset.id); }catch(err){ toast(errMsg(err)); } setTimeout(()=>{ w.disabled=false; },3000); });
 document.addEventListener("click", async e => { const v=e.target.closest(".vidrec"); if(!v) return; v.disabled=true; v.textContent="लोड हो रहा है…";
   try{ const rec=v.dataset.rec; const ps=(await getDocs(query(collection(db,"dutyVid"),where("rec","==",rec)))).docs.map(d=>d.data()).sort((a,b)=>a.i-b.i); const url=ps.map(p=>p.part).join("");
     if(!/^data:video\/(webm|mp4);base64,[A-Za-z0-9+/=]+$/.test(url)) throw 0; (v.nextElementSibling||v.closest("div").nextElementSibling||v.parentElement).innerHTML=`<video src="${url}" controls playsinline style="max-width:100%;border-radius:12px;background:#000"></video>`; v.remove();
@@ -472,14 +472,20 @@ async function pcAsk(){
     }catch(e){ b.disabled=false; m.textContent="⚠️ नहीं भेजा जा सका: "+errMsg(e); } };
 }
 // 🖥️ मालिक: वर्कर की लाइव स्क्रीन
-function showScreen(uid, name){
-  const p=$("#popup"); p.classList.remove("hidden"); let un=null;
+function showScreen(uid, name, dutyId, back){
+  const p=$("#popup"); p.classList.remove("hidden"); let un=null, unF=null;
   const ask=async()=>{ try{ await setDoc(doc(db,"screenReq",uid),{until:Timestamp.fromDate(new Date(Date.now()+120000)),by:me.uid,at:serverTimestamp()}); }catch(e){ toast(errMsg(e)); } };
-  p.innerHTML=`<div class="card" style="max-height:90vh;overflow:auto"><div class="between"><h3 style="margin:0">🖥️ ${esc(name)} की स्क्रीन</h3><button class="sec sm" id="ssX">बंद</button></div>
+  p.innerHTML=`<div class="card" style="max-height:90vh;overflow:auto"><div class="between"><h3 style="margin:0">🖥️ ${esc(name)} की स्क्रीन</h3><span>${back?`<button class="sec sm" id="ssB">⬅ वापस</button> `:""}<button class="sec sm" id="ssX">बंद</button></span></div>
     <p class="muted" id="ssT">⏳ स्क्रीन आ रही है (हर 5 सेकंड नई, 2 मिनट तक)…</p><div id="ssI"></div>
     <button class="sec" id="ssM" style="width:100%;margin-top:8px">🔄 2 मिनट और देखें</button>
-    <p class="muted">🙂 चेहरे + स्क्रीन का 30 सेकंड वीडियो होम पर "🎥 आखिरी रिकॉर्डिंग देखें" में आएगा।</p></div>`;
-  $("#ssX").onclick=()=>{ try{ un&&un(); }catch(_){} p.classList.add("hidden"); };
+    ${dutyId?`<h3 style="margin:14px 0 4px">🙂 चेहरा</h3><div id="ssF" class="muted">⏳ चेहरे + स्क्रीन का 30 सेकंड वीडियो आ रहा है… वर्कर का ऐप खुला होना चाहिए</div>`:`<p class="muted">🙂 चेहरे + स्क्रीन का 30 सेकंड वीडियो होम पर "🎥 आखिरी रिकॉर्डिंग देखें" में आएगा।</p>`}</div>`;
+  const stop=()=>{ try{ un&&un(); unF&&unF(); }catch(_){} };
+  $("#ssX").onclick=()=>{ stop(); p.classList.add("hidden"); };
+  { const bb=$("#ssB"); if(bb) bb.onclick=()=>{ stop(); back(); }; }
+  if(dutyId){ const t0=Date.now(); unF=onSnapshot(doc(db,"duty",dutyId), s=>{ const d=s.data()||{}, f=$("#ssF"); if(!f) return;
+    const fresh=d.vidRec && (toD(d.watchAt)?.getTime()||0) > t0-60000, key=`${fresh}|${d.vidRec||""}|${d.chkImg?String(d.chkImg).length:0}`; if(f.dataset.k===key) return; f.dataset.k=key;
+    f.innerHTML=(fresh?`<button class="sec vidrec" data-rec="${esc(d.vidRec)}" style="width:100%">🎥 नया 30 सेकंड वीडियो (चेहरा + स्क्रीन) देखें</button><div></div>`:`<p class="muted">⏳ चेहरे + स्क्रीन का 30 सेकंड वीडियो आ रहा है… वर्कर का ऐप खुला होना चाहिए</p>${d.vidRec?`<button class="sec sm vidrec" data-rec="${esc(d.vidRec)}">🎥 पिछली रिकॉर्डिंग देखें</button><div></div>`:""}`)
+      +(safeImg(d.chkImg)?`<p class="muted" style="margin-top:8px">📸 आखिरी सेल्फ़ी जाँच: ${fmtT(d.chkAt)}</p><img src="${safeImg(d.chkImg)}" style="width:120px;height:120px;object-fit:cover;border-radius:10px">`:""); }, ()=>{}); }
   $("#ssM").onclick=()=>{ ask(); toast("🔄 2 मिनट और"); };
   ask();
   un=onSnapshot(doc(db,"screens",uid), s=>{ const x=s.data(); const t=$("#ssT"), i=$("#ssI"); if(!t) return;
@@ -686,8 +692,10 @@ async function showWorkerLog(u, duties, onlyOn){
   let day=""; const html=ev.map(e=>{ const dk=e.t?e.t.toLocaleDateString("hi-IN",{weekday:"short",day:"numeric",month:"short"}):""; const h=dk!==day?`<p style="margin:12px 0 4px;font-weight:700">📅 ${dk}</p>`:""; day=dk;
     return h+`<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #eee"><span style="min-width:62px" class="muted">${e.t?fmtT(e.t):""}</span><span>${e.i} ${e.m}</span></div>`; }).join("");
   p.innerHTML=`<div class="card" style="max-height:85vh;overflow:auto"><div class="between"><h3 style="margin:0">📋 ${esc(u.name)}</h3><span><button class="sec sm" id="wlb">⬅ वापस</button> <button class="sec sm" id="wlx2">बंद</button></span></div>
-    <p class="muted">📱 ${esc(u.mobile||"")}${payText(u.pay)?` · 💰 ${esc(payText(u.pay))}`:""}</p>${u.invite?`<button id="wlk" style="width:100%;margin:6px 0 10px">🪪 पूरा डेटा देखें (फ़ोटो, ID, वीडियो)</button>`:""}${html||`<p class="muted">अभी कोई ड्यूटी या रिपोर्ट नहीं</p>`}</div>`;
+    <p class="muted">📱 ${esc(u.mobile||"")}${payText(u.pay)?` · 💰 ${esc(payText(u.pay))}`:""}</p>${duties.find(d=>!d.end)?`<button id="wlw" class="ok" style="width:100%;margin:6px 0">👁️ स्क्रीन + चेहरा देखें (अभी ड्यूटी पर)</button>`:`<p class="muted">👁️ स्क्रीन + चेहरा तभी दिखेगा जब यह वर्कर ड्यूटी पर हो</p>`}${u.invite?`<button id="wlk" style="width:100%;margin:6px 0 10px">🪪 पूरा डेटा देखें (फ़ोटो, ID, वीडियो)</button>`:""}${html||`<p class="muted">अभी कोई ड्यूटी या रिपोर्ट नहीं</p>`}</div>`;
   $("#wlx2").onclick=()=>p.classList.add("hidden"); $("#wlb").onclick=()=>showWorkerList(onlyOn); const wk=$("#wlk"); if(wk) wk.onclick=()=>showKyc(u,()=>showWorkerLog(u,duties,onlyOn));
+  const ww=$("#wlw"); if(ww) ww.onclick=async()=>{ const od=duties.find(d=>!d.end); ww.disabled=true;
+    try{ await updateDoc(doc(db,"duty",od.id),{watchReq:serverTimestamp()}); toast("👁️ स्क्रीन + चेहरे का 30 सेकंड वीडियो माँगा"); showScreen(u.id,u.name||"वर्कर",od.id,()=>showWorkerLog(u,duties,onlyOn)); }catch(err){ toast(errMsg(err)); ww.disabled=false; } };
 }
 /* ---------- 🧳 DIP Tour & Travels — ग्राहक पैनल (डेटा अलग: tCustomers, tTxn, tMsgs, tDocs) ---------- */
 const TOUR_URL="https://thakurdip881-cloud.github.io/master-connector/tour/";
