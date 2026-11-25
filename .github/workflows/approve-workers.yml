@@ -1,0 +1,35 @@
+# ✅ 3 वर्करों को मंज़ूरी (user ने 25-11 को कहा) — हाथ से Run।
+# repo public है: नंबर की जगह सिर्फ़ hash, log में सिर्फ़ 1/2/3 और गिनती।
+name: Approve workers
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: मंज़ूरी
+        env: { SA: '${{ secrets.FIREBASE_SA }}' }
+        run: |
+          [ -z "$SA" ] && { echo "सेवा खाता नहीं"; exit 1; }
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npm i --silent --no-save firebase-admin@12 >/dev/null 2>&1
+          node -e '
+          const a=require("firebase-admin"), cr=require("crypto"); a.initializeApp({credential:a.credential.applicationDefault(),projectId:"master-connector-f2a0d"});
+          const db=a.firestore(), auth=a.auth();
+          const H=["83a9f866fd5860fcebc20ee30ffda98c201694c0d930df64c292ab7b6d22190c","29f1aa1a52d6426dac886f5146437473872cf69f195c79db79af051cd00a5569","b502e266282bd1256dfa844b15ae5424632c52dbb2f092cc3c7e8a1ed388bf44"];
+          const h=m=>cr.createHash("sha256").update(String(m||"").replace(/\D/g,"").slice(-10)).digest("hex");
+          (async()=>{ const s=await db.collection("users").get(); const found=H.map(()=>[]);
+            s.docs.forEach(d=>{ const i=H.indexOf(h(d.data().mobile)); if(i>=0) found[i].push(d); });
+            for(let i=0;i<3;i++){ const ds=found[i];
+              if(!ds.length){ console.log("WORKER",i+1,"खाता नहीं मिला"); continue; }
+              for(const d of ds){ const u=d.data(), was=(u.status||"-")+"/"+(u.active===false?"off":"on");
+                await d.ref.set({active:true,status:(u.status==="pending"||u.status==="blocked"||u.active===false)?"approved":(u.status||"approved"),approvedAt:a.firestore.FieldValue.serverTimestamp(),approvedBy:"owner-request"},{merge:true});
+                let login="auth?"; try{ await auth.updateUser(d.id,{disabled:false}); login="login-on"; }catch(e){ login="auth:"+(e.code||"err"); }
+                console.log("WORKER",i+1,"पहले",was,"→ अब approved/on,",login); } }
+          })().catch(e=>{console.log("ERR",e.code||"");process.exit(1)});'
+          rm -f "$RUNNER_TEMP/sa.json"
