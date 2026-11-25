@@ -162,7 +162,7 @@ service cloud.firestore {
     // 🆔 वर्कर का छोटा रेफर ID → uid (ग्राहक फ़ॉर्म पढ़ता है)
     match /refCodes/{code} {
       allow read: if true;
-      allow create: if active() && code.matches('([0-9]{8}|DIP[A-Z0-9]{4,6})') && request.resource.data.keys().hasOnly(['uid']) && request.resource.data.uid == request.auth.uid;
+      allow create: if active() && code.matches('([0-9]{8}|DIP[A-Z0-9]{4,6})') && request.resource.data.keys().hasOnly(['uid']) && (request.resource.data.uid == request.auth.uid || (editor() && exists(userDoc(request.resource.data.uid))));
       allow update, delete: if editor();
     }
     match /tCustomers/{uid} {
@@ -173,7 +173,9 @@ service cloud.firestore {
         && (!('ref' in request.resource.data) || (request.resource.data.ref is string && request.resource.data.ref.size() < 64 && exists(userDoc(request.resource.data.ref))))
         && request.resource.data.uid == uid && request.resource.data.consent == true
         && (request.resource.data.idType != 'aadhaar' || request.resource.data.idNo.matches('XXXX-XXXX-[0-9]{4}'));
-      allow update: if editor();
+      allow update: if editor() || (tCust() && request.auth.uid == uid && !('ref' in resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ref', 'refCode'])
+        && request.resource.data.ref is string && exists(userDoc(request.resource.data.ref)));
       allow delete: if isOwner();
     }
     match /tMsgs/{id} {

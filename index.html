@@ -757,17 +757,29 @@ function pageTour(){
 }
 /* 👷 वर्कर: मेरे ग्राहक — अपना link + सिर्फ़ अपने ग्राहक + follow-up */
 // 🆔 वर्कर का रेफर ID — 8 अंक का नंबर (जैसे 13174393) — refCodes/{ID} = {uid}
-async function myRefCode(){
-  try{ const q=await getDocs(query(collection(db,"refCodes"),where("uid","==",me.uid),limit(10))); const num=q.docs.map(d=>d.id).find(id=>/^\d{8}$/.test(id)); if(num) return num;
+async function myRefCode(uid){ uid=uid||me.uid;
+  try{ const q=await getDocs(query(collection(db,"refCodes"),where("uid","==",uid),limit(10))); const num=q.docs.map(d=>d.id).find(id=>/^\d{8}$/.test(id)); if(num) return num;
     for(let i=0;i<8;i++){ const id=String(10000000+Math.floor(Math.random()*90000000)), r=doc(db,"refCodes",id);
-      if((await getDoc(r)).exists()) continue; await setDoc(r,{uid:me.uid}); return id; }
+      if((await getDoc(r)).exists()) continue; await setDoc(r,{uid}); return id; }
   }catch(_){} return "";
+}
+// 👥 एडमिन: किसी भी वर्कर का 8 अंक ID + ग्राहक link — कॉपी / WhatsApp
+async function showRefLink(u){ const p=$("#popup"); p.classList.remove("hidden"); p.innerHTML=`<div class="card">लोड हो रहा है…</div>`;
+  const code=await myRefCode(u.id); if(!code){ p.innerHTML=`<div class="card">ID नहीं बन पाया, इंटरनेट देखकर फिर कोशिश करें <button class="sec sm" id="rlx">बंद</button></div>`; $("#rlx").onclick=()=>p.classList.add("hidden"); return; }
+  const link=TOUR_URL+"?ref="+code, msg="नमस्ते! DIP Tour & Travels में रजिस्टर करें: "+link+"\nवर्कर ID: "+code, m=mobDigits(u.mobile);
+  const cp=(t,ok)=>{ try{ navigator.clipboard.writeText(t).then(()=>toast(ok),()=>toast("कॉपी नहीं हुआ")); }catch(_){ toast("कॉपी नहीं हुआ"); } };
+  p.innerHTML=`<div class="card"><div class="between"><h3 style="margin:0">🆔 ${esc(u.name)}</h3><button class="sec sm" id="rlx">बंद</button></div>
+    <p style="font-size:22px;margin:10px 0 4px">वर्कर ID: <b>${esc(code)}</b></p><button id="rlc" style="width:100%">📋 ID कॉपी</button>
+    <p class="muted" style="margin:12px 0 4px">ग्राहक link:</p><input readonly value="${esc(link)}" style="width:100%"><button id="rll" style="width:100%;margin-top:6px">📋 link कॉपी</button>
+    <button id="rlm" class="sec" style="width:100%;margin-top:6px">📋 पूरा मैसेज कॉपी (link + ID)</button>
+    ${m?`<a href="https://wa.me/91${m}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="text-decoration:none"><button class="ok" style="width:100%;margin-top:6px">💬 ${esc(u.name)} को WhatsApp पर भेजें</button></a>`:""}</div>`;
+  $("#rlx").onclick=()=>p.classList.add("hidden"); $("#rlc").onclick=()=>cp(code,"📋 ID कॉपी हो गया"); $("#rll").onclick=()=>cp(link,"📋 link कॉपी हो गया"); $("#rlm").onclick=()=>cp(msg,"📋 मैसेज कॉपी हो गया");
 }
 async function pageMyCust(){
   const t0=tab, code=await myRefCode(); if(tab!==t0) return; const link=TOUR_URL+"?ref="+(code||me.uid), today=new Date().toISOString().slice(0,10);
   app.innerHTML=`<div class="card" style="border:2px solid #0e8a6a"><h3>🔗 मेरा ग्राहक link</h3>${code?`<p style="font-size:20px;margin:4px 0">🆔 मेरा वर्कर ID: <b>${esc(code)}</b> <button id="myCc" class="sec sm" style="width:auto">📋 कॉपी</button></p>`:""}<p class="muted">यह link ग्राहक को भेजें। जो इससे रजिस्टर करेगा (या फ़ॉर्म में यह वर्कर ID लिखेगा), वह सीधे आपके ग्राहक में आएगा।</p>
     <div class="row" style="gap:6px"><input id="myLink" readonly value="${esc(link)}" style="flex:1"><button id="myCp" style="flex:none;width:auto">📋 कॉपी</button></div>
-    <a href="https://wa.me/?text=${encodeURIComponent("नमस्ते! DIP Tour & Travels में रजिस्टर करें: "+link)}" target="_blank" rel="noopener" style="text-decoration:none"><button class="ok" style="width:100%;margin-top:8px">💬 WhatsApp पर भेजें</button></a></div>
+    <a href="https://wa.me/?text=${encodeURIComponent("नमस्ते! DIP Tour & Travels में रजिस्टर करें: "+link+(code?"\nवर्कर ID: "+code:""))}" target="_blank" rel="noopener" style="text-decoration:none"><button class="ok" style="width:100%;margin-top:8px">💬 WhatsApp पर भेजें</button></a></div>
     <div class="card"><h3>🧳 मेरे ग्राहक <span class="pill" id="mcN">0</span></h3><div class="list" id="mcL"><p class="muted">लोड हो रहा है…</p></div></div>`;
   { const cc=$("#myCc"); if(cc) cc.onclick=()=>{ try{ navigator.clipboard.writeText(code).then(()=>toast("📋 रेफर ID कॉपी हो गया")); }catch(_){} }; }
   $("#myCp").onclick=()=>{ try{ navigator.clipboard.writeText(link).then(()=>toast("📋 link कॉपी हो गया"),()=>{ $("#myLink").select(); document.execCommand("copy"); toast("📋 link कॉपी हो गया"); }); }catch(_){ $("#myLink").select(); } };
@@ -1055,6 +1067,7 @@ function pageWorkers(){
         <button class="sec sm" data-a="shift" data-id="${u.id}">शिफ्ट बदलें</button>
         <button class="sec sm" data-a="pay" data-id="${u.id}">💰 सैलरी/कमीशन</button>
         <button class="sec sm" data-a="perm" data-id="${u.id}">${u.canEdit?"अनुमति हटाएँ":"एडमिन अनुमति दें"}</button>
+        <button class="sm" data-a="ref" data-id="${u.id}" style="background:#0e8a6a">🆔 वर्कर ID / link</button>
         <button class="sec sm" data-a="pwr" data-id="${u.id}">🔁 नया पासवर्ड</button>
         <button class="sm" data-a="tg" data-id="${u.id}" style="background:${u.tgLinked?"#0a7d3b":"#229ED9"}">✈️ ${u.tgLinked?"Telegram ✔":"Telegram जोड़ें"}</button>
         ${u.invite?`<button class="sec sm" data-a="kyc" data-id="${u.id}">🪪 KYC</button>`:""}
@@ -1070,6 +1083,7 @@ function pageWorkers(){
         if(b.dataset.a==="perm"){ if(!confirm(u.canEdit?"इस व्यक्ति से एडमिन अनुमति हटाएँ?":"इस व्यक्ति को बदलाव करने की अनुमति दें?")) return; await updUser(u.id,{canEdit:!u.canEdit}); }
         if(b.dataset.a==="kyc"){ return showKyc(u); }
         if(b.dataset.a==="tg"){ return tgLink(u); }
+        if(b.dataset.a==="ref"){ return showRefLink(u); }
         if(b.dataset.a==="pwr"){ if(!confirm(u.name+" का लॉगिन पासवर्ड बदलकर नया बनाऊँ? पुराना काम नहीं करेगा।")) return; await pwReset(u); return; }
         if(b.dataset.a==="pay"){ return showPay(u); }
         if(b.dataset.a==="name"){ const n=(prompt("नया नाम लिखें:", u.name||"")||"").trim().slice(0,40); if(!n || n===u.name) return; await updUser(u.id,{name:n}); if(u.id===me.uid){ profile.name=n; $("#who").textContent=`${n} · मुख्य एडमिन`; } }
