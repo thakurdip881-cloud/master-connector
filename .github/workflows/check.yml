@@ -21,3 +21,28 @@ jobs:
           echo "FS users list unauth (new rules => 403): $(curl -s -o /dev/null -w '%{http_code}' "$B/users")"
           echo "FS duty list unauth (new rules => 403): $(curl -s -o /dev/null -w '%{http_code}' "$B/duty")"
           echo "FS invites get unauth (new rules => 404, old closed => 403): $(curl -s -o /dev/null -w '%{http_code}' "$B/invites/zzzzzzzzzzzzzzzzzzzz")"
+      - name: हर पेज + APK की पक्की जाँच (cross verify)
+        run: |
+          G='https://thakurdip881-cloud.github.io/master-connector'; BAD=0
+          chk(){ # नाम URL कम-से-कम-बाइट [ज़रूरी शब्द]
+            r=$(curl -sL --max-time 30 -o /tmp/f -w '%{http_code}' "$2"); n=$(stat -c%s /tmp/f 2>/dev/null || echo 0); ok=1
+            [ "$r" = "200" ] || ok=0; [ "$n" -ge "$3" ] || ok=0
+            if [ -n "$4" ] && ! grep -q "$4" /tmp/f; then ok=0; fi
+            if [ $ok = 1 ]; then echo "✅ $1 ($r, $n bytes)"; else echo "❌ $1 — कोड $r, $n bytes ${4:+(शब्द '$4' नहीं मिला)} — $2"; BAD=$((BAD+1)); fi; }
+          chk "MASTER CONNECTOR वेब" "$G/" 20000 "aiAction"
+          chk "MASTER CONNECTOR AI (voice-ai.js)" "$G/voice-ai.js" 3000 "DipVoiceAI"
+          chk "DIP Master AI साइट" "$G/dip/" 2000
+          chk "DIP Control Panel" "$G/dip/admin.html" 2000 "tokPaste"
+          chk "टूर ग्राहक साइट" "$G/tour/" 2000
+          chk "Firebase नियम पेज" "$G/rules.html" 500
+          chk "सारे लिंक पेज" "$G/links.html" 500
+          chk "APK संस्करण सूची" "$G/apps/versions.json" 20 "partner"
+          chk "APK: DIP Master AI" "$G/dip/DIP-Master-AI.apk" 50000
+          chk "APK: 30% Partner" "$G/apps/30-Partner.apk" 50000
+          chk "APK: DIP सहायक" "$G/apps/DIP-Sahayak.apk" 50000
+          chk "APK: DIP सफ़ाई" "$G/apps/DIP-Safai.apk" 50000
+          chk "APK: MASTER CONNECTOR" "https://github.com/thakurdip881-cloud/master-connector/releases/latest/download/MasterConnector.apk" 50000
+          chk "APK: टूर ग्राहक" "https://github.com/thakurdip881-cloud/master-connector/releases/download/tour-apk-v1/DipTour.apk" 50000
+          chk "ट्रेनिंग साइट" "https://github-netlify-deploy-0cc412.netlify.app/" 500
+          echo "CROSS_VERIFY_BAD $BAD"
+          if [ $BAD -gt 0 ]; then echo "::error::$BAD पेज/APK में गड़बड़ी — ऊपर ❌ देखें"; exit 1; fi

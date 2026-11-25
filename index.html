@@ -1198,6 +1198,7 @@ const GUIDE_ADMIN = [
   {t:"वर्कर को आदेश / कमांड कैसे भेजें", k:"आदेश कमांड भेजें सूचना हुक्म", d:"नीचे 📢 कमांड टैब → 'नई कमांड भेजें' में काम लिखें → सबको या एक वर्कर चुनें → भेजें। किसने देखा/पूरा किया 'भेजी गई कमांड' में दिखेगा, पूरा होने पर घंटी भी बजेगी।"},
   {t:"ड्यूटी, लोकेशन और हाज़िरी कैसे देखें", k:"ड्यूटी लोकेशन जगह दूर 30 km हाज़िरी फ़ोटो रिपोर्ट excel", d:"🏠 होम पर 'अभी ड्यूटी पर' में हर वर्कर की जगह। ड्यूटी की जगह से 30 km से दूर गया तो 🚩 और घंटी। हाज़िरी फ़ोटो न दे तो भी घंटी। 'रिपोर्ट Excel' / 'ड्यूटी Excel' से फ़ाइल।"},
   {t:"घंटी और बोलकर सूचना (चालू/बंद)", k:"घंटी रिंग सूचना notification आवाज़ बोलकर alert चालू बंद", d:"नीचे बाएँ 🔔 सूचना बटन → 'पेंडिंग काम सुनाओ', 'घंटी जाँचें', चालू/बंद। नई जॉइनिंग, रिपोर्ट, ड्यूटी, आदेश पूरा, प्लान अर्ज़ी पर घंटी बजती है (ऐप खुला या पीछे चलता हो तब)।"},
+  {t:"सारे पेज और APK ठीक हैं या नहीं", k:"पेज साइट apk लिंक खुल नहीं रहा down जाँच वेरिफाई verify", d:"बोलें \"सिस्टम जाँचो\" — AI फ़ोन से ही सारे 11 पेज/APK खोलकर देखता है और ❌ वाले का नाम बताता है। इसके अलावा GitHub रोज़ 9:11, 2:11 और 7:11 बजे अपने-आप सब जाँचता है (Health check)। हर पेज अलग है — एक खराब हो तो बाकी चलते रहते हैं।"},
   {t:"फ़ाइल या लिंक वर्कर से शेयर करना", k:"फ़ाइल लिंक शेयर अपलोड file", d:"नीचे 📁 फ़ाइलें टैब → 'फ़ाइल / लिंक शेयर करें' → नाम + फ़ाइल/लिंक → भेजें। सब वर्कर देख सकेंगे।"},
   {t:"DIP ग्राहक को प्लान / License देना", k:"dip प्लान license अर्ज़ी device ग्राहक ट्रायल", d:"नीचे ⚡ DIP टैब → '📝 प्लान की अर्ज़ियाँ' में ✅ प्लान दें, या '🔑 प्लान दें (Device ID से)' में Device ID डालें।"},
   {t:"ऐप अपडेट (नया APK) कैसे करें", k:"अपडेट update apk नया संस्करण वर्ज़न install", d:"साइट वाले बदलाव ऐप दोबारा खोलते ही आ जाते हैं। फ़ोन वाला नया APK आए तो links पेज से डाउनलोड करके Install दबाएँ — Uninstall की ज़रूरत नहीं।"}
@@ -1533,7 +1534,15 @@ async function sysCheck(){
     if(noPw.length) I.push({sev:"🔑", text:`${noPw.length} चालू वर्कर का पासवर्ड रिकॉर्ड में नहीं: ${noPw.join(", ")} — भूल गए तो नया खाता बनाना पड़ेगा`, fix:null}); }
   const admins = us.filter(u=>u.canEdit && u.active!==false); if(admins.length) I.push({sev:"👑", text:`एडमिन अनुमति वाले: ${admins.map(u=>u.name).join(", ")} (ठीक है ना?)`, fix:null, info:true});
   try{ const au = await auditList(24); if(au.length) I.push({sev:"📜", text:`पिछले 24 घंटे में ${au.length} बदलाव (${[...new Set(au.map(a=>a.byName))].join(", ")} ने)`, fix:{label:"📜 देखें / वापस लें", run: async()=>{ setTimeout(showAudit,200); return "📜 बदलाव का रिकॉर्ड खोल दिया।"; }}, info:true}); }catch(_){}
+  try{ const sc = await siteCheck(); if(sc.bad.length) I.push({sev:"🌐", text:`${sc.bad.length} पेज/APK नहीं खुल रहे: ${sc.bad.join(", ")}`, fix:null}); else I.push({sev:"🌐", text:`सारे ${sc.ok} पेज और APK ठीक खुल रहे हैं`, fix:null, info:true}); }catch(_){}
   return { I, open: open.length, act: act.length };
+}
+/* 🌐 हर पेज + APK की जाँच (फ़ोन से ही, फ़्री) — एक पेज खराब हो तो बाकी पर असर नहीं, बस यहाँ ❌ दिखेगा */
+async function siteCheck(){
+  const G = "https://thakurdip881-cloud.github.io/master-connector/";
+  const L = [["MASTER CONNECTOR",G],["AI (पूछें)",G+"voice-ai.js"],["DIP Master AI साइट",G+"dip/"],["DIP Control Panel",G+"dip/admin.html"],["टूर ग्राहक साइट",G+"tour/"],["लिंक पेज",G+"links.html"],["APK संस्करण सूची",G+"apps/versions.json"],["APK DIP Master AI",G+"dip/DIP-Master-AI.apk"],["APK 30% Partner",G+"apps/30-Partner.apk"],["APK सहायक",G+"apps/DIP-Sahayak.apk"],["APK सफ़ाई",G+"apps/DIP-Safai.apk"]];
+  const res = await Promise.all(L.map(async ([n,u]) => { try{ const r = await fetch(u + (u.includes("?")?"&":"?") + "t=" + Date.now(), { method:"HEAD", cache:"no-store" }); return r.ok ? null : n; }catch(_){ return n; } }));
+  const bad = res.filter(Boolean); return { ok: L.length - bad.length, bad };
 }
 function sysReport(r){
   const bad = r.I.filter(x=>!x.info);
