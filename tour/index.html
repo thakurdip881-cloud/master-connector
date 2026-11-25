@@ -76,6 +76,8 @@ import { getFirestore, doc, getDoc, setDoc, addDoc, collection, query, where, li
 const app0=initializeApp({apiKey:"AIzaSyApw_GttyXeEmHFvKlJjoQFI11KuL4ahxI",authDomain:"master-connector-f2a0d.firebaseapp.com",projectId:"master-connector-f2a0d",storageBucket:"master-connector-f2a0d.firebasestorage.app",messagingSenderId:"542800382335",appId:"1:542800382335:web:8bf9d3ac9ad3b7906bb24a"},"tour");
 const auth=getAuth(app0), db=getFirestore(app0); setPersistence(auth,browserLocalPersistence).catch(()=>{});
 const DOM="customer.diptour.app", OWNER_MAIL="thakurdip881@gmail.com";
+// 👷 वर्कर का ग्राहक link (?ref=वर्कर-ID) — रजिस्ट्रेशन उसी वर्कर के नाम पर
+const REF=(()=>{ let r=""; try{ r=(new URLSearchParams(location.search).get("ref")||localStorage.getItem("tourRef")||"").replace(/[^A-Za-z0-9]/g,"").slice(0,40); if(r) localStorage.setItem("tourRef",r); }catch(_){} return r; })();
 const $=s=>document.querySelector(s), app=$("#app");
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const toast=t=>{ const e=$("#toast"); e.textContent=t; e.classList.remove("hidden"); clearTimeout(e._t); e._t=setTimeout(()=>e.classList.add("hidden"),3200); };
@@ -120,9 +122,10 @@ function showAuth(reg){
     if(p.length<6) return toast("पासवर्ड कम से कम 6 अक्षर"); if(p!==$("#rP2").value) return toast("दोनों पासवर्ड एक जैसे नहीं"); if(!$("#rC").checked) return toast("सहमति पर ✔ लगाएँ");
     const idNo=it==="aadhaar"?"XXXX-XXXX-"+raw.slice(-4):raw, b=$("#rGo"); b.disabled=true; b.textContent="रजिस्टर हो रहा है…";
     try{ const c=await createUserWithEmailAndPassword(auth,m+"@"+DOM,p);
-      await setDoc(doc(db,"tCustomers",c.user.uid),{uid:c.user.uid,name,mobile:m,wa,mail,tg:tg?"@"+tg:"",idType:it,idNo,consent:true,at:serverTimestamp()});
+      const rec={uid:c.user.uid,name,mobile:m,wa,mail,tg:tg?"@"+tg:"",idType:it,idNo,consent:true,at:serverTimestamp()};
+      try{ await setDoc(doc(db,"tCustomers",c.user.uid),REF?{...rec,ref:REF}:rec); }catch(e1){ if(!REF) throw e1; await setDoc(doc(db,"tCustomers",c.user.uid),rec); }
       try{ localStorage.setItem("tourLast",JSON.stringify({name,id:m})); }catch(_){}
-      mailCopy("🧳 नया ग्राहक — "+name,{"नाम":name,"मोबाइल":m,"WhatsApp":wa,"Gmail":mail,"Telegram":tg?"@"+tg:"—","ID":it+": "+idNo,"समय":new Date().toLocaleString("hi-IN")},mail);
+      mailCopy("🧳 नया ग्राहक — "+name,{"नाम":name,"मोबाइल":m,"WhatsApp":wa,"Gmail":mail,"Telegram":tg?"@"+tg:"—","ID":it+": "+idNo,"वर्कर link":REF?"हाँ ("+REF.slice(0,6)+"…)":"—","समय":new Date().toLocaleString("hi-IN")},mail);
       toast("✅ रजिस्ट्रेशन हो गया");
     }catch(e){ toast(errM(e)); b.disabled=false; b.textContent="✅ रजिस्टर करें"; } };
 }

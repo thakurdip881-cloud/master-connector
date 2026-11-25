@@ -92,7 +92,7 @@ service cloud.firestore {
       allow read: if editor() || (active() && resource.data.uid == request.auth.uid);
       allow create: if active() && request.resource.data.uid == request.auth.uid && request.resource.data.end == null;
       allow update: if editor() || (active() && resource.data.uid == request.auth.uid && resource.data.end == null
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['end', 'lastLat', 'lastLng', 'awayKm', 'lastAt', 'startLat', 'startLng', 'idleAlert', 'idleAt', 'chkAt', 'chkImg', 'vidRec', 'watchAt']));
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['end', 'lastLat', 'lastLng', 'awayKm', 'lastAt', 'startLat', 'startLng', 'idleAlert', 'idleAt', 'chkAt', 'chkImg', 'vidRec', 'watchAt', 'scrOff', 'scrOn']));
       allow delete: if isOwner();
     }
 
@@ -160,9 +160,11 @@ service cloud.firestore {
     function tCust() { return signed() && request.auth.token.email is string && request.auth.token.email.matches('.*@customer[.]diptour[.]app'); }
     match /tour/config { allow read: if true; allow write: if editor(); }
     match /tCustomers/{uid} {
-      allow read: if editor() || (tCust() && request.auth.uid == uid);
+      // वर्कर सिर्फ़ अपने link (ref) से जुड़े ग्राहक देख सके
+      allow read: if editor() || (tCust() && request.auth.uid == uid) || (active() && resource.data.ref == request.auth.uid);
       allow create: if tCust() && request.auth.uid == uid && !exists(/databases/$(db)/documents/tCustomers/$(uid))
-        && request.resource.data.keys().hasOnly(['uid', 'name', 'mobile', 'wa', 'mail', 'tg', 'idType', 'idNo', 'consent', 'at'])
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'mobile', 'wa', 'mail', 'tg', 'idType', 'idNo', 'consent', 'at', 'ref'])
+        && (!('ref' in request.resource.data) || (request.resource.data.ref is string && request.resource.data.ref.size() < 64 && exists(userDoc(request.resource.data.ref))))
         && request.resource.data.uid == uid && request.resource.data.consent == true
         && (request.resource.data.idType != 'aadhaar' || request.resource.data.idNo.matches('XXXX-XXXX-[0-9]{4}'));
       allow update: if editor();
@@ -187,6 +189,40 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid', 'name', 'img', 'at']) && request.resource.data.img.size() < 750000;
       allow update: if false;
       allow delete: if isOwner() || (tCust() && resource.data.uid == request.auth.uid);
+    }
+
+    // ---------- 🧳 ग्राहक follow-up — वर्कर सिर्फ़ अपने ग्राहक का लिखे/देखे, मालिक सब देखे ----------
+    match /followups/{id} {
+      allow read: if editor() || (active() && resource.data.uid == request.auth.uid);
+      allow create: if active() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'wname', 'cust', 'cname', 'note', 'next', 'at'])
+        && request.resource.data.note is string && request.resource.data.note.size() > 0 && request.resource.data.note.size() <= 300
+        && request.resource.data.cust is string && request.resource.data.next is string && request.resource.data.next.size() <= 10
+        && (editor() || get(/databases/$(db)/documents/tCustomers/$(request.resource.data.cust)).data.ref == request.auth.uid);
+      allow update: if false;
+      allow delete: if isOwner();
+    }
+
+    // ---------- 🖥️ वर्कर की स्क्रीन (हर 10 मिनट + "अभी देखें") — वर्कर सिर्फ़ अपनी भेजे, देखे मालिक ----------
+    match /screens/{uid} {
+      allow read: if editor() || (signed() && request.auth.uid == uid);
+      allow create, update: if active() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['uid', 'img', 'at', 'src'])
+        && request.resource.data.uid == uid && request.resource.data.img is string && request.resource.data.img.size() < 400000;
+      allow delete: if isOwner();
+    }
+    match /screenReq/{uid} {
+      allow read: if editor() || (signed() && request.auth.uid == uid);
+      allow write: if editor();
+    }
+
+    // ---------- 💻 लैपटॉप/PC पर काम की अनुमति — वर्कर माँगे (30 सेकंड वीडियो के साथ), मालिक दे ----------
+    match /devReq/{uid} {
+      allow read: if editor() || (signed() && request.auth.uid == uid);
+      allow create, update: if editor() || (active() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'dev', 'ua', 'status', 'at', 'rec'])
+        && request.resource.data.uid == uid && request.resource.data.status == 'pending');
+      allow delete: if editor();
     }
 
     // ---------- 🗄️ 30% Partner ऑनलाइन बैकअप — हर खाता सिर्फ़ अपना एक डिब्बा (कोई दूसरा नहीं देख सकता) ----------

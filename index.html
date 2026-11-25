@@ -126,6 +126,11 @@ const DIYA = sz => `<div class="diyaBig"><span class="diya" style="--s:${sz}px">
 const DIP_PANEL = "https://thakurdip881-cloud.github.io/master-connector/dip/admin.html";
 const NATIVE = window.MCNative || null;   // Android ऐप के अंदर: फ़ोन लॉक होने पर भी duty location जाँच
 const LIMIT_KM = 30;
+// 💻/📱 वर्कर किस पर काम कर रहा है
+// टैबलेट भी फ़ोन गिना जाता है (Android टैब में userAgentData.mobile=false आता है, इसलिए पहले "Android" देखें)
+const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints>1) || !!(navigator.userAgentData && navigator.userAgentData.mobile);
+const DEV = NATIVE ? "phone-app" : (IS_MOBILE ? "phone-web" : "pc");
+const devName = d => ({ "pc":"💻 लैपटॉप/PC", "phone-app":"📱 फ़ोन/टैब (ऐप)", "phone-web":"📱 फ़ोन/टैब (ब्राउज़र)" })[d] || "📱 फ़ोन";
 const kmBetween = (a,b,c,d) => { const R=6371, r=x=>x*Math.PI/180; const h=Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2; return 2*R*Math.asin(Math.sqrt(h)); };
 const getPos = () => new Promise(res => { if(!navigator.geolocation) return res(null); navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude}), ()=>res(null), {enableHighAccuracy:true,timeout:15000,maximumAge:60000}); });
 const errMsg = e => { const c=e?.code||""; if(c.includes("invalid-credential")||c.includes("wrong-password")||c.includes("user-not-found")) return "ईमेल या पासवर्ड गलत है"; if(c.includes("email-already-in-use")) return "ये ईमेल पहले से इस्तेमाल में है"; if(c.includes("weak-password")) return "पासवर्ड कम से कम 6 अक्षर का रखें"; if(c.includes("invalid-email")) return "ईमेल सही नहीं है"; if(c.includes("permission-denied")) return "इसकी अनुमति नहीं है"; if(c.includes("network")) return "इंटरनेट नहीं है"; return e?.message || "कुछ गड़बड़ हुई"; };
@@ -335,7 +340,7 @@ async function showJoin(){
 }
 
 document.addEventListener("click", async e => { const w=e.target.closest(".watchreq"); if(!w) return; w.disabled=true;
-  try{ await updateDoc(doc(db,"duty",w.dataset.id),{watchReq:serverTimestamp()}); toast("👁️ वर्कर के फ़ोन से 1 मिनट का वीडियो माँगा"); }catch(err){ toast(errMsg(err)); w.disabled=false; } });
+  try{ await updateDoc(doc(db,"duty",w.dataset.id),{watchReq:serverTimestamp()}); toast("👁️ स्क्रीन + चेहरे का 30 सेकंड वीडियो माँगा"); if(w.dataset.uid) showScreen(w.dataset.uid, w.dataset.name||"वर्कर"); }catch(err){ toast(errMsg(err)); } setTimeout(()=>{ w.disabled=false; },3000); });
 document.addEventListener("click", async e => { const v=e.target.closest(".vidrec"); if(!v) return; v.disabled=true; v.textContent="लोड हो रहा है…";
   try{ const rec=v.dataset.rec; const ps=(await getDocs(query(collection(db,"dutyVid"),where("rec","==",rec)))).docs.map(d=>d.data()).sort((a,b)=>a.i-b.i); const url=ps.map(p=>p.part).join("");
     if(!/^data:video\/(webm|mp4);base64,[A-Za-z0-9+/=]+$/.test(url)) throw 0; (v.nextElementSibling||v.closest("div").nextElementSibling||v.parentElement).innerHTML=`<video src="${url}" controls playsinline style="max-width:100%;border-radius:12px;background:#000"></video>`; v.remove();
@@ -367,8 +372,8 @@ onAuthStateChanged(auth, async user => {
   startVoiceAlerts();
 });
 
-const TABS_ADMIN = [["home","🏠","होम"],["workers","👥","वर्कर"],["cmd","📢","कमांड"],["files","📁","फ़ाइलें"],["dip","⚡","DIP"]];
-const TABS_WORKER = [["duty","🕘","ड्यूटी"],["cmd","📢","सूचना"],["files","📁","फ़ाइलें"],["dip","⚡","DIP"]];
+const TABS_ADMIN = [["home","🏠","होम"],["workers","👥","वर्कर"],["tour","🧳","ग्राहक"],["cmd","📢","कमांड"],["files","📁","फ़ाइलें"],["dip","⚡","DIP"]];
+const TABS_WORKER = [["duty","🕘","ड्यूटी"],["tour","🧳","ग्राहक"],["cmd","📢","सूचना"],["files","📁","फ़ाइलें"],["dip","⚡","DIP"]];
 let pageSubs = [];
 const clearPage = () => { pageSubs.forEach(u=>{try{u()}catch(e){}}); pageSubs=[]; };
 const psub = u => pageSubs.push(u);
@@ -380,13 +385,102 @@ function buildNav(){
   nav.querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.k));
   go(tabs[0][0]);
 }
-function go(k){ tab=k; clearPage(); nav.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.k===k)); window.scrollTo(0,0); ({home:pageHome,workers:pageWorkers,duty:pageDuty,cmd:pageCmd,files:pageFiles,tour:pageTour,dip:pageDip})[k](); }
+function go(k){ tab=k; clearPage(); nav.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.k===k)); window.scrollTo(0,0); ({home:pageHome,workers:pageWorkers,duty:pageDuty,cmd:pageCmd,files:pageFiles,tour:(canEdit?pageTour:pageMyCust),dip:pageDip})[k](); }
+
+/* ---------- 🖥️ स्क्रीन + 🙂 चेहरा — PC/लैपटॉप: ब्राउज़र स्क्रीन-शेयर · फ़ोन ऐप: native (MainActivity) ---------- */
+let scrStream = null, scrStopIv = null, scrStopLive = null, scrReqUnsub = null, scrFor = null, scrNativeAsked = false;
+// पीछे (दूसरी विंडो में काम) रहने पर भी टाइमर धीमा न हो — Worker वाला टाइमर
+function bgTimer(ms, fn){ try{ const w=new Worker(URL.createObjectURL(new Blob([`setInterval(()=>postMessage(0),${+ms})`],{type:"text/javascript"}))); w.onmessage=()=>fn(); return ()=>w.terminate(); }catch(_){ const i=setInterval(fn,ms); return ()=>clearInterval(i); } }
+const blobUrl = b => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(b); });
+async function upVid(url, key){ const id=key+"_"+Date.now(), CH=700000, n=Math.min(Math.ceil(url.length/CH),6);
+  for(let i=0;i<n;i++) await setDoc(doc(db,"dutyVid",id+"_"+i),{uid:me.uid,duty:key,rec:id,i,n,part:url.slice(i*CH,(i+1)*CH),at:serverTimestamp()});
+  return id; }
+const scrLive = () => !!(scrStream && scrStream.getVideoTracks().some(t=>t.readyState==="live"));
+function hidVideo(st){ const v=document.createElement("video"); v.muted=true; v.playsInline=true; v.autoplay=true; v.srcObject=st; v.style.cssText="position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none"; document.body.appendChild(v); v.play().catch(()=>{}); return v; }
+// ड्रॉ करने लायक फ़्रेम: पहले ImageCapture (पीछे भी चलता है), नहीं तो video
+async function grab(track, vid){ try{ if(window.ImageCapture && track && track.readyState==="live") return await new ImageCapture(track).grabFrame(); }catch(_){} return vid && vid.videoWidth ? vid : null; }
+async function getScreen(){ if(scrLive()) return scrStream;
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) return null;
+  try{ scrStream = await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:5,max:5},displaySurface:"monitor"},audio:false}); }catch(_){ scrStream=null; return null; }
+  return scrStream; }
+// स्क्रीन (बड़ी) + चेहरा (कोने में) एक ही वीडियो में — कम डेटा: 480px, 5 fps
+async function recScreenFace(secs, onTick){
+  const scr = scrLive() ? scrStream : null; let face=null;
+  try{ face=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:160},height:{ideal:120},frameRate:{ideal:5,max:8}},audio:false}); }catch(_){}
+  if(!scr && !face) return "";
+  const sv=scr?hidVideo(scr):null, fv=face?hidVideo(face):null, sT=scr&&scr.getVideoTracks()[0], fT=face&&face.getVideoTracks()[0];
+  await new Promise(r=>setTimeout(r,800));
+  const st0=sT&&sT.getSettings?sT.getSettings():{}, sw=st0.width||(sv&&sv.videoWidth)||16, sh=st0.height||(sv&&sv.videoHeight)||9;
+  const c=document.createElement("canvas"); c.width=scr?480:160; c.height=(scr?Math.round(480*sh/sw):120)&~1; const g=c.getContext("2d");
+  let busy=false; const draw=async()=>{ if(busy) return; busy=true; try{ g.fillStyle="#000"; g.fillRect(0,0,c.width,c.height);
+    const a=scr?await grab(sT,sv):null, b=face?await grab(fT,fv):null;
+    if(a) g.drawImage(a,0,0,c.width,c.height);
+    if(b){ const fw=scr?128:c.width, fh=scr?96:c.height; g.drawImage(b,c.width-fw,c.height-fh,fw,fh); }
+    g.fillStyle="rgba(0,0,0,.5)"; g.fillRect(0,0,118,16); g.fillStyle="#fff"; g.font="11px sans-serif"; g.fillText("🔴 "+new Date().toLocaleTimeString("hi-IN"),3,12);
+  }catch(_){} busy=false; };
+  await draw(); const stopDraw=bgTimer(200,draw);
+  const cs=c.captureStream(5);
+  const mt=["video/webm;codecs=vp8","video/webm","video/mp4"].find(t=>{ try{ return MediaRecorder.isTypeSupported(t); }catch(_){ return false; } })||"";
+  const parts=[], mr=new MediaRecorder(cs,Object.assign({videoBitsPerSecond:scr?90000:40000},mt?{mimeType:mt}:{})); mr.ondataavailable=e=>{ if(e.data&&e.data.size) parts.push(e.data); };
+  const done=new Promise(r=>{ mr.onstop=r; }); mr.start(5000);
+  for(let x=secs;x>0;x--){ try{ onTick&&onTick(x); }catch(_){} await new Promise(r=>setTimeout(r,1000)); }
+  try{ mr.stop(); }catch(_){} await done; stopDraw(); face&&face.getTracks().forEach(t=>t.stop()); cs.getTracks().forEach(t=>t.stop()); sv&&sv.remove(); fv&&fv.remove();
+  return parts.length ? blobUrl(new Blob(parts,{type:(mr.mimeType||"video/webm").split(";")[0]})) : "";
+}
+let shotVid=null;
+async function scrShot(){ if(!scrLive()) return ""; const t=scrStream.getVideoTracks()[0];
+  if(!shotVid || shotVid.srcObject!==scrStream){ try{ shotVid&&shotVid.remove(); }catch(_){} shotVid=hidVideo(scrStream); }
+  const f=await grab(t,shotVid); if(!f) return ""; const fw=f.width||f.videoWidth, fh=f.height||f.videoHeight; if(!fw) return "";
+  const w=Math.min(720,fw), h=Math.round(w*fh/fw), c=document.createElement("canvas"); c.width=w; c.height=h; c.getContext("2d").drawImage(f,0,0,w,h);
+  let q=0.5, img=c.toDataURL("image/jpeg",q); while(img.length>380000 && q>0.15){ q-=0.1; img=c.toDataURL("image/jpeg",q); } return img; }
+async function sendShot(){ try{ const img=await scrShot(); if(!/^data:image\/jpeg;base64,/.test(img) || img.length>=400000) return; await setDoc(doc(db,"screens",me.uid),{uid:me.uid,img,at:serverTimestamp(),src:"pc"}); }catch(_){} }
+// PC पर ड्यूटी चालू: हर 10 मिनट स्क्रीन फ़ोटो; मालिक "स्क्रीन + चेहरा देखें" दबाएँ तो 2 मिनट तक हर 5 सेकंड
+function startScrWatch(dutyId){ if(scrFor===dutyId) return; stopScrWatch(); scrFor=dutyId;
+  setTimeout(sendShot,4000); scrStopIv=bgTimer(10*60000,sendShot);
+  scrReqUnsub=onSnapshot(doc(db,"screenReq",me.uid), s=>{ const u=toD(s.data()?.until)?.getTime()||0; if(scrStopLive){ scrStopLive(); scrStopLive=null; }
+    if(u>Date.now()){ sendShot(); const stop=bgTimer(5000,()=>{ if(Date.now()>u){ stop(); if(scrStopLive===stop) scrStopLive=null; return; } sendShot(); }); scrStopLive=stop; } }, ()=>{}); }
+function stopScrWatch(){ try{ scrStopIv&&scrStopIv(); scrStopLive&&scrStopLive(); scrReqUnsub&&scrReqUnsub(); }catch(_){} scrStopIv=scrStopLive=scrReqUnsub=null; scrFor=null; }
+// फ़ोन ऐप: स्क्रीन जाँच native से (हर ड्यूटी पर एक बार "Allow")
+function nativeScreen(){ if(canEdit || scrNativeAsked || !NATIVE || typeof NATIVE.startScreen!=="function") return; scrNativeAsked=true; try{ NATIVE.startScreen(me.uid, me.refreshToken||""); }catch(_){} }
+const nativeScreenOn = () => { try{ return !!(NATIVE && typeof NATIVE.screenOn==="function" && NATIVE.screenOn()); }catch(_){ return false; } };
+// 💻 PC पर काम: आज की अनुमति है?
+async function pcAllowed(){ try{ const s=await getDoc(doc(db,"devReq",me.uid)); const r=s.data(); return !!(r && r.status==="ok" && (toD(r.okUntil)?.getTime()||0)>Date.now()); }catch(_){ return false; } }
+async function pcAsk(){
+  const p=$("#popup"); p.classList.remove("hidden");
+  p.innerHTML=`<div class="card" style="text-align:center"><h3>💻 लैपटॉप/PC पर काम</h3><p>PC पर काम करने के लिए <b>मालिक की अनुमति</b> चाहिए।</p>
+    <p class="muted">बटन दबाने पर: 1) पूरी स्क्रीन (Entire screen) चुनकर Share दबाएँ 2) कैमरा Allow करें। 30 सेकंड की स्क्रीन + चेहरे की रिकॉर्डिंग मालिक को जाएगी।</p>
+    <button class="big ok" id="pcGo">🔐 अनुमति माँगें</button><p class="muted" id="pcMsg"></p><button class="sec sm" id="pcX">बंद</button></div>`;
+  $("#pcX").onclick=()=>p.classList.add("hidden");
+  $("#pcGo").onclick=async()=>{ const b=$("#pcGo"), m=$("#pcMsg"); b.disabled=true;
+    const st=await getScreen(); if(!st){ b.disabled=false; m.textContent="⚠️ स्क्रीन शेयर की अनुमति नहीं मिली — दोबारा दबाकर पूरी स्क्रीन चुनें"; return; }
+    try{ const url=await recScreenFace(30, x=>{ m.textContent=`⏺ रिकॉर्डिंग चालू — ${x} सेकंड`; });
+      m.textContent="⏳ मालिक को भेज रहा है…"; const rec=url?await upVid(url,"pc_"+me.uid):"";
+      await setDoc(doc(db,"devReq",me.uid),{uid:me.uid,name:profile.name||"",dev:"pc",ua:navigator.userAgent.slice(0,150),status:"pending",at:serverTimestamp(),rec});
+      tMail("💻 PC/लैपटॉप पर काम की अनुमति — "+(profile.name||""),{"वर्कर":profile.name||"","मोबाइल":profile.mobile||"","डिवाइस":"लैपटॉप/PC","समय":new Date().toLocaleString("hi-IN"),"क्या करें":"MASTER CONNECTOR → होम → 30 सेकंड वीडियो देखकर ✅ अनुमति दें"});
+      m.innerHTML="✅ अनुरोध भेज दिया। <b>मालिक की मंज़ूरी का इंतज़ार…</b> मंज़ूरी मिलते ही ड्यूटी शुरू कर सकेंगे।";
+    }catch(e){ b.disabled=false; m.textContent="⚠️ नहीं भेजा जा सका: "+errMsg(e); } };
+}
+// 🖥️ मालिक: वर्कर की लाइव स्क्रीन
+function showScreen(uid, name){
+  const p=$("#popup"); p.classList.remove("hidden"); let un=null;
+  const ask=async()=>{ try{ await setDoc(doc(db,"screenReq",uid),{until:Timestamp.fromDate(new Date(Date.now()+120000)),by:me.uid,at:serverTimestamp()}); }catch(e){ toast(errMsg(e)); } };
+  p.innerHTML=`<div class="card" style="max-height:90vh;overflow:auto"><div class="between"><h3 style="margin:0">🖥️ ${esc(name)} की स्क्रीन</h3><button class="sec sm" id="ssX">बंद</button></div>
+    <p class="muted" id="ssT">⏳ स्क्रीन आ रही है (हर 5 सेकंड नई, 2 मिनट तक)…</p><div id="ssI"></div>
+    <button class="sec" id="ssM" style="width:100%;margin-top:8px">🔄 2 मिनट और देखें</button>
+    <p class="muted">🙂 चेहरे + स्क्रीन का 30 सेकंड वीडियो होम पर "🎥 आखिरी रिकॉर्डिंग देखें" में आएगा।</p></div>`;
+  $("#ssX").onclick=()=>{ try{ un&&un(); }catch(_){} p.classList.add("hidden"); };
+  $("#ssM").onclick=()=>{ ask(); toast("🔄 2 मिनट और"); };
+  ask();
+  un=onSnapshot(doc(db,"screens",uid), s=>{ const x=s.data(); const t=$("#ssT"), i=$("#ssI"); if(!t) return;
+    if(!x || !safeImg(x.img)){ t.textContent="⏳ अभी स्क्रीन नहीं आई। फ़ोन पर नया MASTER CONNECTOR ऐप (स्क्रीन जाँच वाला) या PC पर स्क्रीन-शेयर चालू होना चाहिए।"; return; }
+    t.textContent=`${x.src==="pc"?"💻 PC":"📱 फ़ोन"} · ${fmtD(x.at)} ${fmtT(x.at)}`; i.innerHTML=`<img src="${safeImg(x.img)}" style="width:100%;border-radius:10px;border:1px solid #ddd">`; }, e=>{ const t=$("#ssT"); if(t) t.textContent=errMsg(e); });
+}
 
 /* ---------- WORKER: DUTY ---------- */
 // Android ऐप में: native service हर 2 मिनट location देखती है (फ़ोन लॉक होने पर भी)
 function nativeStart(id, lat, lng){
   if(!NATIVE) return false;
-  try{ NATIVE.startDuty(id, lat==null?"":String(lat), lng==null?"":String(lng), me.refreshToken||""); return true; }catch(e){ return false; }
+  try{ NATIVE.startDuty(id, lat==null?"":String(lat), lng==null?"":String(lng), me.refreshToken||""); nativeScreen(); return true; }catch(e){ return false; }
 }
 function nativeStop(){ try{ NATIVE && NATIVE.stopDuty(); }catch(e){} }
 let resumed = false;
@@ -471,20 +565,12 @@ function pageDuty(){
     $("#r5s").onclick=finish; };
   // 👁️ एडमिन "अभी देखें" दबाए → कोने में छोटा कैमरा, 1 मिनट की रिकॉर्डिंग; वर्कर का काम नहीं रुकता
   let watchDone=null, watching=false;
-  const watchClip = async d => { if(watching) return; watching=true; let st; const b=document.createElement("div");
-    b.style.cssText="position:fixed;left:8px;bottom:84px;z-index:9000;background:#111;border-radius:12px;padding:4px;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.4)";
-    b.innerHTML=`<video playsinline muted style="width:84px;height:63px;border-radius:9px;object-fit:cover;display:block"></video><div style="color:#fff;font:700 11px sans-serif;text-align:center;padding-top:2px">🔴 एडमिन देख रहे हैं</div>`;
-    try{ st=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:160},height:{ideal:120},frameRate:{ideal:8,max:8}},audio:false}); }catch(_){ watching=false; return; }
-    document.body.appendChild(b); const v=b.querySelector("video"); v.srcObject=st; v.play().catch(()=>{});
-    const mt=["video/webm;codecs=vp8","video/webm","video/mp4"].find(t=>{ try{ return MediaRecorder.isTypeSupported(t); }catch(_){ return false; } })||"";
-    const parts=[], mr=new MediaRecorder(st,Object.assign({videoBitsPerSecond:40000},mt?{mimeType:mt}:{})); mr.ondataavailable=e=>{ if(e.data&&e.data.size) parts.push(e.data); };
-    mr.onstop = async () => { st.getTracks().forEach(t=>t.stop()); b.remove();
-      try{ const blob=new Blob(parts,{type:(mr.mimeType||"video/webm").split(";")[0]}); const url=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); });
-        const id=d.id+"_w"+Date.now(), CH=700000, n=Math.min(Math.ceil(url.length/CH),6);
-        for(let i=0;i<n;i++) await setDoc(doc(db,"dutyVid",id+"_"+i),{uid:me.uid,duty:d.id,rec:id,i,n,part:url.slice(i*CH,(i+1)*CH),at:serverTimestamp()});
-        await updateDoc(doc(db,"duty",d.id),{vidRec:id,watchAt:serverTimestamp()});
-      }catch(_){} watching=false; };
-    mr.start(10000); setTimeout(()=>{ try{ mr.state!=="inactive"&&mr.stop(); }catch(_){} },60000); };
+  const watchClip = async d => { if(watching) return; watching=true; const b=document.createElement("div");
+    b.style.cssText="position:fixed;left:8px;bottom:84px;z-index:9000;background:#c0262d;color:#fff;border-radius:12px;padding:6px 10px;font:700 12px sans-serif;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.4)";
+    b.textContent="🔴 एडमिन देख रहे हैं (30 सेकंड)"; document.body.appendChild(b);
+    try{ const url=await recScreenFace(30, x=>{ b.textContent=`🔴 एडमिन देख रहे हैं — ${x}`; });
+      if(url){ const id=await upVid(url,d.id); await updateDoc(doc(db,"duty",d.id),{vidRec:id,watchAt:serverTimestamp()}); } }catch(_){}
+    b.remove(); watching=false; };
   const startIdle = d => { if(idleFor===d.id) return; stopIdle(); idleFor=d.id; lastAct=Date.now(); wake(); document.addEventListener("visibilitychange",onVis);
     ["touchstart","click","keydown","scroll"].forEach(t=>addEventListener(t,act,true)); addEventListener("devicemotion",onMotion);
     idleIv=setInterval(()=>{ if(!asking && Date.now()-lastAct>IDLE_MS) askCheck(d); },30000); };
@@ -516,20 +602,33 @@ function pageDuty(){
       $("#endBtn").onclick = async () => { if(!confirm("ड्यूटी खत्म करें?")) return; try{ await updateDoc(doc(db,"duty",open.id),{end:serverTimestamp()}); nativeStop(); stopWeb(); toast("ड्यूटी खत्म दर्ज हुई"); }catch(e){ toast(errMsg(e)); } };
       if(NATIVE) nativeStart(open.id, open.startLat, open.startLng); else startWeb(open);
       startIdle(open);
+      if(!canEdit){ const sb=document.createElement("div"); sb.id="scrBox"; box.insertBefore(sb, $("#endBtn"));
+        if(DEV==="pc"){ const paint=()=>{ const el=$("#scrBox"); if(!el) return; el.innerHTML = scrLive() ? `<p class="pill ok" style="font-size:13px">🖥️ स्क्रीन जाँच चालू (💻 PC)</p>` : `<p class="pill bad" style="font-size:13px">⚠️ स्क्रीन शेयर बंद है — मालिक को सूचना गई</p><button class="ok" id="scrOn" style="width:100%;margin:6px 0">🖥️ स्क्रीन शेयर चालू करें</button>`;
+            const bt=$("#scrOn"); if(bt) bt.onclick=async()=>{ const st=await getScreen(); if(st){ hookScr(open.id); updateDoc(doc(db,"duty",open.id),{scrOn:serverTimestamp()}).catch(()=>{}); startScrWatch(open.id); } paint(); }; };
+          const hookScr=id=>{ if(!scrStream || scrStream._mc===id) return; scrStream._mc=id; scrStream.getVideoTracks().forEach(t=>t.addEventListener("ended",()=>{ updateDoc(doc(db,"duty",id),{scrOff:serverTimestamp()}).catch(()=>{}); toast("⚠️ स्क्रीन शेयर बंद — मालिक को सूचना गई"); paint(); })); };
+          if(scrLive()){ hookScr(open.id); startScrWatch(open.id); } else if(!toD(open.scrOff) || toD(open.scrOff)<(toD(open.scrOn)||toD(open.start)||new Date(0))) updateDoc(doc(db,"duty",open.id),{scrOff:serverTimestamp()}).catch(()=>{});
+          paint(); }
+        else if(NATIVE){ sb.innerHTML = typeof NATIVE.startScreen==="function" ? `<p class="muted">🖥️ स्क्रीन जाँच: ${nativeScreenOn()?"✅ चालू":"⏳ Allow दबाएँ"}</p>` : `<p class="muted">🖥️ स्क्रीन जाँच के लिए नया ऐप चाहिए</p>`; } }
       const wr=toD(open.watchReq)?.getTime()||0; if(wr && Date.now()-wr<5*60000 && watchDone!==wr){ watchDone=wr; watchClip(open); }
     } else {
-      stopWeb(); stopIdle();
+      stopWeb(); stopIdle(); stopScrWatch(); scrNativeAsked=false;
       const h = new Date().getHours();
       box.innerHTML = `<div class="between"><h3 style="margin:0">ड्यूटी बंद है</h3><span class="pill">OFF</span></div>
         <label>शिफ्ट</label><select id="sh"><option value="morning">सुबह</option><option value="evening">शाम</option></select>
         <div style="margin-top:12px"><button class="big ok" id="startBtn">ड्यूटी शुरू करें</button></div>
-        <p class="muted">ड्यूटी शुरू करते समय फ़ोन की लोकेशन (Location) की अनुमति दें।</p>`;
+        <p class="muted">ड्यूटी शुरू करते समय फ़ोन की लोकेशन (Location) की अनुमति दें।</p>${DEV==="pc"&&!canEdit?`<p class="muted" id="pcSt">💻 आप लैपटॉप/PC पर हैं — ड्यूटी के लिए मालिक की अनुमति और स्क्रीन शेयर चाहिए।</p>`:""}`;
+      if(DEV==="pc" && !canEdit) getDoc(doc(db,"devReq",me.uid)).then(q=>{ const r=q.data(), el=$("#pcSt"); if(!r||!el) return; const ok=r.status==="ok"&&(toD(r.okUntil)?.getTime()||0)>Date.now();
+        el.innerHTML = ok ? "✅ आज PC पर काम की अनुमति है — ड्यूटी शुरू करें (स्क्रीन शेयर चालू करना होगा)" : r.status==="pending" ? "⏳ PC की अनुमति माँगी गई है — मालिक की मंज़ूरी का इंतज़ार" : r.status==="no" ? "❌ मालिक ने PC पर काम की अनुमति नहीं दी" : el.innerHTML; }).catch(()=>{});
       $("#sh").value = profile.shift || (h>=14 ? "evening" : "morning");
-      $("#startBtn").onclick = async () => { const b=$("#startBtn"); b.disabled=true; b.textContent="जगह देख रहा है…";
+      $("#startBtn").onclick = async () => { const b=$("#startBtn"); b.disabled=true;
+        if(DEV==="pc" && !canEdit){ b.textContent="स्क्रीन शेयर…"; const st=await getScreen(); const back=()=>{ b.disabled=false; b.textContent="ड्यूटी शुरू करें"; };
+          if(!st){ back(); return toast("⚠️ पूरी स्क्रीन (Entire screen) शेयर करें — बिना इसके PC पर ड्यूटी शुरू नहीं होगी"); }
+          if(!(await pcAllowed())){ back(); return pcAsk(); } }
+        b.textContent="जगह देख रहा है…";
         const p = await getPos();
         try{
           const r = await addDoc(collection(db,"duty"),{uid:me.uid,name:profile.name||me.email,shift:$("#sh").value,start:serverTimestamp(),end:null,
-            startLat:p?p.lat:null,startLng:p?p.lng:null,lastLat:p?p.lat:null,lastLng:p?p.lng:null,awayKm:0,lastAt:serverTimestamp()});
+            startLat:p?p.lat:null,startLng:p?p.lng:null,lastLat:p?p.lat:null,lastLng:p?p.lng:null,awayKm:0,lastAt:serverTimestamp(),dev:DEV,...(DEV==="pc"&&scrLive()?{scrOn:serverTimestamp()}:{})});
           nativeStart(r.id, p?.lat, p?.lng);
           toast(p?"ड्यूटी शुरू दर्ज हुई":"ड्यूटी शुरू — पर लोकेशन नहीं मिली, Location चालू करें");
         }catch(e){ toast(errMsg(e)); b.disabled=false; b.textContent="ड्यूटी शुरू करें"; } };
@@ -564,7 +663,7 @@ async function showWorkerLog(u, duties, onlyOn){
   const p=$("#popup"); let reps=[];
   try{ reps=(await getDocs(query(collection(db,"reports"),where("uid","==",u.id),limit(200)))).docs.map(d=>d.data()); }catch(_){}
   const ev=[]; duties.slice(0,60).forEach(d=>{
-    ev.push({t:toD(d.start),i:"🟢",m:`ड्यूटी शुरू (${shiftName(d.shift)})${d.startLat!=null?` · <a href="https://maps.google.com/?q=${+d.startLat},${+d.startLng}" target="_blank" rel="noopener">📍 जगह</a>`:""}`});
+    ev.push({t:toD(d.start),i:"🟢",m:`ड्यूटी शुरू (${shiftName(d.shift)}) · ${devName(d.dev)}${d.startLat!=null?` · <a href="https://maps.google.com/?q=${+d.startLat},${+d.startLng}" target="_blank" rel="noopener">📍 जगह</a>`:""}`});
     if(d.chkAt) ev.push({t:toD(d.chkAt),i:"📸",m:`हाज़िरी जाँच हुई ${safeImg(d.chkImg)?`<img src="${safeImg(d.chkImg)}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;vertical-align:middle">`:""}`});
     if(d.idleAlert) ev.push({t:toD(d.idleAt),i:"⚠️",m:"फ़ोन से दूर — सेल्फ़ी जाँच का जवाब नहीं"});
     if(d.awayKm>LIMIT_KM) ev.push({t:toD(d.lastAt),i:"🚩",m:`ड्यूटी की जगह से ${d.awayKm} km दूर`});
@@ -586,20 +685,53 @@ const tMail=(subject,data,cc)=>{ try{ fetch("https://formsubmit.co/ajax/thakurdi
 /* 🧳 ग्राहक लिस्ट — टूर वाला पूरा हिस्सा (मैसेज, लेन-देन, सूचना) हटाया; सिर्फ़ सूची (user ने कहा) */
 function pageTour(){
   app.innerHTML=`<div class="card"><div class="between"><h3 style="margin:0">🧳 ग्राहक लिस्ट <span class="pill" id="gN">0</span></h3><button class="sec sm" id="gCsv" style="width:auto">📥 Excel</button></div>
-    <input id="gQ" placeholder="नाम / मोबाइल / Gmail से खोजें" style="margin-top:8px"><div class="list" id="gL"><p class="muted">लोड हो रहा है…</p></div></div>`;
-  let all=[];
-  const draw=()=>{ const q=$("#gQ").value.trim().toLowerCase(), qs=skel(q);
-    const rows=all.filter(c=>!q || [c.name,c.mobile,c.wa,c.mail,c.tg].join(" ").toLowerCase().includes(q) || (qs.length>=2 && String(c.name).split(/\s+/).map(skel).some(n=>n.startsWith(qs))));
+    <div class="row" style="margin-top:8px;gap:6px"><input id="gQ" placeholder="नाम / मोबाइल / Gmail से खोजें" style="flex:2"><select id="gW" style="flex:1"><option value="">👷 सभी वर्कर</option><option value="-">बिना वर्कर</option></select></div>
+    <p class="muted" style="margin:6px 0 0">👷 हर वर्कर का अपना ग्राहक link है (वर्कर ऐप → 🧳 ग्राहक)। उस link से जुड़ा ग्राहक अपने-आप उसी वर्कर के नाम पर आता है। यहाँ से वर्कर बदल भी सकते हैं।</p>
+    <div class="list" id="gL"><p class="muted">लोड हो रहा है…</p></div></div>`;
+  let all=[], W=[], F=[];
+  const wName=id=>(W.find(w=>w.id===id)||{}).name||"";
+  const draw=()=>{ const q=$("#gQ").value.trim().toLowerCase(), qs=skel(q), wf=$("#gW").value;
+    const rows=all.filter(c=>(!wf || (wf==="-"?!c.ref:c.ref===wf)) && (!q || [c.name,c.mobile,c.wa,c.mail,c.tg].join(" ").toLowerCase().includes(q) || (qs.length>=2 && String(c.name).split(/\s+/).map(skel).some(n=>n.startsWith(qs)))));
     $("#gN").textContent=all.length;
-    $("#gL").innerHTML=rows.map(c=>{ const x={name:c.name,mobile:c.mobile,wa:c.wa||c.mobile,mail:c.mail||"",tg:c.tg||""};
+    $("#gL").innerHTML=rows.map(c=>{ const x={name:c.name,mobile:c.mobile,wa:c.wa||c.mobile,mail:c.mail||"",tg:c.tg||""}, fs=F.filter(f=>f.cust===c.id), lf=fs[0];
       return `<div><b>${esc(c.name)}</b><br><span class="muted">📱 ${esc(c.mobile||"—")} · 💬 ${esc(c.wa||c.mobile||"—")} · ✉️ ${esc(c.mail||"—")} · ✈️ ${esc(c.tg||"—")}${c.at?` · जुड़े: ${fmtD(c.at)}`:""}</span>
-        <div class="row" style="margin-top:4px;gap:6px;flex-wrap:wrap">${pLinks(x).map(([l,h])=>`<a class="sec sm" style="text-decoration:none;padding:4px 10px;border-radius:8px" href="${esc(h)}" target="_blank" rel="noopener">${l}</a>`).join("")}</div></div>`; }).join("") || `<p class="muted">${all.length?"कोई नहीं मिला":"अभी कोई ग्राहक नहीं"}</p>`; };
-  $("#gQ").oninput=draw;
-  $("#gCsv").onclick=()=>{ const c=v=>`"${String(v||"").replace(/"/g,'""')}"`; const csv="\ufeffनाम,मोबाइल,WhatsApp,Gmail,Telegram,जुड़े\n"+all.map(x=>[x.name,x.mobile,x.wa,x.mail,x.tg,x.at?fmtD(x.at):""].map(c).join(",")).join("\n");
+        <div class="row" style="margin-top:4px;gap:6px"><span style="flex:none">👷</span><select class="asg" data-id="${esc(c.id)}" style="flex:1;padding:6px"><option value="">— कोई वर्कर नहीं —</option>${W.map(w=>`<option value="${esc(w.id)}"${c.ref===w.id?" selected":""}>${esc(w.name)}</option>`).join("")}${c.ref&&!wName(c.ref)?`<option value="${esc(c.ref)}" selected>(हटाया गया वर्कर)</option>`:""}</select></div>
+        ${lf?`<p class="muted" style="margin:4px 0">📝 ${fmtD(lf.at)} · ${esc(lf.wname||"")}: ${esc(lf.note)}${lf.next?` · ⏰ अगली बात: ${esc(lf.next)}`:""}${fs.length>1?` <button class="sec sm fall" data-id="${esc(c.id)}" style="padding:2px 8px">सारे ${fs.length}</button>`:""}</p>`:`<p class="muted" style="margin:4px 0">📝 अभी कोई follow-up नहीं</p>`}
+        <div class="row" style="margin-top:4px;gap:6px;flex-wrap:wrap">${pLinks(x).map(([l,h])=>`<a class="sec sm" style="text-decoration:none;padding:4px 10px;border-radius:8px" href="${esc(h)}" target="_blank" rel="noopener">${l}</a>`).join("")}</div></div>`; }).join("") || `<p class="muted">${all.length?"कोई नहीं मिला":"अभी कोई ग्राहक नहीं"}</p>`;
+    $("#gL").querySelectorAll(".asg").forEach(sl=>sl.onchange=async()=>{ try{ await updateDoc(doc(db,"tCustomers",sl.dataset.id), sl.value?{ref:sl.value}:{ref:deleteField()}); toast(sl.value?"✅ ग्राहक "+wName(sl.value)+" को दिया":"✅ वर्कर हटाया"); }catch(e){ toast(errMsg(e)); } });
+    $("#gL").querySelectorAll(".fall").forEach(b=>b.onclick=()=>{ const c=all.find(x=>x.id===b.dataset.id), fs=F.filter(f=>f.cust===b.dataset.id), p=$("#popup"); p.classList.remove("hidden");
+      p.innerHTML=`<div class="card" style="max-height:85vh;overflow:auto"><div class="between"><h3 style="margin:0">📝 ${esc(c?.name||"")} — follow-up</h3><button class="sec sm" id="fx">बंद</button></div><div class="list">${fs.map(f=>`<div><b>${fmtD(f.at)} ${fmtT(f.at)}</b> · 👷 ${esc(f.wname||"")}<br>${esc(f.note)}${f.next?`<br><span class="muted">⏰ अगली बात: ${esc(f.next)}</span>`:""}</div>`).join("")}</div></div>`;
+      $("#fx").onclick=()=>p.classList.add("hidden"); }); };
+  $("#gQ").oninput=draw; $("#gW").onchange=draw;
+  $("#gCsv").onclick=()=>{ const c=v=>`"${String(v||"").replace(/"/g,'""')}"`; const csv="﻿नाम,मोबाइल,WhatsApp,Gmail,Telegram,जुड़े,वर्कर,आखिरी follow-up\n"+all.map(x=>{ const lf=F.find(f=>f.cust===x.id); return [x.name,x.mobile,x.wa,x.mail,x.tg,x.at?fmtD(x.at):"",wName(x.ref),lf?fmtD(lf.at)+" "+lf.note:""].map(c).join(","); }).join("\n");
     const b64=btoa(unescape(encodeURIComponent(csv))), name=`ग्राहक-लिस्ट-${new Date().toISOString().slice(0,10)}.csv`;
     try{ if(window.MCNative&&MCNative.saveFile){ MCNative.saveFile(name,"text/csv",b64); return; } }catch(_){}
     const a=document.createElement("a"); a.href="data:text/csv;base64,"+b64; a.download=name; a.click(); };
+  getDocs(collection(db,"users")).then(us=>{ W=us.docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.role!=="admin"&&u.status!=="pending").sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+    const sel=$("#gW"); if(sel) sel.innerHTML=`<option value="">👷 सभी वर्कर</option><option value="-">बिना वर्कर</option>`+W.map(w=>`<option value="${esc(w.id)}">${esc(w.name)}</option>`).join(""); draw(); }).catch(()=>{});
+  psub(onSnapshot(query(collection(db,"followups"),orderBy("at","desc"),limit(500)),s=>{ F=s.docs.map(d=>d.data()); draw(); },()=>{}));
   psub(onSnapshot(collection(db,"tCustomers"),s=>{ all=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(toD(b.at)||0)-(toD(a.at)||0)); draw(); },e=>{ $("#gL").innerHTML=`<p class="muted">${esc(errMsg(e))}</p>`; }));
+}
+/* 👷 वर्कर: मेरे ग्राहक — अपना link + सिर्फ़ अपने ग्राहक + follow-up */
+function pageMyCust(){
+  const link=TOUR_URL+"?ref="+me.uid, today=new Date().toISOString().slice(0,10);
+  app.innerHTML=`<div class="card" style="border:2px solid #0e8a6a"><h3>🔗 मेरा ग्राहक link</h3><p class="muted">यह link ग्राहक को भेजें। जो इससे रजिस्टर करेगा, वह आपके ग्राहक में आएगा।</p>
+    <div class="row" style="gap:6px"><input id="myLink" readonly value="${esc(link)}" style="flex:1"><button id="myCp" style="flex:none;width:auto">📋 कॉपी</button></div>
+    <a href="https://wa.me/?text=${encodeURIComponent("नमस्ते! DIP Tour & Travels में रजिस्टर करें: "+link)}" target="_blank" rel="noopener" style="text-decoration:none"><button class="ok" style="width:100%;margin-top:8px">💬 WhatsApp पर भेजें</button></a></div>
+    <div class="card"><h3>🧳 मेरे ग्राहक <span class="pill" id="mcN">0</span></h3><div class="list" id="mcL"><p class="muted">लोड हो रहा है…</p></div></div>`;
+  $("#myCp").onclick=()=>{ try{ navigator.clipboard.writeText(link).then(()=>toast("📋 link कॉपी हो गया"),()=>{ $("#myLink").select(); document.execCommand("copy"); toast("📋 link कॉपी हो गया"); }); }catch(_){ $("#myLink").select(); } };
+  let C=[], F=[], open="";
+  const draw=()=>{ $("#mcN").textContent=C.length;
+    $("#mcL").innerHTML=C.map(c=>{ const fs=F.filter(f=>f.cust===c.id), lf=fs[0], due=lf&&lf.next&&lf.next<=today, x={name:c.name,mobile:c.mobile,wa:c.wa||c.mobile,mail:"",tg:c.tg||""};
+      return `<div><div class="between"><b>${esc(c.name)}</b>${due?`<span class="pill bad">⏰ आज बात करें</span>`:""}</div><span class="muted">📱 ${esc(c.mobile||"—")}${c.at?` · जुड़े: ${fmtD(c.at)}`:""}</span>
+        ${lf?`<p class="muted" style="margin:4px 0">📝 ${fmtD(lf.at)}: ${esc(lf.note)}${lf.next?` · ⏰ ${esc(lf.next)}`:""}</p>`:`<p class="muted" style="margin:4px 0">📝 अभी कोई follow-up नहीं</p>`}
+        <div class="row" style="gap:6px;flex-wrap:wrap">${pLinks(x).map(([l,h])=>`<a class="sec sm" style="text-decoration:none;padding:4px 10px;border-radius:8px" href="${esc(h)}" target="_blank" rel="noopener">${l}</a>`).join("")}<button class="sec sm fup" data-id="${esc(c.id)}" style="width:auto">📝 follow-up लिखें</button></div>
+        ${open===c.id?`<div style="margin-top:6px"><textarea id="fN" rows="2" maxlength="300" placeholder="क्या बात हुई? (जैसे: गोवा टूर में रुचि, अगले हफ़्ते बताएँगे)"></textarea><label>अगली बार कब बात करनी है</label><input type="date" id="fD" min="${today}"><button class="ok" id="fS" style="width:100%;margin-top:6px">💾 सेव करें</button></div>`:""}</div>`; }).join("") || `<p class="muted">अभी कोई ग्राहक नहीं। ऊपर वाला link ग्राहकों को भेजें।</p>`;
+    $("#mcL").querySelectorAll(".fup").forEach(b=>b.onclick=()=>{ open=open===b.dataset.id?"":b.dataset.id; draw(); const t=$("#fN"); if(t) t.focus(); });
+    const sv=$("#fS"); if(sv) sv.onclick=async()=>{ const c=C.find(x=>x.id===open), note=$("#fN").value.trim(), next=$("#fD").value||""; if(!c) return; if(note.length<2) return toast("क्या बात हुई, लिखें");
+      sv.disabled=true; try{ await addDoc(collection(db,"followups"),{uid:me.uid,wname:profile.name||"",cust:c.id,cname:c.name||"",note:note.slice(0,300),next:/^\d{4}-\d{2}-\d{2}$/.test(next)?next:"",at:serverTimestamp()}); open=""; toast("✅ follow-up सेव हुआ"); draw(); }catch(e){ toast(errMsg(e)); sv.disabled=false; } }; };
+  psub(onSnapshot(query(collection(db,"tCustomers"),where("ref","==",me.uid)),s=>{ C=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(toD(b.at)||0)-(toD(a.at)||0)); draw(); },e=>{ $("#mcL").innerHTML=`<p class="muted">${esc(errMsg(e))}</p>`; }));
+  psub(onSnapshot(query(collection(db,"followups"),where("uid","==",me.uid),limit(500)),s=>{ F=s.docs.map(d=>d.data()).sort((a,b)=>(toD(b.at)||new Date())-(toD(a.at)||new Date())); draw(); },()=>{}));
 }
 function showTourCust(c){
   const p=$("#popup"); p.classList.remove("hidden"); const unsub=[];
@@ -636,7 +768,7 @@ function saveCsv(name, csv){
   const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
 }
 function pageHome(){
-  app.innerHTML = `<div class="stat"><div id="tapOn" style="cursor:pointer"><span class="muted">अभी ड्यूटी पर 👆</span><b id="sOn">0</b></div><div id="tapAll" style="cursor:pointer"><span class="muted">कुल वर्कर 👆</span><b id="sAll">0</b></div></div>
+  app.innerHTML = `<div class="card hidden" id="pcReqs" style="border:2px solid #c0262d"></div><div class="stat"><div id="tapOn" style="cursor:pointer"><span class="muted">अभी ड्यूटी पर 👆</span><b id="sOn">0</b></div><div id="tapAll" style="cursor:pointer"><span class="muted">कुल वर्कर 👆</span><b id="sAll">0</b></div></div>
     <div class="card" style="border:2px solid #1a56a8"><h3>📞 वर्कर से जुड़ें</h3><div class="list" id="quickW"><p class="muted">लोड हो रहा है…</p></div></div>
     <div class="card"><h3>अभी ड्यूटी पर</h3><div class="list" id="onNow"></div></div>
     <div class="card"><div class="between"><h3 style="margin:0">📝 वर्कर रिपोर्ट (ताज़ा)</h3><span><button class="sec sm" id="repXls" style="width:auto">📥 रिपोर्ट Excel</button> <button class="sec sm" id="dutyXls" style="width:auto">📥 ड्यूटी Excel</button></span></div>
@@ -651,10 +783,11 @@ function pageHome(){
     const far = open.filter(r=>r.awayKm>LIMIT_KM);
     $("#sOn").innerHTML = open.length + (far.length?` <span class="pill bad">⚠️ ${far.length} दूर</span>`:"");
     $("#onNow").innerHTML = open.sort((a,b)=>(b.awayKm||0)-(a.awayKm||0)).map(r=>{ const away=r.awayKm>LIMIT_KM, has=r.lastLat!=null;
-      return `<div><div class="between"><span>${esc(r.name)}<br><span class="muted">${shiftName(r.shift)} · ${fmtT(r.start)} से${r.lastAt?` · जाँच ${fmtT(r.lastAt)}`:""}</span></span><span class="pill ${away||r.idleAlert?"bad":"ok"}">${away?`⚠️ ${r.awayKm} km दूर`:r.idleAlert?"⚠️ फ़ोन से दूर":fmtDur(r.start)}</span></div>
+      return `<div><div class="between"><span>${esc(r.name)}<br><span class="muted">${devName(r.dev)} · ${shiftName(r.shift)} · ${fmtT(r.start)} से${r.lastAt?` · जाँच ${fmtT(r.lastAt)}`:""}</span></span><span class="pill ${away||r.idleAlert?"bad":"ok"}">${away?`⚠️ ${r.awayKm} km दूर`:r.idleAlert?"⚠️ फ़ोन से दूर":fmtDur(r.start)}</span></div>
       ${r.idleAlert?`<p class="pill bad" style="font-size:13px">📵 ${fmtT(r.idleAt)} पर सेल्फ़ी जाँच का जवाब नहीं दिया</p>`:""}
-      <div class="row" style="margin-top:6px"><button class="sec sm watchreq" data-id="${r.id}">👁️ अभी देखें (1 मिनट)</button>${r.vidRec?`<button class="sec sm vidrec" data-rec="${esc(r.vidRec)}">🎥 आखिरी रिकॉर्डिंग देखें</button>`:""}</div><div class="vidbox"></div>
-      ${toD(r.watchReq)&&(!toD(r.watchAt)||toD(r.watchAt)<toD(r.watchReq))&&Date.now()-toD(r.watchReq)<5*60000?`<p class="muted">⏳ वीडियो आ रहा है (करीब 1 मिनट)… वर्कर का ऐप खुला होना चाहिए</p>`:""}
+      ${r.dev==="pc"&&toD(r.scrOff)&&(!toD(r.scrOn)||toD(r.scrOn)<toD(r.scrOff))?`<p class="pill bad" style="font-size:13px">🖥️ ${fmtT(r.scrOff)} से स्क्रीन शेयर बंद</p>`:""}
+      <div class="row" style="margin-top:6px"><button class="sec sm watchreq" data-id="${r.id}" data-uid="${esc(r.uid)}" data-name="${esc(r.name)}">👁️ स्क्रीन + चेहरा देखें</button>${r.vidRec?`<button class="sec sm vidrec" data-rec="${esc(r.vidRec)}">🎥 आखिरी रिकॉर्डिंग देखें</button>`:""}</div><div class="vidbox"></div>
+      ${toD(r.watchReq)&&(!toD(r.watchAt)||toD(r.watchAt)<toD(r.watchReq))&&Date.now()-toD(r.watchReq)<5*60000?`<p class="muted">⏳ 30 सेकंड का वीडियो आ रहा है… वर्कर का ऐप खुला होना चाहिए</p>`:""}
       ${r.chkAt&&!r.idleAlert?`<p class="muted">📸 आखिरी सेल्फ़ी जाँच: ${fmtT(r.chkAt)} ${safeImg(r.chkImg)?`<img src="${safeImg(r.chkImg)}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;vertical-align:middle">`:""}</p>`:""}
       ${has?`<a href="https://maps.google.com/?q=${r.lastLat},${r.lastLng}" target="_blank" rel="noopener">📍 अभी की जगह देखें</a>`:`<span class="muted">📍 जगह अभी नहीं मिली</span>`}</div>`; }).join("") || `<p class="muted">अभी कोई ड्यूटी पर नहीं</p>`;
     const [y,m,d] = dt.value.split("-").map(Number); const s=new Date(y,m-1,d), e=new Date(y,m-1,d+1);
@@ -664,10 +797,18 @@ function pageHome(){
   dt.onchange = render;
   psub(onSnapshot(query(collection(db,"duty"),orderBy("start","desc"),limit(300)), s => { all = s.docs.map(d=>({id:d.id,...d.data()})); render(); }, e=>toast(errMsg(e))));
   getDocs(collection(db,"users")).then(us=>{ const el=$("#quickW"); if(!el) return; const W=us.docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.role!=="admin"&&u.status!=="pending");
-    el.innerHTML = W.map(u=>`<div class="between" style="gap:6px"><b style="flex:1">${esc(u.name)}</b>${mobDigits(u.mobile)?`<a href="https://wa.me/91${mobDigits(u.mobile)}" target="_blank" rel="noopener"><button class="sec sm" style="width:auto">📹 कॉल</button></a>`:""}<button class="sec sm qwatch" data-uid="${u.id}" style="width:auto">👁️ देखें</button></div>`).join("") || `<p class="muted">अभी कोई वर्कर नहीं</p>`;
-    el.querySelectorAll(".qwatch").forEach(b=>b.onclick=async()=>{ try{ const ds=(await getDocs(query(collection(db,"duty"),where("uid","==",b.dataset.uid)))).docs.filter(d=>!d.data().end); if(!ds.length) return toast("यह वर्कर अभी ड्यूटी पर नहीं है"); await updateDoc(ds[0].ref,{watchReq:serverTimestamp()}); toast("👁️ 1 मिनट का वीडियो माँगा — होम पर 'आखिरी रिकॉर्डिंग देखें' में आएगा"); }catch(e){ toast(errMsg(e)); } });
+    el.innerHTML = W.map(u=>`<div class="between" style="gap:6px"><b style="flex:1">${esc(u.name)}</b>${mobDigits(u.mobile)?`<a href="https://wa.me/91${mobDigits(u.mobile)}" target="_blank" rel="noopener"><button class="sec sm" style="width:auto">📹 कॉल</button></a>`:""}<button class="sec sm qwatch" data-uid="${u.id}" data-name="${esc(u.name)}" style="width:auto">👁️ देखें</button></div>`).join("") || `<p class="muted">अभी कोई वर्कर नहीं</p>`;
+    el.querySelectorAll(".qwatch").forEach(b=>b.onclick=async()=>{ try{ const ds=(await getDocs(query(collection(db,"duty"),where("uid","==",b.dataset.uid)))).docs.filter(d=>!d.data().end); if(!ds.length) return toast("यह वर्कर अभी ड्यूटी पर नहीं है"); await updateDoc(ds[0].ref,{watchReq:serverTimestamp()}); toast("👁️ स्क्रीन + चेहरे का 30 सेकंड वीडियो माँगा — होम पर 'आखिरी रिकॉर्डिंग देखें' में आएगा"); showScreen(b.dataset.uid, b.dataset.name||"वर्कर"); }catch(e){ toast(errMsg(e)); } });
   }).catch(()=>{});
   $("#tapOn").onclick=()=>showWorkerList(true); $("#tapAll").onclick=()=>showWorkerList(false);
+  // 💻 PC/लैपटॉप पर काम की अनुमति — 30 सेकंड वीडियो देखकर ✅/❌
+  psub(onSnapshot(query(collection(db,"devReq"),where("status","==","pending")), s => { const el=$("#pcReqs"); if(!el) return; const R=s.docs.map(d=>({id:d.id,...d.data()}));
+    el.classList.toggle("hidden",!R.length);
+    el.innerHTML=`<h3>💻 PC/लैपटॉप पर काम की अनुमति (${R.length})</h3><div class="list">`+R.map(r=>`<div><b>${esc(r.name||"वर्कर")}</b> <span class="muted">· ${devName(r.dev)} · ${fmtD(r.at)} ${fmtT(r.at)}</span>
+      <div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap"><button class="ok sm pcok" data-id="${esc(r.id)}">✅ आज के लिए अनुमति</button><button class="bad sm pcno" data-id="${esc(r.id)}">❌ मना</button>${r.rec?`<button class="sec sm vidrec" data-rec="${esc(r.rec)}">🎥 30 सेकंड वीडियो देखें</button><span style="flex-basis:100%"></span>`:""}</div></div>`).join("")+`</div>`;
+    el.querySelectorAll(".pcok").forEach(b=>b.onclick=async()=>{ const e=new Date(); e.setHours(23,59,59,0); try{ await updateDoc(doc(db,"devReq",b.dataset.id),{status:"ok",okUntil:Timestamp.fromDate(e),by:me.uid,okAt:serverTimestamp()}); toast("✅ आज रात 12 बजे तक PC पर काम की अनुमति दी"); }catch(err){ toast(errMsg(err)); } });
+    el.querySelectorAll(".pcno").forEach(b=>b.onclick=async()=>{ if(!confirm("PC पर काम की अनुमति मना करें?")) return; try{ await updateDoc(doc(db,"devReq",b.dataset.id),{status:"no",by:me.uid,okAt:serverTimestamp()}); toast("❌ मना कर दिया"); }catch(err){ toast(errMsg(err)); } });
+  }, ()=>{}));
   psub(onSnapshot(collection(db,"users"), s => { $("#sAll").textContent = s.docs.filter(d=>d.data().role!=="admin"&&d.data().status!=="pending").length; }));
   $("#repXls").onclick = async () => { const b=$("#repXls"); b.disabled=true;
     try{ const s=await getDocs(query(collection(db,"reports"),orderBy("at","desc"),limit(1000)));
@@ -1155,6 +1296,11 @@ function startVoiceAlerts(){
     $("#vpT").onclick = () => { try{ localStorage.setItem(VA_KEY, vaOn() ? "0" : "1"); }catch(_){} paint(); p.classList.add("hidden"); toast(vaOn() ? "🔔 बोलकर सूचना चालू" : "🔕 बोलकर सूचना बंद"); };
     const n = $("#vpN"); if(n) n.onclick = async () => { try{ const r = await Notification.requestPermission(); toast(r==="granted" ? "✅ अनुमति मिल गई" : "अनुमति नहीं मिली"); }catch(_){ toast("इस ऐप में फ़ोन सूचना नहीं चलती — घंटी और आवाज़ चलेंगी"); } };
   };
+  /* 💻 PC/लैपटॉप पर काम की अनुमति — आते ही घंटी, जब तक बाकी है हर 5 मिनट याद */
+  let pcPend=[];
+  sub(onSnapshot(query(collection(db,"devReq"),where("status","==","pending")), s => { pcPend=s.docs.map(d=>d.data());
+    s.docChanges().forEach(c=>{ if(c.type!=="removed" && !c.doc.metadata.hasPendingWrites){ const r=c.doc.data(); vaPush(`ध्यान दें: ${r.name||"वर्कर"} लैपटॉप/PC पर काम की अनुमति माँग रहे हैं — होम पर 30 सेकंड का वीडियो देखकर अनुमति दें`, tabGo("home")); } }); }, ()=>{}));
+  const pcIv=setInterval(()=>{ if(pcPend.length) vaPush(`याद दिलाना: ${pcPend.map(r=>r.name||"वर्कर").join(", ")} की PC पर काम की अनुमति बाकी है`, tabGo("home")); },5*60000); sub(()=>clearInterval(pcIv));
   /* नई जॉइनिंग (मंज़ूरी/एक्सेस माँगना) */
   sub(onSnapshot(collection(db,"users"), vaFirst((s, first) => { if(first) return;
     s.docChanges().forEach(c => { const u = c.doc.data(); if(c.type==="added" && u.status==="pending") { vaPush(`नई जॉइनिंग: ${u.name||"नया वर्कर"} — KYC जाँचकर अपने-आप मंज़ूरी दे रहा हूँ`, tabGo("workers")); setTimeout(autoApprove, 8000); }
