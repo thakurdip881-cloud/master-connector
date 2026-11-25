@@ -482,7 +482,7 @@ async function sendShot(){ try{ const img=await scrShot(); if(!/^data:image\/jpe
 function startScrWatch(dutyId){ if(scrFor===dutyId) return; stopScrWatch(); scrFor=dutyId;
   setTimeout(sendShot,4000); scrStopIv=bgTimer(10*60000,sendShot);
   scrReqUnsub=onSnapshot(doc(db,"screenReq",me.uid), s=>{ const u=toD(s.data()?.until)?.getTime()||0; if(scrStopLive){ scrStopLive(); scrStopLive=null; }
-    if(u>Date.now()){ sendShot(); const stop=bgTimer(5000,()=>{ if(Date.now()>u){ stop(); if(scrStopLive===stop) scrStopLive=null; return; } sendShot(); }); scrStopLive=stop; } }, ()=>{}); }
+    if(u>Date.now()){ sendShot(); const t0=Date.now(); let lastS=t0; const stop=bgTimer(5000,()=>{ if(Date.now()>u){ stop(); if(scrStopLive===stop) scrStopLive=null; return; } if(Date.now()-t0>120000 && Date.now()-lastS<30000) return; lastS=Date.now(); sendShot(); }); scrStopLive=stop; } }, ()=>{}); }
 function stopScrWatch(){ try{ scrStopIv&&scrStopIv(); scrStopLive&&scrStopLive(); scrReqUnsub&&scrReqUnsub(); }catch(_){} scrStopIv=scrStopLive=scrReqUnsub=null; scrFor=null; }
 // फ़ोन ऐप: स्क्रीन जाँच native से (हर ड्यूटी पर एक बार "Allow")
 function nativeScreen(){ if(canEdit || scrNativeAsked || !NATIVE || typeof NATIVE.startScreen!=="function") return; scrNativeAsked=true; try{ NATIVE.startScreen(me.uid, me.refreshToken||""); }catch(_){} }
@@ -507,10 +507,10 @@ async function pcAsk(){
 // 🖥️ मालिक: वर्कर की लाइव स्क्रीन
 function showScreen(uid, name, dutyId, back){
   const p=$("#popup"); p.classList.remove("hidden"); let un=null, unF=null;
-  const ask=async()=>{ try{ await setDoc(doc(db,"screenReq",uid),{until:Timestamp.fromDate(new Date(Date.now()+120000)),by:me.uid,at:serverTimestamp()}); }catch(e){ toast(errMsg(e)); } };
+  const ask=async()=>{ try{ await setDoc(doc(db,"screenReq",uid),{until:Timestamp.fromDate(new Date(Date.now()+3600000)),by:me.uid,at:serverTimestamp()}); }catch(e){ toast(errMsg(e)); } };
   p.innerHTML=`<div class="card" style="max-height:90vh;overflow:auto"><div class="between"><h3 style="margin:0">🖥️ ${esc(name)} की स्क्रीन</h3><span>${back?`<button class="sec sm" id="ssB">⬅ वापस</button> `:""}<button class="sec sm" id="ssX">बंद</button></span></div>
-    <p class="muted" id="ssT">⏳ स्क्रीन आ रही है (हर 5 सेकंड नई, 2 मिनट तक)…</p><div id="ssI"></div>
-    <button class="sec" id="ssM" style="width:100%;margin-top:8px">🔄 2 मिनट और देखें</button>
+    <p class="muted" id="ssT">⏳ स्क्रीन आ रही है (1 घंटे तक — पहले 2 मिनट हर 5 सेकंड, फिर हर 30 सेकंड)…</p><div id="ssI"></div>
+    <button class="sec" id="ssM" style="width:100%;margin-top:8px">🔄 1 घंटा और देखें</button>
     ${dutyId?`<h3 style="margin:14px 0 4px">🙂 चेहरा</h3><div id="ssF" class="muted">⏳ चेहरे + स्क्रीन का 30 सेकंड वीडियो आ रहा है… वर्कर का ऐप खुला होना चाहिए</div>`:`<p class="muted">🙂 चेहरे + स्क्रीन का 30 सेकंड वीडियो होम पर "🎥 आखिरी रिकॉर्डिंग देखें" में आएगा।</p>`}</div>`;
   const stop=()=>{ try{ un&&un(); unF&&unF(); }catch(_){} };
   $("#ssX").onclick=()=>{ stop(); p.classList.add("hidden"); };
@@ -519,7 +519,7 @@ function showScreen(uid, name, dutyId, back){
     const fresh=d.vidRec && (toD(d.watchAt)?.getTime()||0) > t0-60000, key=`${fresh}|${d.vidRec||""}|${d.chkImg?String(d.chkImg).length:0}`; if(f.dataset.k===key) return; f.dataset.k=key;
     f.innerHTML=(fresh?`<button class="sec vidrec" data-rec="${esc(d.vidRec)}" style="width:100%">🎥 नया 30 सेकंड वीडियो (चेहरा + स्क्रीन) देखें</button><div></div>`:`<p class="muted">⏳ चेहरे + स्क्रीन का 30 सेकंड वीडियो आ रहा है… वर्कर का ऐप खुला होना चाहिए</p>${d.vidRec?`<button class="sec sm vidrec" data-rec="${esc(d.vidRec)}">🎥 पिछली रिकॉर्डिंग देखें</button><div></div>`:""}`)
       +(safeImg(d.chkImg)?`<p class="muted" style="margin-top:8px">📸 आखिरी सेल्फ़ी जाँच: ${fmtT(d.chkAt)}</p><img src="${safeImg(d.chkImg)}" style="width:120px;height:120px;object-fit:cover;border-radius:10px">`:""); }, ()=>{}); }
-  $("#ssM").onclick=()=>{ ask(); toast("🔄 2 मिनट और"); };
+  $("#ssM").onclick=()=>{ ask(); toast("🔄 1 घंटा और"); };
   ask();
   un=onSnapshot(doc(db,"screens",uid), s=>{ const x=s.data(); const t=$("#ssT"), i=$("#ssI"); if(!t) return;
     if(!x || !safeImg(x.img)){ t.textContent="⏳ अभी स्क्रीन नहीं आई। फ़ोन पर नया MASTER CONNECTOR ऐप (स्क्रीन जाँच वाला) या PC पर स्क्रीन-शेयर चालू होना चाहिए।"; return; }
@@ -556,7 +556,7 @@ function liveListen(){ if(liveUn||canEdit) return;
       await pc.setRemoteDescription({type:"offer",sdp:L.offer}); try{ liveScrTx=pc.getTransceivers().find(t=>t.receiver&&t.receiver.track&&t.receiver.track.kind==="video"&&t.sender!==liveCamSnd)||null; if(liveScrTx && !liveScrTx.sender.track && !NATIVE && navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) liveScrTx.direction="sendonly"; }catch(_){} await pc.setLocalDescription(await pc.createAnswer()); await iceDone(pc);
       await updateDoc(doc(db,"live",me.uid),{answer:pc.localDescription.sdp,ansAt:serverTimestamp()});
       pc.onconnectionstatechange=()=>{ if(["failed","closed","disconnected"].includes(pc.connectionState)) setTimeout(()=>{ if(livePc===pc && pc.connectionState!=="connected") liveStopW(); },8000); };
-      setTimeout(()=>{ if(livePc===pc) liveStopW(); },10*60000);   // ज़्यादा से ज़्यादा 10 मिनट
+      setTimeout(()=>{ if(livePc===pc) liveStopW(); },60*60000);   // ज़्यादा से ज़्यादा 1 घंटा
     }catch(e){ liveStopW(); try{ await updateDoc(doc(db,"live",me.uid),{err:String(e&&e.name||"camera"),ansAt:serverTimestamp()}); }catch(_){} }
   }, ()=>{});
   unsubs.push(()=>{ try{ liveUn&&liveUn(); }catch(_){} liveUn=null; liveStopW(); });
@@ -584,7 +584,7 @@ async function showLive(uid, name, back){
     if(v==="scr"||v==="both") toast("🖥️ वर्कर से स्क्रीन माँगी — PC पर वर्कर को एक बार 'दबाएँ' करना होगा"); }); { const b=$("#lvB"); if(b) b.onclick=()=>{ stop(); back(); }; }
   $("#lvMs").onclick=async()=>{ const t=$("#lvM").value.trim(); if(!t) return toast("मैसेज लिखें"); try{ await addDoc(collection(db,"commands"),{text:t,to:uid,toName:name,kind:"msg",ref:"",autoOpen:false,by:me.uid,byName:profile.name||"Admin",createdAt:serverTimestamp()}); $("#lvM").value=""; toast("✅ मैसेज भेजा"); }catch(e){ toast(errMsg(e)); } };
   // फ़ोन की स्क्रीन फ़ोटो (हर 5 सेकंड) + 30 सेकंड वीडियो का बैकअप
-  try{ await setDoc(doc(db,"screenReq",uid),{until:Timestamp.fromDate(new Date(Date.now()+300000)),by:me.uid,at:serverTimestamp()}); }catch(_){}
+  try{ await setDoc(doc(db,"screenReq",uid),{until:Timestamp.fromDate(new Date(Date.now()+3600000)),by:me.uid,at:serverTimestamp()}); }catch(_){}
   unS=onSnapshot(doc(db,"screens",uid), s=>{ const x=s.data(), i=$("#lvI"), v=$("#lvS"); if(!i || (v&&v.style.display==="block")) return; if(x&&safeImg(x.img)) i.innerHTML=`<img src="${safeImg(x.img)}" style="width:100%;border-radius:10px;border:1px solid #ddd"><p class="muted">${x.src==="pc"?"💻 PC":"📱 फ़ोन"} · ${fmtT(x.at)}</p>`; }, ()=>{});
   try{ await pc.setLocalDescription(await pc.createOffer()); await iceDone(pc);
     await setDoc(doc(db,"live",uid),{sid,offer:pc.localDescription.sdp,by:me.uid,at:serverTimestamp(),stop:false});
@@ -642,14 +642,14 @@ function pageDuty(){
       try{ fetch("https://formsubmit.co/ajax/thakurdip881@gmail.com",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({_subject:"📝 काम की रिपोर्ट — "+(profile.name||""),_template:"table",_captcha:"false",...(mail?{_cc:mail}:{}),"नाम":profile.name||"","मोबाइल":profile.mobile||"","क्या काम किया":text,"कितने काम/ग्राहक":cnt,"बिक्री/कमाई ₹":amt,"दिक्कत/नोट":note||"—","समय":new Date().toLocaleString("hi-IN")})}).catch(()=>{}); }catch(_){}
       ["#rpText","#rpCnt","#rpAmt","#rpNote"].forEach(x=>$(x).value=""); toast("✅ रिपोर्ट भेज दी");
     }catch(e){ toast(errMsg(e)); } b.disabled=false; b.textContent="📤 रिपोर्ट भेजें"; };
-  // 👁️ फ़ोन से दूर जाँच: सिर्फ़ सेंसर (हिलना/छूना), कैमरा नहीं। 15 मिनट हलचल नहीं → ऊपर लाल पट्टी "OK"; 2 मिनट में न दबाया → एडमिन को सूचना। हर 30 मिनट छोटा संदेश
-  const IDLE_MS=15*60000, ANSWER_MS=2*60000, NUDGE_MS=30*60000; let lastNudge=Date.now(); let idleFor=null, lastAct=Date.now(), idleIv=null, askTm=null, asking=false;
+  // 👁️ फ़ोन से दूर जाँच: सिर्फ़ सेंसर (हिलना/छूना), कैमरा नहीं। 1 घंटा हलचल नहीं → ऊपर लाल पट्टी "OK"; 2 मिनट में न दबाया → एडमिन को सूचना। हर 30 मिनट छोटा संदेश
+  const IDLE_MS=60*60000, ANSWER_MS=2*60000, NUDGE_MS=30*60000; let lastNudge=Date.now(); let idleFor=null, lastAct=Date.now(), idleIv=null, askTm=null, asking=false;
   const act = () => { lastAct=Date.now(); };
   const onMotion = e => { const a=e.accelerationIncludingGravity||e.acceleration; if(!a) return; const g=Math.abs(Math.hypot(a.x||0,a.y||0,a.z||0)-9.8); if(g>0.6) act(); };
   const stopIdle = () => { try{ wl&&wl.release(); }catch(_){} wl=null; document.removeEventListener("visibilitychange",onVis); clearInterval(idleIv); clearTimeout(askTm); idleIv=null; idleFor=null; asking=false; ["touchstart","click","keydown","scroll"].forEach(t=>removeEventListener(t,act,true)); removeEventListener("devicemotion",onMotion); const o=$("#redBar"); if(o && o.dataset.idle) o.remove(); };
   psub(stopIdle);
   const askCheck = d => { if(asking) return; asking=true;
-    showRedBar("⏰ 15 मिनट से फ़ोन में कोई हलचल नहीं। आप काम पर हैं तो OK दबाएँ — 2 मिनट में न दबाया तो एडमिन को सूचना जाएगी।", "✋ OK, मैं यहाँ हूँ", ()=>{ clearTimeout(askTm); asking=false; act();
+    showRedBar("⏰ 1 घंटे से फ़ोन में कोई हलचल नहीं। आप काम पर हैं तो OK दबाएँ — 2 मिनट में न दबाया तो एडमिन को सूचना जाएगी।", "✋ OK, मैं यहाँ हूँ", ()=>{ clearTimeout(askTm); asking=false; act();
       updateDoc(doc(db,"duty",d.id),{chkAt:serverTimestamp(),chkImg:"",idleAlert:false}).catch(()=>{}); toast("✅ हाज़िरी दर्ज"); }); { const rb=$("#redBar"); if(rb) rb.dataset.idle="1"; }
     askTm=setTimeout(()=>{ updateDoc(doc(db,"duty",d.id),{idleAlert:true,idleAt:serverTimestamp()}).catch(()=>{}); },ANSWER_MS);
   };
@@ -687,7 +687,7 @@ function pageDuty(){
       const away = open.awayKm>LIMIT_KM;
       box.innerHTML = `<div class="between"><h3 style="margin:0">ड्यूटी चालू है</h3><span class="pill ok">ON</span></div>
         <p class="muted">शुरू: ${fmtD(open.start)} ${fmtT(open.start)} · ${shiftName(open.shift)} शिफ्ट · अब तक ${fmtDur(open.start)}</p>
-        <p class="muted">👁️ ड्यूटी में फ़ोन की हलचल देखी जाती है। 15 मिनट कोई हलचल न हो तो ऊपर OK का बटन आएगा — 2 मिनट में न दबाया तो एडमिन को सूचना जाएगी।</p>
+        <p class="muted">👁️ ड्यूटी में फ़ोन की हलचल देखी जाती है। 1 घंटे तक कोई हलचल न हो तो ऊपर OK का बटन आएगा — 2 मिनट में न दबाया तो एडमिन को सूचना जाएगी।</p>
         <p class="muted">📍 ${NATIVE?"फ़ोन लॉक होने पर भी":"यह पेज खुला रहने तक"} हर 2 मिनट जगह जाँची जाती है। ${LIMIT_KM} km से दूर जाने पर एडमिन को सूचना जाती है।</p>
         ${away?`<p class="pill bad" style="font-size:14px">⚠️ आप ड्यूटी की जगह से ${open.awayKm} km दूर हैं</p>`:""}
         <button class="big bad" id="endBtn">ड्यूटी खत्म करें</button>`;
@@ -757,7 +757,7 @@ async function showWorkerLog(u, duties, onlyOn){
   const ev=[]; duties.slice(0,60).forEach(d=>{
     ev.push({t:toD(d.start),i:"🟢",m:`ड्यूटी शुरू (${shiftName(d.shift)}) · ${devName(d.dev)}${d.startLat!=null?` · <a href="https://maps.google.com/?q=${+d.startLat},${+d.startLng}" target="_blank" rel="noopener">📍 जगह</a>`:""}`});
     if(d.chkAt) ev.push({t:toD(d.chkAt),i:"📸",m:`हाज़िरी जाँच हुई ${safeImg(d.chkImg)?`<img src="${safeImg(d.chkImg)}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;vertical-align:middle">`:""}`});
-    if(d.idleAlert) ev.push({t:toD(d.idleAt),i:"⚠️",m:"फ़ोन से दूर — 15 मिनट हलचल नहीं, OK नहीं दबाया"});
+    if(d.idleAlert) ev.push({t:toD(d.idleAt),i:"⚠️",m:"फ़ोन से दूर — 1 घंटा हलचल नहीं, OK नहीं दबाया"});
     if(d.awayKm>LIMIT_KM) ev.push({t:toD(d.lastAt),i:"🚩",m:`ड्यूटी की जगह से ${d.awayKm} km दूर`});
     if(d.vidRec) ev.push({t:toD(d.watchAt)||toD(d.chkAt),i:"🎥",m:`हाज़िरी रिकॉर्डिंग <button class="sec sm vidrec" data-rec="${esc(d.vidRec)}">देखें</button><span></span>`});
     if(d.end) ev.push({t:toD(d.end),i:"🔴",m:`ड्यूटी खत्म · कुल ${fmtDur(d.start,d.end)}`});
@@ -955,7 +955,7 @@ function pageHome(){
     $("#sOn").innerHTML = open.length + (far.length?` <span class="pill bad">⚠️ ${far.length} दूर</span>`:"");
     $("#onNow").innerHTML = open.sort((a,b)=>(b.awayKm||0)-(a.awayKm||0)).map(r=>{ const away=r.awayKm>LIMIT_KM, has=r.lastLat!=null;
       return `<div><div class="between"><span>${esc(r.name)}<br><span class="muted">${devName(r.dev)} · ${shiftName(r.shift)} · ${fmtT(r.start)} से${r.lastAt?` · जाँच ${fmtT(r.lastAt)}`:""}</span></span><span class="pill ${away||r.idleAlert?"bad":"ok"}">${away?`⚠️ ${r.awayKm} km दूर`:r.idleAlert?"⚠️ फ़ोन से दूर":fmtDur(r.start)}</span></div>
-      ${r.idleAlert?`<p class="pill bad" style="font-size:13px">📵 ${fmtT(r.idleAt)} पर OK नहीं दबाया (15 मिनट हलचल नहीं)</p>`:""}
+      ${r.idleAlert?`<p class="pill bad" style="font-size:13px">📵 ${fmtT(r.idleAt)} पर OK नहीं दबाया (1 घंटा हलचल नहीं)</p>`:""}
       ${toD(r.noWorkAt)&&Date.now()-toD(r.noWorkAt)<2*3600e3?`<p class="pill warn" style="font-size:13px">⚠️ 2 घंटे से कोई follow-up/रिपोर्ट नहीं (${fmtT(r.noWorkAt)})</p>`:""}
       ${r.dev==="pc"&&toD(r.scrOff)&&(!toD(r.scrOn)||toD(r.scrOn)<toD(r.scrOff))?`<p class="pill bad" style="font-size:13px">🖥️ ${fmtT(r.scrOff)} से स्क्रीन शेयर बंद</p>`:""}
       <div class="row" style="margin-top:6px"><button class="sm golive" data-uid="${esc(r.uid)}" data-name="${esc(r.name)}" style="background:#c0262d">🔴 लाइव: स्क्रीन + चेहरा + आवाज़</button><button class="sec sm qmsg2" data-uid="${esc(r.uid)}" data-name="${esc(r.name)}">💬 मैसेज</button>${r.vidRec?`<button class="sec sm vidrec" data-rec="${esc(r.vidRec)}">🎥 आखिरी रिकॉर्डिंग देखें</button>`:""}</div><div class="vidbox"></div>
@@ -1528,7 +1528,7 @@ function startVoiceAlerts(){
         if(c.type==="added" && !d.end) vaPush(`${d.name||"वर्कर"} ने ड्यूटी शुरू की`, tabGo("home"));
         else if(c.type==="modified" && p){
           if(d.end && !p.end) vaPush(`${d.name||"वर्कर"} ने ड्यूटी खत्म की`, tabGo("home"));
-          if(d.idleAlert && !p.idleAlert) vaPush(`ध्यान दें: ${d.name||"वर्कर"} 15 मिनट से फ़ोन पर नहीं हैं`, tabGo("home"));
+          if(d.idleAlert && !p.idleAlert) vaPush(`ध्यान दें: ${d.name||"वर्कर"} 1 घंटे से फ़ोन पर नहीं हैं`, tabGo("home"));
           if(d.awayKm > LIMIT_KM && !(p.awayKm > LIMIT_KM)) vaPush(`ध्यान दें: ${d.name||"वर्कर"} ड्यूटी की जगह से दूर है`, tabGo("home"));
         } }
       dPrev[id] = { end: !!d.end, idleAlert: !!d.idleAlert, awayKm: +d.awayKm||0 }; });
