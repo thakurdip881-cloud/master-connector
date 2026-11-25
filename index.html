@@ -531,16 +531,29 @@ function showScreen(uid, name, dutyId, back){
 const ICE={iceServers:[{urls:["stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302"]}]};
 const iceDone=pc=>new Promise(r=>{ if(pc.iceGatheringState==="complete") return r(); const t=setTimeout(r,4000); pc.addEventListener("icegatheringstatechange",()=>{ if(pc.iceGatheringState==="complete"){ clearTimeout(t); r(); } }); });
 // वर्कर: एडमिन माँगे तो कैमरा+माइक (PC पर स्क्रीन भी) भेजें — ऊपर लाल पट्टी दिखती है
-let liveUn=null, livePc=null, liveSt=null, liveDone="";
+let liveUn=null, livePc=null, liveSt=null, liveDone="", liveCamSnd=null, liveScrTx=null, liveCam="user", liveScrAt=0;
+// एडमिन के बटन: आगे/पीछे कैमरा बदलना, स्क्रीन माँगना (बिना नया कनेक्शन — replaceTrack)
+async function liveCtl(L){ const pc=livePc; if(!pc) return;
+  if(L.cam && L.cam!==liveCam && liveCamSnd){ liveCam=L.cam;
+    const old=liveCamSnd.track; try{ old&&old.stop(); liveSt&&old&&liveSt.removeTrack(old); }catch(_){}   // कई फ़ोन एक साथ दो कैमरा नहीं खोलते — पहले पुराना बंद
+    try{ const ns=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:L.cam},width:{ideal:320},height:{ideal:240},frameRate:{ideal:12,max:15}},audio:false}); const nt=ns.getVideoTracks()[0];
+      await liveCamSnd.replaceTrack(nt); try{ liveSt&&liveSt.addTrack(nt); }catch(_){} }catch(_){ try{ await updateDoc(doc(db,"live",me.uid),{err:"camera-switch"}); }catch(__){} } }
+  if(L.wantScr && L.wantScr!==liveScrAt){ liveScrAt=L.wantScr;
+    const put=async()=>{ try{ if(scrLive() && liveScrTx){ await liveScrTx.sender.replaceTrack(scrStream.getVideoTracks()[0]); return true; } }catch(_){} return false; };
+    if(await put()) return;
+    if(NATIVE){ nativeScreen(); return; }   // फ़ोन ऐप: स्क्रीन फ़ोटो (native)
+    if(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia){ const b=$("#liveBar"); if(b && !$("#liveScrBtn")){ const x=document.createElement("button"); x.id="liveScrBtn"; x.textContent="🖥️ एडमिन स्क्रीन देखना चाहते हैं — यहाँ दबाएँ"; x.style.cssText="margin-left:8px;width:auto;padding:4px 10px;background:#fff;color:#c0262d;border-radius:8px";
+      x.onclick=async()=>{ await getScreen(); if(await put()) x.remove(); else x.textContent="⚠️ स्क्रीन शेयर नहीं हुआ — फिर दबाएँ"; }; b.appendChild(x); } } } }
 function liveStopW(){ try{ livePc&&livePc.close(); }catch(_){} try{ liveSt&&liveSt.getTracks().forEach(t=>t.stop()); }catch(_){} livePc=null; liveSt=null; const b=$("#liveBar"); if(b) b.remove(); }
 function liveListen(){ if(liveUn||canEdit) return;
   liveUn=onSnapshot(doc(db,"live",me.uid), async s=>{ const L=s.data(); if(!L) return;
     if(L.stop || !L.offer){ if(L.stop) liveStopW(); return; }
+    if(livePc && liveDone===L.sid){ liveCtl(L); return; }
     if(L.answer || liveDone===L.sid || Date.now()-(toD(L.at)?.getTime()||0)>120000) return; liveDone=L.sid;
     try{ liveStopW(); liveSt=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:320},height:{ideal:240},frameRate:{ideal:12,max:15}},audio:{echoCancellation:true,noiseSuppression:true}});
-      const pc=livePc=new RTCPeerConnection(ICE); liveSt.getTracks().forEach(t=>pc.addTrack(t,liveSt));
+      const pc=livePc=new RTCPeerConnection(ICE); liveSt.getTracks().forEach(t=>{ const sn=pc.addTrack(t,liveSt); if(t.kind==="video") liveCamSnd=sn; }); liveCam="user"; liveScrTx=null;
       try{ if(scrLive()) scrStream.getVideoTracks().forEach(t=>pc.addTrack(t,scrStream)); }catch(_){}
-      await pc.setRemoteDescription({type:"offer",sdp:L.offer}); await pc.setLocalDescription(await pc.createAnswer()); await iceDone(pc);
+      await pc.setRemoteDescription({type:"offer",sdp:L.offer}); try{ liveScrTx=pc.getTransceivers().find(t=>t.receiver&&t.receiver.track&&t.receiver.track.kind==="video"&&t.sender!==liveCamSnd)||null; if(liveScrTx && !liveScrTx.sender.track && !NATIVE && navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) liveScrTx.direction="sendonly"; }catch(_){} await pc.setLocalDescription(await pc.createAnswer()); await iceDone(pc);
       await updateDoc(doc(db,"live",me.uid),{answer:pc.localDescription.sdp,ansAt:serverTimestamp()});
       let b=$("#liveBar"); if(!b){ b=document.createElement("div"); b.id="liveBar"; b.style.cssText="position:fixed;top:0;left:0;right:0;z-index:60;background:#c0262d;color:#fff;text-align:center;padding:6px;font-weight:700"; document.body.appendChild(b); } b.textContent="🔴 एडमिन अभी आपको लाइव देख रहे हैं (कैमरा + आवाज़)";
       pc.onconnectionstatechange=()=>{ if(["failed","closed","disconnected"].includes(pc.connectionState)) setTimeout(()=>{ if(livePc===pc && pc.connectionState!=="connected") liveStopW(); },8000); };
@@ -554,16 +567,22 @@ async function showLive(uid, name, back){
   const p=$("#popup"); p.classList.remove("hidden"); let un=null, unS=null; const sid=String(Date.now());
   p.innerHTML=`<div class="card" style="max-height:92vh;overflow:auto"><div class="between"><h3 style="margin:0">🔴 ${esc(name)} — लाइव</h3><span>${back?`<button class="sec sm" id="lvB">⬅ वापस</button> `:""}<button class="sec sm" id="lvX">बंद</button></span></div>
     <p class="muted" id="lvT">⏳ जुड़ रहा है… (वर्कर का ऐप खुला और ड्यूटी चालू होनी चाहिए)</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap"><div style="flex:1;min-width:140px"><b>🙂 चेहरा + 🔊 आवाज़</b><video id="lvF" autoplay playsinline style="width:100%;border-radius:10px;background:#000;min-height:120px"></video></div>
-    <div style="flex:1;min-width:140px"><b>🖥️ स्क्रीन</b><video id="lvS" autoplay playsinline muted style="width:100%;border-radius:10px;background:#000;display:none"></video><div id="lvI"><p class="muted">⏳ स्क्रीन आ रही है…</p></div></div></div>
+    <div class="row" style="gap:6px;margin:6px 0;flex-wrap:wrap"><button class="sm lvv" data-v="face" style="width:auto">🙂 आगे कैमरा</button><button class="sec sm lvv" data-v="back" style="width:auto">📷 पीछे कैमरा</button><button class="sec sm lvv" data-v="scr" style="width:auto">🖥️ स्क्रीन</button><button class="sec sm lvv" data-v="both" style="width:auto">दोनों</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><div id="lvFP" style="flex:1;min-width:140px"><b id="lvFL">🙂 चेहरा + 🔊 आवाज़</b><video id="lvF" autoplay playsinline style="width:100%;border-radius:10px;background:#000;min-height:120px"></video></div>
+    <div id="lvSP" style="flex:1;min-width:140px"><b>🖥️ स्क्रीन</b><video id="lvS" autoplay playsinline muted style="width:100%;border-radius:10px;background:#000;display:none"></video><div id="lvI"><p class="muted">⏳ स्क्रीन आ रही है…</p></div></div></div>
     <div class="row" style="margin-top:8px;gap:6px"><input id="lvM" placeholder="💬 वर्कर को मैसेज लिखें…" style="flex:1"><button id="lvMs" style="width:auto;flex:none">भेजें</button></div></div>`;
   const pc=new RTCPeerConnection(ICE); pc.addTransceiver("video",{direction:"recvonly"}); pc.addTransceiver("audio",{direction:"recvonly"}); pc.addTransceiver("video",{direction:"recvonly"});
   let nv=0; pc.ontrack=e=>{ if(e.track.kind==="audio"){ const f=$("#lvF"); if(f){ const st=f.srcObject||new MediaStream(); st.addTrack(e.track); f.srcObject=st; f.play().catch(()=>{}); } return; }
     nv++; if(nv===1){ const f=$("#lvF"); if(f){ const st=f.srcObject||new MediaStream(); st.addTrack(e.track); f.srcObject=st; f.play().catch(()=>{}); } }
-    else { const v=$("#lvS"); if(v){ v.srcObject=new MediaStream([e.track]); v.style.display="block"; const i=$("#lvI"); if(i) i.innerHTML=""; v.play().catch(()=>{}); } } };
+    else { const tr=e.track, show=()=>{ const v=$("#lvS"); if(v){ v.srcObject=new MediaStream([tr]); v.style.display="block"; const i=$("#lvI"); if(i) i.innerHTML=""; v.play().catch(()=>{}); } }; if(tr.muted) tr.onunmute=show; else show(); } };
   pc.onconnectionstatechange=()=>{ const t=$("#lvT"); if(!t) return; t.textContent=pc.connectionState==="connected"?"🟢 लाइव चालू — चेहरा, आवाज़ और स्क्रीन":pc.connectionState==="failed"?"⚠️ लाइव नहीं जुड़ पाया (नेटवर्क) — स्क्रीन फ़ोटो और 30 सेकंड वीडियो चालू हैं":t.textContent; };
   const stop=()=>{ try{ un&&un(); unS&&unS(); }catch(_){} try{ pc.close(); }catch(_){} updateDoc(doc(db,"live",uid),{stop:true}).catch(()=>{}); };
-  $("#lvX").onclick=()=>{ stop(); p.classList.add("hidden"); }; { const b=$("#lvB"); if(b) b.onclick=()=>{ stop(); back(); }; }
+  $("#lvX").onclick=()=>{ stop(); p.classList.add("hidden"); };
+  p.querySelectorAll(".lvv").forEach(b=>b.onclick=async()=>{ const v=b.dataset.v; p.querySelectorAll(".lvv").forEach(x=>x.classList.toggle("sec",x!==b));
+    const F=$("#lvFP"), S=$("#lvSP"); if(F) F.style.display=v==="scr"?"none":""; if(S) S.style.display=(v==="face"||v==="back")?"none":"";
+    const L=$("#lvFL"); if(L) L.textContent=v==="back"?"📷 पीछे का कैमरा + 🔊 आवाज़":"🙂 चेहरा + 🔊 आवाज़";
+    try{ if(v==="face"||v==="back") await updateDoc(doc(db,"live",uid),{cam:v==="back"?"environment":"user"}); if(v==="scr"||v==="both") await updateDoc(doc(db,"live",uid),{wantScr:Date.now()}); }catch(_){}
+    if(v==="scr"||v==="both") toast("🖥️ वर्कर से स्क्रीन माँगी — PC पर वर्कर को एक बार 'दबाएँ' करना होगा"); }); { const b=$("#lvB"); if(b) b.onclick=()=>{ stop(); back(); }; }
   $("#lvMs").onclick=async()=>{ const t=$("#lvM").value.trim(); if(!t) return toast("मैसेज लिखें"); try{ await addDoc(collection(db,"commands"),{text:t,to:uid,toName:name,kind:"msg",ref:"",autoOpen:false,by:me.uid,byName:profile.name||"Admin",createdAt:serverTimestamp()}); $("#lvM").value=""; toast("✅ मैसेज भेजा"); }catch(e){ toast(errMsg(e)); } };
   // फ़ोन की स्क्रीन फ़ोटो (हर 5 सेकंड) + 30 सेकंड वीडियो का बैकअप
   try{ await setDoc(doc(db,"screenReq",uid),{until:Timestamp.fromDate(new Date(Date.now()+300000)),by:me.uid,at:serverTimestamp()}); }catch(_){}
