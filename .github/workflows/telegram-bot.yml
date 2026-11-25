@@ -72,8 +72,7 @@ jobs:
               L.push("👷 "+wName(id)+": "+hm(m)+(my.some(d=>!d.end)?" (अभी ड्यूटी पर)":"")+" · नए ग्राहक "+C.filter(c=>c.ref===id).length+" · follow-up "+F.filter(f=>f.uid===id).length+(my.some(d=>d.idleAlert)?" · ⚠️ सेल्फ़ी जाँच छूटी":"")); }
             if(!ids.length) L.push("आज कोई ड्यूटी या काम दर्ज नहीं।");
             const nr=C.filter(c=>!c.ref).length; L.push("","🧳 कुल नए ग्राहक: "+C.length+(nr?" ("+nr+" बिना वर्कर)":""));
-            const bk=new Set(F.filter(f=>f.stage==="booking"||f.stage==="done").map(f=>f.cust)).size; if(bk) L.push("📒 आज बुकिंग/पूरा: "+bk);
-            if(pc) L.push("💻 PC पर काम की अनुमति बाकी: "+pc);
+                      if(pc) L.push("💻 PC पर काम की अनुमति बाकी: "+pc);
             return L.join("\n"); };
           // (2)+(4) आने वाले संदेश
             const up=await tg("getUpdates",{offset:(meta.offset||0),timeout:0,allowed_updates:["message"]});
@@ -139,9 +138,9 @@ jobs:
             const F=(await db.collection("followups").where("at",">=",TS.fromMillis(s0)).get()).docs.map(d=>d.data()).filter(f=>inM(f.at));
             const L=["💰 पिछले महीने की सैलरी + कमीशन",""]; let tot=0;
             for(const [id,u] of Object.entries(uMap)){ if(u.status==="pending") continue; const p=u.pay||{}, my=D.filter(d=>d.uid===id), days=new Set(my.map(d=>new Date(ms(d.start)+5.5*3600e3).toISOString().slice(0,10))).size;
-              const ids=new Set(C.filter(c=>c.ref===id).map(c=>c.id)), book=new Set(F.filter(f=>ids.has(f.cust)&&(f.stage==="booking"||f.stage==="done")).map(f=>f.cust)).size;
-              const sale=R.filter(r=>r.uid===id).reduce((t,r)=>t+(+r.amt||0),0), sal=+p.amt?(p.per==="day"?(+p.amt)*days:+p.amt):0, com=+p.comm?(p.ct==="pct"?Math.round(sale*(+p.comm)/100):book*(+p.comm)):0;
-              tot+=sal+com; L.push("👷 "+(u.name||"वर्कर")+": ₹"+(sal+com).toLocaleString("en-IN")+" (सैलरी ₹"+sal+" + कमीशन ₹"+com+") · "+days+" दिन · बुकिंग "+book); }
+              const kaam=R.filter(r=>r.uid===id).reduce((t,r)=>t+(+r.cnt||0),0);
+              const sale=R.filter(r=>r.uid===id).reduce((t,r)=>t+(+r.amt||0),0), sal=+p.amt?(p.per==="day"?(+p.amt)*days:+p.amt):0, com=+p.comm?(p.ct==="pct"?Math.round(sale*(+p.comm)/100):kaam*(+p.comm)):0;
+              tot+=sal+com; L.push("👷 "+(u.name||"वर्कर")+": ₹"+(sal+com).toLocaleString("en-IN")+" (सैलरी ₹"+sal+" + कमीशन ₹"+com+") · "+days+" दिन · काम "+kaam); }
             L.push("","कुल: ₹"+tot.toLocaleString("en-IN"),"Excel: MASTER CONNECTOR → होम → 💰 सैलरी + कमीशन");
             await send(ownerChat,L.join("\n")); upd.lastPay=mKey; n.pay++; }
           // 2 घंटे से ड्यूटी पर, पर कोई follow-up/रिपोर्ट नहीं → मालिक + वर्कर को

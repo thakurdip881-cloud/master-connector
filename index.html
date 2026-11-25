@@ -506,7 +506,7 @@ async function resumeNativeDuty(){
 }
 function pageDuty(){
   app.innerHTML = `<div class="card" style="border:2px solid #0a7d3b"><h3>💰 मेरी सैलरी · कमीशन · ड्यूटी समय</h3><p style="margin:4px 0">💰 ${payText(profile?.pay)?esc(payText(profile.pay)):`<span class="muted">एडमिन ने अभी सैलरी नहीं भरी</span>`}</p><div id="myStats" class="muted">लोड हो रहा है…</div></div><div class="card" id="dutyBox">लोड हो रहा है…</div><div class="card" id="repCard"><h3>📝 काम की रिपोर्ट <span class="muted" style="font-size:13px">(हर 12 घंटे)</span></h3><p class="muted" id="repDue"></p>
-    <label class="req">आज क्या-क्या काम किया</label><textarea id="rpText" rows="3" maxlength="600" placeholder="जैसे: 3 टूर बुकिंग, 2 ग्राहकों से बात, 10 पोस्ट"></textarea>
+    <label class="req">आज क्या-क्या काम किया</label><textarea id="rpText" rows="3" maxlength="600" placeholder="जैसे: 2 ग्राहकों से बात, 10 पोस्ट"></textarea>
     <div class="row"><div style="flex:1"><label>कितने काम / ग्राहक</label><input id="rpCnt" inputmode="numeric" maxlength="4"></div><div style="flex:1"><label>बिक्री / कमाई ₹</label><input id="rpAmt" inputmode="numeric" maxlength="8"></div></div>
     <label>दिक्कत / नोट</label><input id="rpNote" maxlength="200">
     <label>मेरी Gmail (रिपोर्ट की कॉपी यहाँ आएगी)</label><input id="rpMail" type="email" inputmode="email" placeholder="naam@gmail.com">
@@ -692,7 +692,7 @@ async function showWorkerLog(u, duties, onlyOn){
 /* ---------- 🧳 DIP Tour & Travels — ग्राहक पैनल (डेटा अलग: tCustomers, tTxn, tMsgs, tDocs) ---------- */
 const TOUR_URL="https://thakurdip881-cloud.github.io/master-connector/tour/";
 // 🧳 ग्राहक की स्थिति (follow-up से बदलती है)
-const STAGES=[["new","🆕 नया"],["talk","💬 बात हुई"],["booking","📒 बुकिंग"],["done","✅ पूरा"]];
+const STAGES=[["new","🆕 नया"],["talk","💬 बात हुई"],["done","✅ पूरा"]];
 const stName=k=>(STAGES.find(x=>x[0]===k)||STAGES[0])[1];
 const stOf=(fs)=>{ const f=fs.find(x=>x.stage); return f?f.stage:"new"; };   // fs: नया पहले
 const todayKey=()=>{ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
@@ -788,7 +788,7 @@ function saveCsv(name, csv){
   if(window.MCNative && MCNative.saveFile){ const u8=new TextEncoder().encode(csv); let bin=""; for(let i=0;i<u8.length;i+=8192) bin+=String.fromCharCode.apply(null,u8.subarray(i,i+8192)); MCNative.saveFile(name,"text/csv",btoa(bin)); return; }
   const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
 }
-/* 💰 महीने का हिसाब: सैलरी (महीना/दिन) + कमीशन (हर बुकिंग पर ₹ या बिक्री का %) — Excel */
+/* 💰 महीने का हिसाब: सैलरी (महीना/दिन) + कमीशन (हर काम पर ₹ या बिक्री का %) — Excel */
 async function calcPay(y, m){
   const s0=new Date(y,m,1), e0=new Date(y,m+1,1), inM=v=>{ const t=toD(v); return t && t>=s0 && t<e0; };
   const W=(await getDocs(collection(db,"users"))).docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.role!=="admin"&&u.status!=="pending");
@@ -799,11 +799,11 @@ async function calcPay(y, m){
   return W.map(u=>{ const p=u.pay||{}, mine=D.filter(d=>d.uid===u.id), days=new Set(mine.map(d=>toD(d.start).toDateString())).size;
     const mins=mine.reduce((t,d)=>t+Math.max(0,((toD(d.end)||new Date())-toD(d.start))/60000),0);
     const myC=C.filter(c=>c.ref===u.id), newC=myC.filter(c=>inM(c.at)).length, ids=new Set(myC.map(c=>c.id));
-    const book=new Set(F.filter(f=>ids.has(f.cust) && (f.stage==="booking"||f.stage==="done") && inM(f.at)).map(f=>f.cust)).size;
+    const kaam=R.filter(r=>r.uid===u.id).reduce((t,r)=>t+(+r.cnt||0),0);
     const sale=R.filter(r=>r.uid===u.id).reduce((t,r)=>t+(+r.amt||0),0), fups=F.filter(f=>f.uid===u.id && inM(f.at)).length;
     const sal=+p.amt ? (p.per==="day" ? (+p.amt)*days : +p.amt) : 0;
-    const com=+p.comm ? (p.ct==="pct" ? Math.round(sale*(+p.comm)/100) : book*(+p.comm)) : 0;
-    return {name:u.name||"", days, hrs:Math.round(mins/6)/10, newC, fups, book, sale, sal, com, total:sal+com, payT:payText(p)||"सैलरी नहीं भरी"}; });
+    const com=+p.comm ? (p.ct==="pct" ? Math.round(sale*(+p.comm)/100) : kaam*(+p.comm)) : 0;
+    return {name:u.name||"", days, hrs:Math.round(mins/6)/10, newC, fups, kaam, sale, sal, com, total:sal+com, payT:payText(p)||"सैलरी नहीं भरी"}; });
 }
 async function payReport(){
   const p=$("#popup"); p.classList.remove("hidden"); const n=new Date(), pm=new Date(n.getFullYear(),n.getMonth()-1,1);
@@ -813,9 +813,9 @@ async function payReport(){
   $("#pyX").onclick=()=>p.classList.add("hidden");
   const run=async d=>{ const b=$("#pyB"); b.textContent="⏳ हिसाब बन रहा है…";
     try{ const rows=await calcPay(d.getFullYear(), d.getMonth()), rs=v=>"₹"+(+v||0).toLocaleString("en-IN");
-      b.innerHTML=`<div class="list">${rows.map(r=>`<div><div class="between"><b>${esc(r.name)}</b><b>${rs(r.total)}</b></div><span class="muted">${r.days} दिन · ${r.hrs} घंटे · नए ग्राहक ${r.newC} · बुकिंग ${r.book} · follow-up ${r.fups} · बिक्री ${rs(r.sale)}<br>सैलरी ${rs(r.sal)} + कमीशन ${rs(r.com)} (${esc(r.payT)})</span></div>`).join("")||"कोई वर्कर नहीं"}</div><button class="ok" id="pyE" style="width:100%;margin-top:8px">📥 Excel फ़ाइल</button>`;
+      b.innerHTML=`<div class="list">${rows.map(r=>`<div><div class="between"><b>${esc(r.name)}</b><b>${rs(r.total)}</b></div><span class="muted">${r.days} दिन · ${r.hrs} घंटे · नए ग्राहक ${r.newC} · काम ${r.kaam} · follow-up ${r.fups} · बिक्री ${rs(r.sale)}<br>सैलरी ${rs(r.sal)} + कमीशन ${rs(r.com)} (${esc(r.payT)})</span></div>`).join("")||"कोई वर्कर नहीं"}</div><button class="ok" id="pyE" style="width:100%;margin-top:8px">📥 Excel फ़ाइल</button>`;
       $("#pyE").onclick=()=>{ const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
-        const csv="\ufeff"+[["नाम","ड्यूटी दिन","घंटे","नए ग्राहक","बुकिंग","follow-up","बिक्री ₹","सैलरी ₹","कमीशन ₹","कुल ₹","सैलरी नियम"]].concat(rows.map(r=>[r.name,r.days,r.hrs,r.newC,r.book,r.fups,r.sale,r.sal,r.com,r.total,r.payT])).map(r=>r.map(q).join(",")).join("\r\n");
+        const csv="\ufeff"+[["नाम","ड्यूटी दिन","घंटे","नए ग्राहक","काम","follow-up","बिक्री ₹","सैलरी ₹","कमीशन ₹","कुल ₹","सैलरी नियम"]].concat(rows.map(r=>[r.name,r.days,r.hrs,r.newC,r.kaam,r.fups,r.sale,r.sal,r.com,r.total,r.payT])).map(r=>r.map(q).join(",")).join("\r\n");
         saveCsv(`salary-${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}.csv`, csv); toast("📥 सैलरी + कमीशन की Excel बनी"); };
     }catch(e){ b.textContent=errMsg(e); } };
   $("#pyC").onclick=()=>run(n); $("#pyP").onclick=()=>run(pm);
@@ -911,7 +911,7 @@ function showPay(u){
   p.innerHTML=`<div class="card"><div class="between"><h3 style="margin:0">💰 ${esc(u.name)} — सैलरी / कमीशन</h3><button class="sec sm" id="px">बंद</button></div>
     <label>सैलरी (₹)</label><div class="row"><input id="pAmt" inputmode="numeric" placeholder="जैसे 12000" value="${+v.amt||""}" style="flex:2"><select id="pPer" style="flex:1"><option value="month">महीना</option><option value="day" ${v.per==="day"?"selected":""}>दिन</option></select></div>
     <label>कमीशन</label><div class="row"><input id="pCom" inputmode="decimal" placeholder="जैसे 5" value="${+v.comm||""}" style="flex:2"><select id="pCt" style="flex:1"><option value="pct">% बिक्री</option><option value="fix" ${v.ct==="fix"?"selected":""}>₹ हर काम</option></select></div>
-    <label>नोट (वैकल्पिक)</label><input id="pNote" maxlength="60" placeholder="जैसे: टूर बुकिंग पर" value="${esc(v.note||"")}">
+    <label>नोट (वैकल्पिक)</label><input id="pNote" maxlength="60" placeholder="जैसे: हर काम पर" value="${esc(v.note||"")}">
     <div style="margin-top:12px"><button id="pSave" style="width:100%">सेव करें</button></div>
     <p class="muted">वर्कर अपने ऐप में अपनी सैलरी/कमीशन देख सकेगा, दूसरों की नहीं।</p></div>`;
   $("#px").onclick=()=>p.classList.add("hidden");
