@@ -24,7 +24,7 @@ jobs:
           node -e '
           const a=require("firebase-admin"); a.initializeApp({credential:a.credential.applicationDefault(),projectId:"master-connector-f2a0d"});
           const db=a.firestore(), cut=a.firestore.Timestamp.fromMillis(Date.now()-90*864e5);
-          const plan=[["dutyVid","at"],["reports","at"],["acks","at"],["commands","createdAt"],["duty","start"],["invites","createdAt"]];
+          const plan=[["dutyVid","at"],["scrRec","at"],["reports","at"],["acks","at"],["commands","createdAt"],["duty","start"],["invites","createdAt"]];
           (async()=>{ const out={}; let total=0;
             for(const [c,f] of plan){ let n=0;
               for(;;){ const s=await db.collection(c).where(f,"<",cut).limit(400).get(); if(s.empty) break;

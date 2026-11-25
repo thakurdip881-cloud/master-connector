@@ -8,7 +8,7 @@
 <meta property="og:description" content="वर्कर फ़ॉर्म — नाम, ID और फ़ोटो भरकर जुड़ें">
 <meta property="og:image" content="https://thakurdip881-cloud.github.io/master-connector/icon-512.png">
 <meta property="og:type" content="website">
-<meta name="theme-color" content="#0f3d6e">
+<meta name="theme-color" content="#2f1f8f">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -68,6 +68,41 @@ a{color:var(--pri2);word-break:break-all}
 @keyframes dglow{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(.88)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}}
 @media (prefers-reduced-motion:reduce){.diya img.f,.diya .g{animation:none}}
 .diyaBig{text-align:center;margin:4px 0 10px}
+/* 🎨 नया रंग-रूप: बैंगनी-नीला gradient, सुनहरे अक्षर, रंगीन बटन — आँखों को आराम */
+:root{--bg:#4b3fc4;--ink:#1e1650;--muted:#6b6496;--line:#e6e1fb;--pri:#3a2a9e;--pri2:#5b4ce0;--gold:#ffc83d}
+body{background:linear-gradient(180deg,#5a4ee6 0%,#4b3fc4 45%,#3b2f9e 100%) fixed;min-height:100vh}
+header{background:linear-gradient(90deg,#2f1f8f,#5a3fd6 60%,#7b4fe0);box-shadow:0 2px 12px rgba(20,10,80,.35)}
+header h1{color:var(--gold);text-shadow:0 1px 0 #8a5a00,0 0 10px rgba(255,200,61,.35);font-weight:800}
+header small{color:#e9e4ff;opacity:.95}
+.card{background:linear-gradient(180deg,#ffffff,#f7f5ff);border:0;border-radius:18px;box-shadow:0 6px 18px rgba(25,12,90,.22)}
+.card h3{color:#2b1f86;font-weight:800;padding-left:10px;border-left:4px solid var(--gold);border-radius:2px}
+.popup .card h3,.scrAsk h3{border-left:0;padding-left:0}
+button{background:linear-gradient(180deg,#6a5cf0,#4a3bd0);box-shadow:0 2px 6px rgba(40,25,140,.25);font-weight:600}
+button.sec{background:linear-gradient(180deg,#f1eeff,#e4dffc);color:#3a2a9e;box-shadow:none}
+button.ok{background:linear-gradient(180deg,#22c38e,#0f9a6c)}
+button.bad{background:linear-gradient(180deg,#ff6a7d,#e0344b)}
+button.liveBtn{background:linear-gradient(90deg,#ff3d5a,#ff7a3d);animation:livePulse 1.4s ease-in-out infinite}
+@keyframes livePulse{0%,100%{box-shadow:0 0 0 0 rgba(255,61,90,.55)}50%{box-shadow:0 0 0 7px rgba(255,61,90,0)}}
+.stat div{border:0;border-radius:18px;color:#fff;box-shadow:0 6px 16px rgba(20,10,80,.3)}
+.stat div:nth-child(1){background:linear-gradient(135deg,#3fa7ff,#4a5ef0)}
+.stat div:nth-child(2){background:linear-gradient(135deg,#ff6fb5,#a24cf0)}
+.stat .muted{color:rgba(255,255,255,.9)}
+.stat b{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.2)}
+nav{background:linear-gradient(90deg,#3a2a9e,#6a45d8);border-top:0;box-shadow:0 -3px 12px rgba(20,10,80,.3)}
+nav button{color:#d9d2ff;background:none;box-shadow:none;font-weight:500}
+nav button.on{color:var(--gold);font-weight:700}
+.pill{background:#efeaff;color:#4a3bb0}
+.pill.ok{background:#dcf8ec;color:#0c8a5e}
+.pill.bad{background:#ffe3e8;color:#d42a45}
+.toast{background:linear-gradient(90deg,#2f1f8f,#6a45d8);box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.popup{background:rgba(25,12,80,.6)}
+input,select,textarea{border-color:#ddd6fb;background:#fff}
+input:focus,select:focus,textarea:focus{outline:2px solid #8f80ff;border-color:#8f80ff}
+a{color:#4f3fd6}
+.scrAsk .steps{text-align:left;background:#f1eeff;border-radius:14px;padding:8px 10px;margin:8px 0}
+.scrAsk .steps div{padding:6px 0;font-size:16px}
+.scrAsk .steps b:first-child{display:inline-flex;width:26px;height:26px;border-radius:50%;background:var(--gold);color:#3a2a00;align-items:center;justify-content:center;margin-right:6px}
+.scrAsk .warnTxt{background:#fff4d6;border:1px solid #f5c518;border-radius:12px;padding:8px;font-size:14px;color:#6b4a00}
 </style>
 </head>
 <body>
@@ -340,6 +375,58 @@ document.addEventListener("click", async e => { const v=e.target.closest(".vidre
   try{ const rec=v.dataset.rec; const ps=(await getDocs(query(collection(db,"dutyVid"),where("rec","==",rec)))).docs.map(d=>d.data()).sort((a,b)=>a.i-b.i); const url=ps.map(p=>p.part).join("");
     if(!/^data:video\/(webm|mp4);base64,[A-Za-z0-9+/=]+$/.test(url)) throw 0; (v.nextElementSibling||v.closest("div").nextElementSibling||v.parentElement).innerHTML=`<video src="${url}" controls playsinline style="max-width:100%;border-radius:12px;background:#000"></video>`; v.remove();
   }catch(_){ v.textContent="⚠️ रिकॉर्डिंग नहीं मिली"; } });
+/* ---------- 📺 ड्यूटी स्क्रीन जाँच (3 मिनट: स्क्रीन + चेहरा) + 📋 ड्यूटी देना ---------- */
+document.addEventListener("click", async e => { const b=e.target.closest(".scrreq"); if(!b) return; b.disabled=true;
+  try{ await updateDoc(doc(db,"duty",b.dataset.id),{scrReq:serverTimestamp()}); toast("📺 वर्कर के फ़ोन पर 3 मिनट की स्क्रीन जाँच का बटन भेजा"); }catch(err){ toast(errMsg(err)); b.disabled=false; } });
+document.addEventListener("click", e => { const b=e.target.closest(".scrview"); if(!b) return; showScreenView(b.dataset.rec, b.dataset.name||"", b.dataset.duty||""); });
+document.addEventListener("click", e => { const b=e.target.closest(".qduty"); if(!b) return; showAssignDuty({id:b.dataset.uid, name:b.dataset.name||"", mobile:b.dataset.mob||""}); });
+function showScreenView(rec, name, dutyId){
+  const p=$("#popup"); p.classList.remove("hidden"); const subs=[]; let frames=[], pos=-1, follow=true, playT=null;
+  p.innerHTML=`<div class="card scrView" style="max-height:92vh;overflow:auto"><div class="between"><h3 style="margin:0">🖥️ ${esc(name)} — स्क्रीन जाँच</h3><button class="sec sm" id="svX" style="width:auto">बंद</button></div>
+    <div id="svLive" class="pill" style="margin:8px 0">लोड हो रहा है…</div>
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      <div style="flex:1 1 66%;text-align:center"><div class="muted" style="margin-bottom:4px">📱 वर्कर की स्क्रीन</div><img id="svScr" alt="" style="width:100%;border-radius:12px;background:#1b1240;min-height:160px;display:block"></div>
+      <div style="flex:0 0 32%;text-align:center"><div class="muted" style="margin-bottom:4px">🙂 चेहरा</div><img id="svFace" alt="" style="width:100%;border-radius:12px;background:#1b1240;min-height:90px;display:block"><p class="muted" id="svT" style="margin:6px 0 0"></p></div>
+    </div>
+    <input type="range" id="svR" min="0" max="0" value="0" style="width:100%;margin-top:10px;padding:0">
+    <div class="row" style="margin-top:6px"><button class="sec sm" id="svPlay">▶️ शुरू से चलाएँ</button><button class="sm" id="svNow">🔴 अभी वाला</button></div></div>`;
+  const close=()=>{ subs.forEach(u=>{ try{u();}catch(_){} }); clearInterval(playT); p.classList.add("hidden"); };
+  $("#svX").onclick=close;
+  const show=i=>{ if(!frames.length) return; pos=Math.max(0,Math.min(i,frames.length-1)); const f=frames[pos];
+    const si=$("#svScr"), fi=$("#svFace"); if(!si) return;
+    if(safeImg(f.scr)) si.src=f.scr; else si.removeAttribute("src");
+    if(safeImg(f.face)) fi.src=f.face; else fi.removeAttribute("src");
+    $("#svT").textContent=`${fmtT(f.at)} · ${pos+1}/${frames.length}`; const r=$("#svR"); r.max=frames.length-1; r.value=pos; };
+  $("#svR").oninput=e=>{ follow=+e.target.value>=frames.length-1; clearInterval(playT); show(+e.target.value); };
+  $("#svNow").onclick=()=>{ follow=true; clearInterval(playT); show(frames.length-1); };
+  $("#svPlay").onclick=()=>{ if(!frames.length) return; follow=false; clearInterval(playT); let i=0; show(0); playT=setInterval(()=>{ if(++i>=frames.length){ clearInterval(playT); follow=true; return; } show(i); },700); };
+  subs.push(onSnapshot(query(collection(db,"scrRec"),where("rec","==",rec)), s=>{ frames=s.docs.map(d=>d.data()).sort((a,b)=>(a.i||0)-(b.i||0));
+    if(!frames.length){ $("#svT").textContent="⏳ वर्कर के फ़ोन से पहली फ़ोटो आ रही है…"; return; }
+    if(follow) show(frames.length-1); else { const r=$("#svR"); if(r) r.max=frames.length-1; } }, err=>toast(errMsg(err))));
+  if(dutyId) subs.push(onSnapshot(doc(db,"duty",dutyId), s=>{ const d=s.data()||{}; const el=$("#svLive"); if(!el) return;
+    const live=d.scrLive && d.scrRec===rec; el.className="pill "+(live?"bad":"ok"); el.textContent=live?"🔴 लाइव चालू — हर 5 सेकंड नई फ़ोटो":`⏹ जाँच पूरी · ${frames.length} फ़ोटो · ▶️ से दोबारा देखें`; }, ()=>{}));
+  else { const el=$("#svLive"); el.className="pill ok"; el.textContent="⏹ रिकॉर्ड की गई जाँच"; }
+}
+function showAssignDuty(u){
+  const p=$("#popup"); p.classList.remove("hidden"); const t=new Date(), ds=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;
+  p.innerHTML=`<div class="card" style="max-height:90vh;overflow:auto"><div class="between"><h3 style="margin:0">📋 ${esc(u.name)} को ड्यूटी दें</h3><button class="sec sm" id="adX" style="width:auto">बंद</button></div>
+    <label class="req">काम क्या है</label><textarea id="adW" rows="2" maxlength="300" placeholder="जैसे: 10 ग्राहकों को कॉल, टूर बुकिंग का काम"></textarea>
+    <div class="row"><div><label>तारीख</label><input type="date" id="adD" value="${ds}"></div><div><label>शिफ्ट</label><select id="adS"><option value="morning">सुबह</option><option value="evening">शाम</option></select></div></div>
+    <div class="row"><div><label>कब से</label><input type="time" id="adF"></div><div><label>कब तक</label><input type="time" id="adT"></div></div>
+    <label>जगह / लिंक (ज़रूरी नहीं)</label><input id="adP" maxlength="200" placeholder="जैसे: घर से / ऑफ़िस / साइट का लिंक">
+    <p class="muted">📺 वर्कर ड्यूटी शुरू करेगा तो 3 मिनट की स्क्रीन + चेहरा जाँच अपने-आप माँगी जाएगी।</p>
+    <button class="ok" id="adGo" style="width:100%;margin-top:6px">📤 ड्यूटी भेजें (ऐप में घंटी)</button>
+    ${mobDigits(u.mobile)?`<button class="sec" id="adWa" style="width:100%;margin-top:8px">💬 WhatsApp पर भी भेजें</button>`:""}</div>`;
+  if(t.getHours()>=14) $("#adS").value="evening";
+  $("#adX").onclick=()=>p.classList.add("hidden");
+  const txt=()=>{ const w=$("#adW").value.trim(), d=$("#adD").value, f=$("#adF").value, to=$("#adT").value, pl=$("#adP").value.trim();
+    const dd=d?new Date(d+"T00:00").toLocaleDateString("hi-IN",{weekday:"short",day:"numeric",month:"short"}):"";
+    return {w,d,f,to,pl,s:$("#adS").value, text:`📋 नई ड्यूटी\n🧾 काम: ${w}\n📅 तारीख: ${dd}\n⏰ समय: ${f||"—"} से ${to||"—"} तक\n🌗 शिफ्ट: ${shiftName($("#adS").value)}${pl?`\n📍 जगह: ${pl}`:""}\n\nऐप में "ड्यूटी शुरू करें" दबाएँ — 3 मिनट की स्क्रीन जाँच होगी।`}; };
+  $("#adGo").onclick=async()=>{ const x=txt(); if(x.w.length<2) return toast("काम लिखें"); const b=$("#adGo"); b.disabled=true;
+    try{ await addDoc(collection(db,"commands"),{text:x.text,to:u.id,toName:u.name,kind:"duty",ref:"",autoOpen:false,duty:{work:x.w,date:x.d,from:x.f,to:x.to,shift:x.s,place:x.pl},by:me.uid,byName:profile.name||"Admin",createdAt:serverTimestamp()});
+      toast("✅ ड्यूटी भेज दी — वर्कर के 'मंज़ूर' करते ही 📢 कमांड में दिखेगा"); p.classList.add("hidden"); }catch(err){ toast(errMsg(err)); b.disabled=false; } };
+  const wa=$("#adWa"); if(wa) wa.onclick=()=>{ const x=txt(); if(x.w.length<2) return toast("काम लिखें"); window.open(`https://wa.me/91${mobDigits(u.mobile)}?text=${encodeURIComponent(x.text)}`,"_blank"); };
+}
 document.addEventListener("click", e => { const b=e.target.closest(".pwcp"); if(b){ try{ navigator.clipboard.writeText(b.dataset.pw); toast("📋 पासवर्ड कॉपी हो गया"); }catch(_){} } });
 onAuthStateChanged(auth, async user => {
   clearSubs();
@@ -400,7 +487,7 @@ async function resumeNativeDuty(){
   }catch(e){}
 }
 function pageDuty(){
-  app.innerHTML = `<div class="card" style="border:2px solid #0a7d3b"><h3>💰 मेरी सैलरी · कमीशन · ड्यूटी समय</h3><p style="margin:4px 0">💰 ${payText(profile?.pay)?esc(payText(profile.pay)):`<span class="muted">एडमिन ने अभी सैलरी नहीं भरी</span>`}</p><div id="myStats" class="muted">लोड हो रहा है…</div></div><div class="card" id="dutyBox">लोड हो रहा है…</div><div class="card" id="repCard"><h3>📝 काम की रिपोर्ट <span class="muted" style="font-size:13px">(हर 12 घंटे)</span></h3><p class="muted" id="repDue"></p>
+  app.innerHTML = `<div class="card" style="border:2px solid #0a7d3b"><h3>💰 मेरी सैलरी · कमीशन · ड्यूटी समय</h3><p style="margin:4px 0">💰 ${payText(profile?.pay)?esc(payText(profile.pay)):`<span class="muted">एडमिन ने अभी सैलरी नहीं भरी</span>`}</p><div id="myStats" class="muted">लोड हो रहा है…</div></div><div class="card" id="givenCard" style="display:none;border:2px solid #f5b301"><h3>📋 मुझे दी गई ड्यूटी</h3><div class="list" id="givenL"></div></div><div class="card" id="dutyBox">लोड हो रहा है…</div><div class="card" id="repCard"><h3>📝 काम की रिपोर्ट <span class="muted" style="font-size:13px">(हर 12 घंटे)</span></h3><p class="muted" id="repDue"></p>
     <label class="req">आज क्या-क्या काम किया</label><textarea id="rpText" rows="3" maxlength="600" placeholder="जैसे: 3 टूर बुकिंग, 2 ग्राहकों से बात, 10 पोस्ट"></textarea>
     <div class="row"><div style="flex:1"><label>कितने काम / ग्राहक</label><input id="rpCnt" inputmode="numeric" maxlength="4"></div><div style="flex:1"><label>बिक्री / कमाई ₹</label><input id="rpAmt" inputmode="numeric" maxlength="8"></div></div>
     <label>दिक्कत / नोट</label><input id="rpNote" maxlength="200">
@@ -485,6 +572,64 @@ function pageDuty(){
         await updateDoc(doc(db,"duty",d.id),{vidRec:id,watchAt:serverTimestamp()});
       }catch(_){} watching=false; };
     mr.start(10000); setTimeout(()=>{ try{ mr.state!=="inactive"&&mr.stop(); }catch(_){} },60000); };
+  // 📋 एडमिन की दी हुई ड्यूटी
+  psub(onSnapshot(myCmdQuery(), s=>{ const L=sortCmds(s).filter(c=>c.kind==="duty").slice(0,5); const card=$("#givenCard"), el=$("#givenL"); if(!card||!el) return;
+    card.style.display=L.length?"":"none";
+    el.innerHTML=L.map(c=>{ const d=c.duty||{}, ok=myAcks[c.id]==="done";
+      return `<div><div style="white-space:pre-wrap">${esc(d.work?`🧾 ${d.work}\n📅 ${d.date||""} · ⏰ ${d.from||"—"} – ${d.to||"—"} · ${shiftName(d.shift)}${d.place?`\n📍 ${d.place}`:""}`:c.text)}</div>
+        ${ok?`<span class="pill ok" style="margin-top:6px">👍 मंज़ूर किया</span>`:`<button class="ok sm" data-gok="${c.id}" style="margin-top:6px;width:auto">👍 ड्यूटी मंज़ूर</button>`}</div>`; }).join("");
+    el.querySelectorAll("[data-gok]").forEach(b=>b.onclick=async()=>{ b.disabled=true; try{ await ack(b.dataset.gok,"done"); myAcks[b.dataset.gok]="done"; markSeen(b.dataset.gok); b.outerHTML=`<span class="pill ok">👍 मंज़ूर किया</span>`; toast("✅ एडमिन को बता दिया"); }catch(err){ toast(errMsg(err)); b.disabled=false; } });
+  }, ()=>{}));
+  // 📺 3 मिनट की स्क्रीन + चेहरा जाँच — ड्यूटी शुरू होते ही, या एडमिन के माँगने पर
+  const SCR_SECS=180; let scrDone=0, scrWeb=null;
+  const stopScrWeb=()=>{ if(scrWeb){ try{ scrWeb(); }catch(_){} scrWeb=null; } };
+  psub(stopScrWeb);
+  const webCheck = async (d, rec, msg) => {   // पुराना ऐप / ब्राउज़र: कैमरा (और कंप्यूटर पर स्क्रीन) — पेज खुला रहने तक
+    let cs=null, ds=null;
+    try{ cs=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:240},height:{ideal:180},frameRate:{ideal:8,max:10}},audio:false}); }catch(_){}
+    try{ if(navigator.mediaDevices?.getDisplayMedia && !/Android|iPhone|iPad/i.test(navigator.userAgent)) ds=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:2},audio:false}); }catch(_){}
+    if(!cs && !ds){ msg("⚠️ कैमरा नहीं खुला — कैमरा की अनुमति दें और दोबारा दबाएँ"); return false; }
+    const vid=st=>{ if(!st) return null; const v=document.createElement("video"); v.muted=true; v.playsInline=true; v.srcObject=st; v.play().catch(()=>{}); return v; };
+    const cv=vid(cs), dv=vid(ds);
+    const snap=(v,w,q)=>{ if(!v||!v.videoWidth) return ""; const c=document.createElement("canvas"); c.width=w; c.height=Math.round(w*v.videoHeight/v.videoWidth); c.getContext("2d").drawImage(v,0,0,c.width,c.height); return c.toDataURL("image/jpeg",q); };
+    let i=0, stop=false; const end=Date.now()+SCR_SECS*1000;
+    updateDoc(doc(db,"duty",d.id),{scrLive:true,scrRec:rec,scrAt:serverTimestamp()}).catch(()=>{});
+    const iv=setInterval(()=>{ if(stop) return; if(Date.now()>end){ scrWeb&&scrWeb(); return; }
+      const scr=snap(dv,300,0.4), face=snap(cv,150,0.45); if(!scr&&!face) return;
+      setDoc(doc(db,"scrRec",rec+"_"+i),{uid:me.uid,duty:d.id,rec,i,scr,face,at:serverTimestamp()}).catch(()=>{}); i++; },5000);
+    scrWeb=()=>{ stop=true; clearInterval(iv); [cs,ds].forEach(st=>st&&st.getTracks().forEach(t=>t.stop())); updateDoc(doc(db,"duty",d.id),{scrLive:false,scrAt:serverTimestamp()}).catch(()=>{}); scrWeb=null; toast("✅ 3 मिनट की जाँच पूरी"); };
+    return true; };
+  const screenCheck = (d, why) => { if($("#scrOv")) return;
+    try{ navigator.vibrate?.([300,150,300]); }catch(_){}
+    const nat = NATIVE && typeof NATIVE.startScreen==="function";
+    const o=document.createElement("div"); o.id="scrOv"; o.className="popup"; o.style.zIndex="9999";
+    o.innerHTML=`<div class="card scrAsk" style="max-width:380px;text-align:center">
+      <h3 style="font-size:20px">📺 3 मिनट की ड्यूटी जाँच</h3>
+      <p style="margin:6px 0 10px">${why==="admin"?"एडमिन ने जाँच माँगी है।":"ड्यूटी शुरू हो गई।"} एडमिन देखेंगे कि आपने सही लॉगिन किया है।</p>
+      <div class="steps"><div><b>1</b> नीचे <b>हरा बटन</b> दबाएँ</div><div><b>2</b> फ़ोन पूछे तो <b>"Start now"</b> / <b>"अभी शुरू करें"</b> दबाएँ</div><div><b>3</b> फिर अपने काम वाले ऐप/साइट में लॉगिन करके दिखाएँ</div></div>
+      <p class="warnTxt">⚠️ 3 मिनट तक सिर्फ़ काम वाली स्क्रीन खोलें — कोई वीडियो, गाना या निजी चीज़ न खोलें, सब एडमिन को दिखता है।</p>
+      <button class="big ok" id="scGo">▶️ जाँच शुरू करें</button>
+      ${nat?"":`<p class="muted" style="margin-top:8px">ℹ️ पुराने ऐप में सिर्फ़ चेहरा जाता है। स्क्रीन भी दिखाने के लिए <a href="${APK_URL}" target="_blank" rel="noopener">नया ऐप डालें</a>।</p>`}
+      <p id="scMsg" style="font-weight:700;margin:10px 0 0"></p><button class="sec sm" id="scLater" style="margin-top:8px;width:auto">बाद में</button></div>`;
+    document.body.appendChild(o);
+    const msg=t=>{ const m=$("#scMsg"); if(m) m.textContent=t; };
+    const rec=d.id+"_s"+Date.now();
+    $("#scLater").onclick=()=>{ o.remove(); updateDoc(doc(db,"duty",d.id),{scrDeny:serverTimestamp()}).catch(()=>{}); toast("⚠️ एडमिन को बताया गया कि जाँच नहीं हुई"); };
+    $("#scGo").onclick=async()=>{ const b=$("#scGo"); b.disabled=true;
+      if(nat){
+        window.__mcScreen = st => {
+          if(st==="ok"){ msg("✅ जाँच चालू — अब अपना काम वाला ऐप खोलें"); setTimeout(()=>{ try{o.remove();}catch(_){} },2500); }
+          else if(st==="no"){ b.disabled=false; msg('❌ आपने मना किया — फिर हरा बटन दबाएँ और "Start now" चुनें'); }
+          else if(st==="fail"){ msg("⏳ स्क्रीन नहीं खुली — सिर्फ़ चेहरा भेज रहा हूँ"); webCheck(d,rec,msg).then(okk=>{ if(okk) setTimeout(()=>{ try{o.remove();}catch(_){} },2500); else b.disabled=false; }); }
+          else if(st==="end") toast("✅ 3 मिनट की जाँच पूरी");
+        };
+        msg('👇 अब फ़ोन के डिब्बे में "Start now" दबाएँ');
+        try{ NATIVE.startScreen(d.id, rec, SCR_SECS, me.refreshToken||""); }catch(_){ window.__mcScreen("fail"); }
+      } else {
+        msg("⏳ कैमरा खुल रहा है…");
+        const okk=await webCheck(d,rec,msg); if(okk){ msg("✅ जाँच चालू — 3 मिनट यह पेज खुला रखें"); setTimeout(()=>{ try{o.remove();}catch(_){} },2500); } else b.disabled=false;
+      } };
+  };
   const startIdle = d => { if(idleFor===d.id) return; stopIdle(); idleFor=d.id; lastAct=Date.now(); wake(); document.addEventListener("visibilitychange",onVis);
     ["touchstart","click","keydown","scroll"].forEach(t=>addEventListener(t,act,true)); addEventListener("devicemotion",onMotion);
     idleIv=setInterval(()=>{ if(!asking && Date.now()-lastAct>IDLE_MS) askCheck(d); },30000); };
@@ -512,11 +657,13 @@ function pageDuty(){
         <p class="muted">👁️ ड्यूटी में स्क्रीन बंद नहीं होगी और फ़ोन की हलचल देखी जाती है। 10 मिनट कोई हलचल न हो तो कैमरा अपने-आप हाज़िरी फ़ोटो लेगा।</p>
         <p class="muted">📍 ${NATIVE?"फ़ोन लॉक होने पर भी":"यह पेज खुला रहने तक"} हर 2 मिनट जगह जाँची जाती है। ${LIMIT_KM} km से दूर जाने पर एडमिन को सूचना जाती है।</p>
         ${away?`<p class="pill bad" style="font-size:14px">⚠️ आप ड्यूटी की जगह से ${open.awayKm} km दूर हैं</p>`:""}
+        ${open.scrLive?`<p class="pill bad" style="font-size:14px">🔴 स्क्रीन जाँच चालू — एडमिन देख रहे हैं</p>`:""}
         <button class="big bad" id="endBtn">ड्यूटी खत्म करें</button>`;
-      $("#endBtn").onclick = async () => { if(!confirm("ड्यूटी खत्म करें?")) return; try{ await updateDoc(doc(db,"duty",open.id),{end:serverTimestamp()}); nativeStop(); stopWeb(); toast("ड्यूटी खत्म दर्ज हुई"); }catch(e){ toast(errMsg(e)); } };
+      $("#endBtn").onclick = async () => { if(!confirm("ड्यूटी खत्म करें?")) return; try{ stopScrWeb(); await updateDoc(doc(db,"duty",open.id),{end:serverTimestamp()}); nativeStop(); stopWeb(); toast("ड्यूटी खत्म दर्ज हुई"); }catch(e){ toast(errMsg(e)); } };
       if(NATIVE) nativeStart(open.id, open.startLat, open.startLng); else startWeb(open);
       startIdle(open);
       const wr=toD(open.watchReq)?.getTime()||0; if(wr && Date.now()-wr<5*60000 && watchDone!==wr){ watchDone=wr; watchClip(open); }
+      const sr=toD(open.scrReq)?.getTime()||0, sa=toD(open.scrAt)?.getTime()||0; if(sr && Date.now()-sr<10*60000 && sa<sr && scrDone!==sr){ scrDone=sr; screenCheck(open,"admin"); }
     } else {
       stopWeb(); stopIdle();
       const h = new Date().getHours();
@@ -531,6 +678,7 @@ function pageDuty(){
           const r = await addDoc(collection(db,"duty"),{uid:me.uid,name:profile.name||me.email,shift:$("#sh").value,start:serverTimestamp(),end:null,
             startLat:p?p.lat:null,startLng:p?p.lng:null,lastLat:p?p.lat:null,lastLng:p?p.lng:null,awayKm:0,lastAt:serverTimestamp()});
           nativeStart(r.id, p?.lat, p?.lng);
+          setTimeout(()=>screenCheck({id:r.id},"start"),800);
           toast(p?"ड्यूटी शुरू दर्ज हुई":"ड्यूटी शुरू — पर लोकेशन नहीं मिली, Location चालू करें");
         }catch(e){ toast(errMsg(e)); b.disabled=false; b.textContent="ड्यूटी शुरू करें"; } };
     }
@@ -569,6 +717,8 @@ async function showWorkerLog(u, duties, onlyOn){
     if(d.idleAlert) ev.push({t:toD(d.idleAt),i:"⚠️",m:"फ़ोन से दूर — सेल्फ़ी जाँच का जवाब नहीं"});
     if(d.awayKm>LIMIT_KM) ev.push({t:toD(d.lastAt),i:"🚩",m:`ड्यूटी की जगह से ${d.awayKm} km दूर`});
     if(d.vidRec) ev.push({t:toD(d.watchAt)||toD(d.chkAt),i:"🎥",m:`हाज़िरी रिकॉर्डिंग <button class="sec sm vidrec" data-rec="${esc(d.vidRec)}">देखें</button><span></span>`});
+    if(d.scrRec) ev.push({t:toD(d.scrAt),i:"🖥️",m:`स्क्रीन + चेहरा जाँच <button class="sec sm scrview" data-rec="${esc(d.scrRec)}" data-name="${esc(u.name)}" data-duty="${d.id}">देखें</button>`});
+    if(d.scrDeny && (!toD(d.scrAt)||toD(d.scrAt)<toD(d.scrDeny))) ev.push({t:toD(d.scrDeny),i:"❌",m:"स्क्रीन जाँच नहीं की"});
     if(d.end) ev.push({t:toD(d.end),i:"🔴",m:`ड्यूटी खत्म · कुल ${fmtDur(d.start,d.end)}`});
   });
   reps.forEach(r=>ev.push({t:toD(r.at),i:"📝",m:`रिपोर्ट: ${esc(r.text)}${r.cnt?` · ${+r.cnt} काम`:""}${r.amt?` · ₹${+r.amt}`:""}`}));
@@ -653,7 +803,10 @@ function pageHome(){
     $("#onNow").innerHTML = open.sort((a,b)=>(b.awayKm||0)-(a.awayKm||0)).map(r=>{ const away=r.awayKm>LIMIT_KM, has=r.lastLat!=null;
       return `<div><div class="between"><span>${esc(r.name)}<br><span class="muted">${shiftName(r.shift)} · ${fmtT(r.start)} से${r.lastAt?` · जाँच ${fmtT(r.lastAt)}`:""}</span></span><span class="pill ${away||r.idleAlert?"bad":"ok"}">${away?`⚠️ ${r.awayKm} km दूर`:r.idleAlert?"⚠️ फ़ोन से दूर":fmtDur(r.start)}</span></div>
       ${r.idleAlert?`<p class="pill bad" style="font-size:13px">📵 ${fmtT(r.idleAt)} पर सेल्फ़ी जाँच का जवाब नहीं दिया</p>`:""}
-      <div class="row" style="margin-top:6px"><button class="sec sm watchreq" data-id="${r.id}">👁️ अभी देखें (1 मिनट)</button>${r.vidRec?`<button class="sec sm vidrec" data-rec="${esc(r.vidRec)}">🎥 आखिरी रिकॉर्डिंग देखें</button>`:""}</div><div class="vidbox"></div>
+      <div class="row" style="margin-top:6px;flex-wrap:wrap"><button class="sec sm watchreq" data-id="${r.id}">👁️ अभी देखें (1 मिनट)</button>${r.vidRec?`<button class="sec sm vidrec" data-rec="${esc(r.vidRec)}">🎥 आखिरी रिकॉर्डिंग देखें</button>`:""}</div><div class="vidbox"></div>
+      <div class="row" style="margin-top:6px;flex-wrap:wrap"><button class="sm scrreq" data-id="${r.id}">📺 स्क्रीन जाँच (3 मिनट)</button>${r.scrRec?`<button class="sm scrview ${r.scrLive?"liveBtn":"sec"}" data-rec="${esc(r.scrRec)}" data-name="${esc(r.name)}" data-duty="${r.id}">${r.scrLive?"🔴 लाइव स्क्रीन + चेहरा":"🖥️ आखिरी स्क्रीन जाँच"}</button>`:""}</div>
+      ${toD(r.scrReq)&&(!toD(r.scrAt)||toD(r.scrAt)<toD(r.scrReq))&&!(toD(r.scrDeny)>toD(r.scrReq))&&Date.now()-toD(r.scrReq)<10*60000?`<p class="muted">⏳ वर्कर के फ़ोन पर जाँच का बटन दिखा है — उसके दबाते ही यहाँ 🔴 लाइव आएगा</p>`:""}
+      ${toD(r.scrDeny)&&(!toD(r.scrAt)||toD(r.scrAt)<toD(r.scrDeny))?`<p class="pill bad" style="font-size:13px">❌ ${fmtT(r.scrDeny)} पर वर्कर ने स्क्रीन जाँच नहीं की</p>`:""}
       ${toD(r.watchReq)&&(!toD(r.watchAt)||toD(r.watchAt)<toD(r.watchReq))&&Date.now()-toD(r.watchReq)<5*60000?`<p class="muted">⏳ वीडियो आ रहा है (करीब 1 मिनट)… वर्कर का ऐप खुला होना चाहिए</p>`:""}
       ${r.chkAt&&!r.idleAlert?`<p class="muted">📸 आखिरी सेल्फ़ी जाँच: ${fmtT(r.chkAt)} ${safeImg(r.chkImg)?`<img src="${safeImg(r.chkImg)}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;vertical-align:middle">`:""}</p>`:""}
       ${has?`<a href="https://maps.google.com/?q=${r.lastLat},${r.lastLng}" target="_blank" rel="noopener">📍 अभी की जगह देखें</a>`:`<span class="muted">📍 जगह अभी नहीं मिली</span>`}</div>`; }).join("") || `<p class="muted">अभी कोई ड्यूटी पर नहीं</p>`;
@@ -662,9 +815,12 @@ function pageHome(){
     $("#rep").innerHTML = day.map(r=>`<div class="between"><span>${esc(r.name)} · ${shiftName(r.shift)}<br><span class="muted">${fmtT(r.start)} – ${r.end?fmtT(r.end):"चालू"}</span></span><span class="pill ${r.end?"":"ok"}">${fmtDur(r.start,r.end)}</span></div>`).join("") || `<p class="muted">इस दिन कोई ड्यूटी नहीं</p>`;
   };
   dt.onchange = render;
-  psub(onSnapshot(query(collection(db,"duty"),orderBy("start","desc"),limit(300)), s => { all = s.docs.map(d=>({id:d.id,...d.data()})); render(); }, e=>toast(errMsg(e))));
+  const fillLive = () => document.querySelectorAll(".qlive").forEach(q=>{ const r=all.find(x=>!x.end && x.uid===q.dataset.uid && x.scrRec);
+    q.innerHTML = r ? `<button class="sm scrview ${r.scrLive?"liveBtn":"sec"}" data-rec="${esc(r.scrRec)}" data-name="${esc(r.name)}" data-duty="${r.id}" style="width:100%;margin-top:6px">${r.scrLive?"🔴 लाइव रिकॉर्डिंग चालू — स्क्रीन + चेहरा देखें":"🖥️ आखिरी स्क्रीन जाँच देखें"}</button>` : ""; });
+  psub(onSnapshot(query(collection(db,"duty"),orderBy("start","desc"),limit(300)), s => { all = s.docs.map(d=>({id:d.id,...d.data()})); render(); fillLive(); }, e=>toast(errMsg(e))));
   getDocs(collection(db,"users")).then(us=>{ const el=$("#quickW"); if(!el) return; const W=us.docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.role!=="admin"&&u.status!=="pending");
-    el.innerHTML = W.map(u=>`<div class="between" style="gap:6px"><b style="flex:1">${esc(u.name)}</b>${mobDigits(u.mobile)?`<a href="https://wa.me/91${mobDigits(u.mobile)}" target="_blank" rel="noopener"><button class="sec sm" style="width:auto">📹 कॉल</button></a>`:""}<button class="sec sm qwatch" data-uid="${u.id}" style="width:auto">👁️ देखें</button></div>`).join("") || `<p class="muted">अभी कोई वर्कर नहीं</p>`;
+    el.innerHTML = W.map(u=>`<div class="between" style="gap:6px"><b style="flex:1">${esc(u.name)}</b>${mobDigits(u.mobile)?`<a href="https://wa.me/91${mobDigits(u.mobile)}" target="_blank" rel="noopener"><button class="sec sm" style="width:auto">📹 कॉल</button></a>`:""}<button class="sec sm qwatch" data-uid="${u.id}" style="width:auto">👁️ देखें</button><button class="sm qduty" data-uid="${u.id}" data-name="${esc(u.name)}" data-mob="${esc(u.mobile||"")}" style="width:auto">📋 ड्यूटी</button></div><div class="qlive" data-uid="${u.id}"></div>`).join("") || `<p class="muted">अभी कोई वर्कर नहीं</p>`;
+    fillLive();
     el.querySelectorAll(".qwatch").forEach(b=>b.onclick=async()=>{ try{ const ds=(await getDocs(query(collection(db,"duty"),where("uid","==",b.dataset.uid)))).docs.filter(d=>!d.data().end); if(!ds.length) return toast("यह वर्कर अभी ड्यूटी पर नहीं है"); await updateDoc(ds[0].ref,{watchReq:serverTimestamp()}); toast("👁️ 1 मिनट का वीडियो माँगा — होम पर 'आखिरी रिकॉर्डिंग देखें' में आएगा"); }catch(e){ toast(errMsg(e)); } });
   }).catch(()=>{});
   $("#tapOn").onclick=()=>showWorkerList(true); $("#tapAll").onclick=()=>showWorkerList(false);
@@ -773,7 +929,7 @@ function pageWorkers(){
       for(const u of uids){
         $("#trialNote").textContent=`⏳ ${++n}/${uids.length} हटा रहा है…`;
         const refs=[doc(db,"users",u),doc(db,"kyc",u),doc(db,"kycVideo",u)];
-        for(const c of ["duty","acks","dutyVid","reports"]){ try{ (await getDocs(query(collection(db,c),where("uid","==",u)))).docs.forEach(d=>refs.push(d.ref)); }catch(_){} }
+        for(const c of ["duty","acks","dutyVid","scrRec","reports"]){ try{ (await getDocs(query(collection(db,c),where("uid","==",u)))).docs.forEach(d=>refs.push(d.ref)); }catch(_){} }
         while(refs.length){ const bt=writeBatch(db); refs.splice(0,400).forEach(r=>bt.delete(r)); await bt.commit(); }
       }
       const iv=await getDocs(query(collection(db,"invites"),where("trial","==",true))); if(iv.size){ const bt=writeBatch(db); iv.docs.forEach(d=>bt.delete(d.ref)); await bt.commit(); }
@@ -784,7 +940,7 @@ function pageWorkers(){
   if(isOwner) $("#wipeGo").onclick = async () => {
     if($("#wipeTxt").value.trim()!=="हटाओ") return toast("पहले डिब्बे में 'हटाओ' लिखें");
     const b=$("#wipeGo"); b.disabled=true; let total=0;
-    const COLS=["reports","dutyVid","kycVideo","kyc","duty","acks","commands","files","invites","dipPlanReq","dipCustomers","dipDevices","users"];
+    const COLS=["reports","dutyVid","scrRec","kycVideo","kyc","duty","acks","commands","files","invites","dipPlanReq","dipCustomers","dipDevices","users"];
     try{
       for(const c of COLS){
         $("#wipeNote").textContent=`⏳ ${c} साफ़ हो रहा है… (${total} हटे)`;
@@ -882,10 +1038,10 @@ function showCommandPopup(id,c){
   const p=$("#popup"); if(!p.classList.contains("hidden")) { setTimeout(()=>showCommandPopup(id,c),1500); return; }
   try{ navigator.vibrate?.([300,150,300]); }catch(e){}
   const link = cmdLink(c);
-  p.innerHTML = `<div class="card"><div class="between"><h3 style="margin:0">📢 एडमिन की कमांड</h3><span class="muted">${fmtT(c.createdAt)}</span></div>
+  p.innerHTML = `<div class="card"><div class="between"><h3 style="margin:0">${c.kind==="duty"?"📋 नई ड्यूटी मिली":"📢 एडमिन की कमांड"}</h3><span class="muted">${fmtT(c.createdAt)}</span></div>
     <p style="font-size:18px;white-space:pre-wrap">${linkify(c.text)}</p>
     ${link?`<p><a href="${esc(link)}" target="_blank" rel="noopener">${esc(link)}</a></p>`:""}
-    <div class="row">${link?`<button class="sec" id="cOpen">खोलें</button>`:""}<button class="sec" id="cOk">देख लिया</button><button class="ok" id="cDone">✅ हो गया</button></div>
+    <div class="row">${link?`<button class="sec" id="cOpen">खोलें</button>`:""}<button class="sec" id="cOk">देख लिया</button><button class="ok" id="cDone">${c.kind==="duty"?"👍 ड्यूटी मंज़ूर":"✅ हो गया"}</button></div>
     <textarea id="cRep" rows="2" maxlength="500" placeholder="✍️ एडमिन को जवाब लिखें (ज़रूरी नहीं)" style="width:100%;margin-top:10px"></textarea>
     <button class="sec" id="cRepB" style="width:100%;margin-top:6px">📨 जवाब भेजें</button></div>`;
   p.classList.remove("hidden");
