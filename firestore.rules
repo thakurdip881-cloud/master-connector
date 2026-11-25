@@ -159,6 +159,12 @@ service cloud.firestore {
     // ---------- 🧳 DIP Tour & Travels ग्राहक (वर्कर से अलग डेटा) ----------
     function tCust() { return signed() && request.auth.token.email is string && request.auth.token.email.matches('.*@customer[.]diptour[.]app'); }
     match /tour/config { allow read: if true; allow write: if editor(); }
+    // 🆔 वर्कर का छोटा रेफर ID → uid (ग्राहक फ़ॉर्म पढ़ता है)
+    match /refCodes/{code} {
+      allow read: if true;
+      allow create: if active() && code.matches('DIP[A-Z0-9]{4,6}') && request.resource.data.keys().hasOnly(['uid']) && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if editor();
+    }
     match /tCustomers/{uid} {
       // वर्कर सिर्फ़ अपने link (ref) से जुड़े ग्राहक देख सके
       allow read: if editor() || (tCust() && request.auth.uid == uid) || (active() && resource.data.ref == request.auth.uid);
