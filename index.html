@@ -370,7 +370,18 @@ onAuthStateChanged(auth, async user => {
   buildNav();
   startVoiceAI();
   startVoiceAlerts();
+  if(!canEdit) workerFupNag();
 });
+// ⏰ वर्कर: आज जिन ग्राहकों से बात करनी है — ऐप खुलते ही याद (दिन में 2 बार तक)
+async function workerFupNag(){ try{
+  const F=(await getDocs(query(collection(db,"followups"),where("uid","==",me.uid),limit(500)))).docs.map(d=>d.data()).sort((a,b)=>(toD(b.at)||new Date())-(toD(a.at)||new Date()));
+  const due=dueFups(F); if(!due.length) return;
+  const k="mcFupNag_"+todayKey(), n=+(localStorage.getItem(k)||0); if(n>=2) return; localStorage.setItem(k,String(n+1));
+  const t=`⏰ आज ${due.length} ग्राहकों से बात करनी है: ${due.slice(0,5).map(f=>f.cname).join(", ")}${due.length>5?"…":""}`;
+  toast(t); try{ navigator.vibrate?.([300,150,300]); }catch(_){} try{ if(NATIVE && NATIVE.speak) NATIVE.speak(`आज ${due.length} ग्राहकों से बात करनी है`); }catch(_){}
+  const p=$("#popup"); p.classList.remove("hidden"); p.innerHTML=`<div class="card"><h3>⏰ आज की follow-up</h3><p>${esc(t)}</p><div class="row"><button class="ok" id="fnGo">🧳 मेरे ग्राहक खोलें</button><button class="sec" id="fnX">बाद में</button></div></div>`;
+  $("#fnGo").onclick=()=>{ p.classList.add("hidden"); go("tour"); }; $("#fnX").onclick=()=>p.classList.add("hidden");
+}catch(_){} }
 
 const TABS_ADMIN = [["home","🏠","होम"],["workers","👥","वर्कर"],["tour","🧳","ग्राहक"],["cmd","📢","कमांड"],["files","📁","फ़ाइलें"],["dip","⚡","DIP"]];
 const TABS_WORKER = [["duty","🕘","ड्यूटी"],["tour","🧳","ग्राहक"],["cmd","📢","सूचना"],["files","📁","फ़ाइलें"],["dip","⚡","DIP"]];
@@ -680,30 +691,39 @@ async function showWorkerLog(u, duties, onlyOn){
 }
 /* ---------- 🧳 DIP Tour & Travels — ग्राहक पैनल (डेटा अलग: tCustomers, tTxn, tMsgs, tDocs) ---------- */
 const TOUR_URL="https://thakurdip881-cloud.github.io/master-connector/tour/";
+// 🧳 ग्राहक की स्थिति (follow-up से बदलती है)
+const STAGES=[["new","🆕 नया"],["talk","💬 बात हुई"],["booking","📒 बुकिंग"],["done","✅ पूरा"]];
+const stName=k=>(STAGES.find(x=>x[0]===k)||STAGES[0])[1];
+const stOf=(fs)=>{ const f=fs.find(x=>x.stage); return f?f.stage:"new"; };   // fs: नया पहले
+const todayKey=()=>{ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+// हर ग्राहक की आखिरी "अगली बात" तारीख आज या पहले → बात करनी है
+const dueFups=F=>{ const seen={}, out=[]; F.forEach(f=>{ if(seen[f.cust]) return; seen[f.cust]=1; if(f.next && f.next<=todayKey() && stOf(F.filter(x=>x.cust===f.cust))!=="done") out.push(f); }); return out; };
 const TOUR_APK="https://github.com/thakurdip881-cloud/master-connector/releases/download/tour-apk-v1/DipTour.apk";
 const tMail=(subject,data,cc)=>{ try{ fetch("https://formsubmit.co/ajax/thakurdip881@gmail.com",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({_subject:subject,_template:"table",_captcha:"false",...(cc?{_cc:cc}:{}),...data})}).catch(()=>{}); }catch(_){} };
 /* 🧳 ग्राहक लिस्ट — टूर वाला पूरा हिस्सा (मैसेज, लेन-देन, सूचना) हटाया; सिर्फ़ सूची (user ने कहा) */
 function pageTour(){
   app.innerHTML=`<div class="card"><div class="between"><h3 style="margin:0">🧳 ग्राहक लिस्ट <span class="pill" id="gN">0</span></h3><button class="sec sm" id="gCsv" style="width:auto">📥 Excel</button></div>
-    <div class="row" style="margin-top:8px;gap:6px"><input id="gQ" placeholder="नाम / मोबाइल / Gmail से खोजें" style="flex:2"><select id="gW" style="flex:1"><option value="">👷 सभी वर्कर</option><option value="-">बिना वर्कर</option></select></div>
+    <div class="row" style="margin-top:8px;gap:6px"><input id="gQ" placeholder="नाम / मोबाइल / Gmail से खोजें" style="flex:2"><select id="gW" style="flex:1"><option value="">👷 सभी वर्कर</option><option value="-">बिना वर्कर</option></select><select id="gS" style="flex:1"><option value="">सभी स्थिति</option>${STAGES.map(([k,l])=>`<option value="${k}">${l}</option>`).join("")}</select></div>
     <p class="muted" style="margin:6px 0 0">👷 हर वर्कर का अपना ग्राहक link है (वर्कर ऐप → 🧳 ग्राहक)। उस link से जुड़ा ग्राहक अपने-आप उसी वर्कर के नाम पर आता है। यहाँ से वर्कर बदल भी सकते हैं।</p>
     <div class="list" id="gL"><p class="muted">लोड हो रहा है…</p></div></div>`;
   let all=[], W=[], F=[];
   const wName=id=>(W.find(w=>w.id===id)||{}).name||"";
-  const draw=()=>{ const q=$("#gQ").value.trim().toLowerCase(), qs=skel(q), wf=$("#gW").value;
-    const rows=all.filter(c=>(!wf || (wf==="-"?!c.ref:c.ref===wf)) && (!q || [c.name,c.mobile,c.wa,c.mail,c.tg].join(" ").toLowerCase().includes(q) || (qs.length>=2 && String(c.name).split(/\s+/).map(skel).some(n=>n.startsWith(qs)))));
+  const draw=()=>{ const q=$("#gQ").value.trim().toLowerCase(), qs=skel(q), wf=$("#gW").value, sf=$("#gS").value;
+    const rows=all.filter(c=>(!wf || (wf==="-"?!c.ref:c.ref===wf)) && (!sf || stOf(F.filter(f=>f.cust===c.id))===sf) && (!q || [c.name,c.mobile,c.wa,c.mail,c.tg].join(" ").toLowerCase().includes(q) || (qs.length>=2 && String(c.name).split(/\s+/).map(skel).some(n=>n.startsWith(qs)))));
     $("#gN").textContent=all.length;
     $("#gL").innerHTML=rows.map(c=>{ const x={name:c.name,mobile:c.mobile,wa:c.wa||c.mobile,mail:c.mail||"",tg:c.tg||""}, fs=F.filter(f=>f.cust===c.id), lf=fs[0];
-      return `<div><b>${esc(c.name)}</b><br><span class="muted">📱 ${esc(c.mobile||"—")} · 💬 ${esc(c.wa||c.mobile||"—")} · ✉️ ${esc(c.mail||"—")} · ✈️ ${esc(c.tg||"—")}${c.at?` · जुड़े: ${fmtD(c.at)}`:""}</span>
+      return `<div><div class="between"><b>${esc(c.name)}</b><select class="stg" data-id="${esc(c.id)}" style="width:auto;padding:4px 6px;font-size:13px">${STAGES.map(([k,l])=>`<option value="${k}"${stOf(fs)===k?" selected":""}>${l}</option>`).join("")}</select></div><span class="muted">📱 ${esc(c.mobile||"—")} · 💬 ${esc(c.wa||c.mobile||"—")} · ✉️ ${esc(c.mail||"—")} · ✈️ ${esc(c.tg||"—")}${c.at?` · जुड़े: ${fmtD(c.at)}`:""}</span>
         <div class="row" style="margin-top:4px;gap:6px"><span style="flex:none">👷</span><select class="asg" data-id="${esc(c.id)}" style="flex:1;padding:6px"><option value="">— कोई वर्कर नहीं —</option>${W.map(w=>`<option value="${esc(w.id)}"${c.ref===w.id?" selected":""}>${esc(w.name)}</option>`).join("")}${c.ref&&!wName(c.ref)?`<option value="${esc(c.ref)}" selected>(हटाया गया वर्कर)</option>`:""}</select></div>
         ${lf?`<p class="muted" style="margin:4px 0">📝 ${fmtD(lf.at)} · ${esc(lf.wname||"")}: ${esc(lf.note)}${lf.next?` · ⏰ अगली बात: ${esc(lf.next)}`:""}${fs.length>1?` <button class="sec sm fall" data-id="${esc(c.id)}" style="padding:2px 8px">सारे ${fs.length}</button>`:""}</p>`:`<p class="muted" style="margin:4px 0">📝 अभी कोई follow-up नहीं</p>`}
         <div class="row" style="margin-top:4px;gap:6px;flex-wrap:wrap">${pLinks(x).map(([l,h])=>`<a class="sec sm" style="text-decoration:none;padding:4px 10px;border-radius:8px" href="${esc(h)}" target="_blank" rel="noopener">${l}</a>`).join("")}</div></div>`; }).join("") || `<p class="muted">${all.length?"कोई नहीं मिला":"अभी कोई ग्राहक नहीं"}</p>`;
     $("#gL").querySelectorAll(".asg").forEach(sl=>sl.onchange=async()=>{ try{ await updateDoc(doc(db,"tCustomers",sl.dataset.id), sl.value?{ref:sl.value}:{ref:deleteField()}); toast(sl.value?"✅ ग्राहक "+wName(sl.value)+" को दिया":"✅ वर्कर हटाया"); }catch(e){ toast(errMsg(e)); } });
+    $("#gL").querySelectorAll(".stg").forEach(sl=>sl.onchange=async()=>{ const c=all.find(x=>x.id===sl.dataset.id); if(!c) return;
+      try{ await addDoc(collection(db,"followups"),{uid:me.uid,wname:"मालिक",cust:c.id,cname:c.name||"",note:"स्थिति: "+stName(sl.value),next:"",stage:sl.value,at:serverTimestamp()}); toast("✅ स्थिति: "+stName(sl.value)); }catch(e){ toast(errMsg(e)); } });
     $("#gL").querySelectorAll(".fall").forEach(b=>b.onclick=()=>{ const c=all.find(x=>x.id===b.dataset.id), fs=F.filter(f=>f.cust===b.dataset.id), p=$("#popup"); p.classList.remove("hidden");
       p.innerHTML=`<div class="card" style="max-height:85vh;overflow:auto"><div class="between"><h3 style="margin:0">📝 ${esc(c?.name||"")} — follow-up</h3><button class="sec sm" id="fx">बंद</button></div><div class="list">${fs.map(f=>`<div><b>${fmtD(f.at)} ${fmtT(f.at)}</b> · 👷 ${esc(f.wname||"")}<br>${esc(f.note)}${f.next?`<br><span class="muted">⏰ अगली बात: ${esc(f.next)}</span>`:""}</div>`).join("")}</div></div>`;
       $("#fx").onclick=()=>p.classList.add("hidden"); }); };
-  $("#gQ").oninput=draw; $("#gW").onchange=draw;
-  $("#gCsv").onclick=()=>{ const c=v=>`"${String(v||"").replace(/"/g,'""')}"`; const csv="﻿नाम,मोबाइल,WhatsApp,Gmail,Telegram,जुड़े,वर्कर,आखिरी follow-up\n"+all.map(x=>{ const lf=F.find(f=>f.cust===x.id); return [x.name,x.mobile,x.wa,x.mail,x.tg,x.at?fmtD(x.at):"",wName(x.ref),lf?fmtD(lf.at)+" "+lf.note:""].map(c).join(","); }).join("\n");
+  $("#gQ").oninput=draw; $("#gW").onchange=draw; $("#gS").onchange=draw;
+  $("#gCsv").onclick=()=>{ const c=v=>`"${String(v||"").replace(/"/g,'""')}"`; const csv="﻿नाम,मोबाइल,WhatsApp,Gmail,Telegram,जुड़े,वर्कर,स्थिति,आखिरी follow-up\n"+all.map(x=>{ const fs=F.filter(f=>f.cust===x.id), lf=fs[0]; return [x.name,x.mobile,x.wa,x.mail,x.tg,x.at?fmtD(x.at):"",wName(x.ref),stName(stOf(fs)),lf?fmtD(lf.at)+" "+lf.note:""].map(c).join(","); }).join("\n");
     const b64=btoa(unescape(encodeURIComponent(csv))), name=`ग्राहक-लिस्ट-${new Date().toISOString().slice(0,10)}.csv`;
     try{ if(window.MCNative&&MCNative.saveFile){ MCNative.saveFile(name,"text/csv",b64); return; } }catch(_){}
     const a=document.createElement("a"); a.href="data:text/csv;base64,"+b64; a.download=name; a.click(); };
@@ -722,14 +742,15 @@ function pageMyCust(){
   $("#myCp").onclick=()=>{ try{ navigator.clipboard.writeText(link).then(()=>toast("📋 link कॉपी हो गया"),()=>{ $("#myLink").select(); document.execCommand("copy"); toast("📋 link कॉपी हो गया"); }); }catch(_){ $("#myLink").select(); } };
   let C=[], F=[], open="";
   const draw=()=>{ $("#mcN").textContent=C.length;
-    $("#mcL").innerHTML=C.map(c=>{ const fs=F.filter(f=>f.cust===c.id), lf=fs[0], due=lf&&lf.next&&lf.next<=today, x={name:c.name,mobile:c.mobile,wa:c.wa||c.mobile,mail:"",tg:c.tg||""};
-      return `<div><div class="between"><b>${esc(c.name)}</b>${due?`<span class="pill bad">⏰ आज बात करें</span>`:""}</div><span class="muted">📱 ${esc(c.mobile||"—")}${c.at?` · जुड़े: ${fmtD(c.at)}`:""}</span>
+    C.sort((a,b)=>{ const da=dueFups(F).some(f=>f.cust===a.id)?0:1, db2=dueFups(F).some(f=>f.cust===b.id)?0:1; return da-db2 || (toD(b.at)||0)-(toD(a.at)||0); });
+    $("#mcL").innerHTML=C.map(c=>{ const fs=F.filter(f=>f.cust===c.id), lf=fs[0], due=dueFups(fs).length>0, x={name:c.name,mobile:c.mobile,wa:c.wa||c.mobile,mail:"",tg:c.tg||""};
+      return `<div><div class="between"><b>${esc(c.name)}</b><span>${due?`<span class="pill bad">⏰ आज बात करें</span> `:""}<span class="pill">${stName(stOf(fs))}</span></span></div><span class="muted">📱 ${esc(c.mobile||"—")}${c.at?` · जुड़े: ${fmtD(c.at)}`:""}</span>
         ${lf?`<p class="muted" style="margin:4px 0">📝 ${fmtD(lf.at)}: ${esc(lf.note)}${lf.next?` · ⏰ ${esc(lf.next)}`:""}</p>`:`<p class="muted" style="margin:4px 0">📝 अभी कोई follow-up नहीं</p>`}
         <div class="row" style="gap:6px;flex-wrap:wrap">${pLinks(x).map(([l,h])=>`<a class="sec sm" style="text-decoration:none;padding:4px 10px;border-radius:8px" href="${esc(h)}" target="_blank" rel="noopener">${l}</a>`).join("")}<button class="sec sm fup" data-id="${esc(c.id)}" style="width:auto">📝 follow-up लिखें</button></div>
-        ${open===c.id?`<div style="margin-top:6px"><textarea id="fN" rows="2" maxlength="300" placeholder="क्या बात हुई? (जैसे: गोवा टूर में रुचि, अगले हफ़्ते बताएँगे)"></textarea><label>अगली बार कब बात करनी है</label><input type="date" id="fD" min="${today}"><button class="ok" id="fS" style="width:100%;margin-top:6px">💾 सेव करें</button></div>`:""}</div>`; }).join("") || `<p class="muted">अभी कोई ग्राहक नहीं। ऊपर वाला link ग्राहकों को भेजें।</p>`;
+        ${open===c.id?`<div style="margin-top:6px"><textarea id="fN" rows="2" maxlength="300" placeholder="क्या बात हुई? (जैसे: गोवा टूर में रुचि, अगले हफ़्ते बताएँगे)"></textarea><div class="row" style="gap:6px"><div style="flex:1"><label>स्थिति</label><select id="fSt">${STAGES.map(([k,l])=>`<option value="${k}"${stOf(fs)===k?" selected":""}>${l}</option>`).join("")}</select></div><div style="flex:1"><label>अगली बात कब</label><input type="date" id="fD" min="${today}"></div></div><button class="ok" id="fS" style="width:100%;margin-top:6px">💾 सेव करें</button></div>`:""}</div>`; }).join("") || `<p class="muted">अभी कोई ग्राहक नहीं। ऊपर वाला link ग्राहकों को भेजें।</p>`;
     $("#mcL").querySelectorAll(".fup").forEach(b=>b.onclick=()=>{ open=open===b.dataset.id?"":b.dataset.id; draw(); const t=$("#fN"); if(t) t.focus(); });
     const sv=$("#fS"); if(sv) sv.onclick=async()=>{ const c=C.find(x=>x.id===open), note=$("#fN").value.trim(), next=$("#fD").value||""; if(!c) return; if(note.length<2) return toast("क्या बात हुई, लिखें");
-      sv.disabled=true; try{ await addDoc(collection(db,"followups"),{uid:me.uid,wname:profile.name||"",cust:c.id,cname:c.name||"",note:note.slice(0,300),next:/^\d{4}-\d{2}-\d{2}$/.test(next)?next:"",at:serverTimestamp()}); open=""; toast("✅ follow-up सेव हुआ"); draw(); }catch(e){ toast(errMsg(e)); sv.disabled=false; } }; };
+      sv.disabled=true; try{ await addDoc(collection(db,"followups"),{uid:me.uid,wname:profile.name||"",cust:c.id,cname:c.name||"",note:note.slice(0,300),next:/^\d{4}-\d{2}-\d{2}$/.test(next)?next:"",stage:$("#fSt").value||"talk",at:serverTimestamp()}); open=""; toast("✅ follow-up सेव हुआ"); draw(); }catch(e){ toast(errMsg(e)); sv.disabled=false; } }; };
   psub(onSnapshot(query(collection(db,"tCustomers"),where("ref","==",me.uid)),s=>{ C=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(toD(b.at)||0)-(toD(a.at)||0)); draw(); },e=>{ $("#mcL").innerHTML=`<p class="muted">${esc(errMsg(e))}</p>`; }));
   psub(onSnapshot(query(collection(db,"followups"),where("uid","==",me.uid),limit(500)),s=>{ F=s.docs.map(d=>d.data()).sort((a,b)=>(toD(b.at)||new Date())-(toD(a.at)||new Date())); draw(); },()=>{}));
 }
@@ -767,15 +788,50 @@ function saveCsv(name, csv){
   if(window.MCNative && MCNative.saveFile){ const u8=new TextEncoder().encode(csv); let bin=""; for(let i=0;i<u8.length;i+=8192) bin+=String.fromCharCode.apply(null,u8.subarray(i,i+8192)); MCNative.saveFile(name,"text/csv",btoa(bin)); return; }
   const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
 }
+/* 💰 महीने का हिसाब: सैलरी (महीना/दिन) + कमीशन (हर बुकिंग पर ₹ या बिक्री का %) — Excel */
+async function calcPay(y, m){
+  const s0=new Date(y,m,1), e0=new Date(y,m+1,1), inM=v=>{ const t=toD(v); return t && t>=s0 && t<e0; };
+  const W=(await getDocs(collection(db,"users"))).docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.role!=="admin"&&u.status!=="pending");
+  const D=(await getDocs(query(collection(db,"duty"),orderBy("start","desc"),limit(3000)))).docs.map(d=>d.data()).filter(d=>inM(d.start));
+  const R=(await getDocs(query(collection(db,"reports"),orderBy("at","desc"),limit(3000)))).docs.map(d=>d.data()).filter(r=>inM(r.at));
+  const C=(await getDocs(collection(db,"tCustomers"))).docs.map(d=>({id:d.id,...d.data()}));
+  const F=(await getDocs(query(collection(db,"followups"),orderBy("at","desc"),limit(3000)))).docs.map(d=>d.data());
+  return W.map(u=>{ const p=u.pay||{}, mine=D.filter(d=>d.uid===u.id), days=new Set(mine.map(d=>toD(d.start).toDateString())).size;
+    const mins=mine.reduce((t,d)=>t+Math.max(0,((toD(d.end)||new Date())-toD(d.start))/60000),0);
+    const myC=C.filter(c=>c.ref===u.id), newC=myC.filter(c=>inM(c.at)).length, ids=new Set(myC.map(c=>c.id));
+    const book=new Set(F.filter(f=>ids.has(f.cust) && (f.stage==="booking"||f.stage==="done") && inM(f.at)).map(f=>f.cust)).size;
+    const sale=R.filter(r=>r.uid===u.id).reduce((t,r)=>t+(+r.amt||0),0), fups=F.filter(f=>f.uid===u.id && inM(f.at)).length;
+    const sal=+p.amt ? (p.per==="day" ? (+p.amt)*days : +p.amt) : 0;
+    const com=+p.comm ? (p.ct==="pct" ? Math.round(sale*(+p.comm)/100) : book*(+p.comm)) : 0;
+    return {name:u.name||"", days, hrs:Math.round(mins/6)/10, newC, fups, book, sale, sal, com, total:sal+com, payT:payText(p)||"सैलरी नहीं भरी"}; });
+}
+async function payReport(){
+  const p=$("#popup"); p.classList.remove("hidden"); const n=new Date(), pm=new Date(n.getFullYear(),n.getMonth()-1,1);
+  const mName=d=>d.toLocaleDateString("hi-IN",{month:"long",year:"numeric"});
+  p.innerHTML=`<div class="card" style="max-height:88vh;overflow:auto"><div class="between"><h3 style="margin:0">💰 सैलरी + कमीशन</h3><button class="sec sm" id="pyX">बंद</button></div>
+    <div class="row" style="margin:8px 0;gap:6px"><button class="sec sm" id="pyC">${mName(n)}</button><button class="sec sm" id="pyP">${mName(pm)}</button></div><div id="pyB" class="muted">महीना चुनें</div></div>`;
+  $("#pyX").onclick=()=>p.classList.add("hidden");
+  const run=async d=>{ const b=$("#pyB"); b.textContent="⏳ हिसाब बन रहा है…";
+    try{ const rows=await calcPay(d.getFullYear(), d.getMonth()), rs=v=>"₹"+(+v||0).toLocaleString("en-IN");
+      b.innerHTML=`<div class="list">${rows.map(r=>`<div><div class="between"><b>${esc(r.name)}</b><b>${rs(r.total)}</b></div><span class="muted">${r.days} दिन · ${r.hrs} घंटे · नए ग्राहक ${r.newC} · बुकिंग ${r.book} · follow-up ${r.fups} · बिक्री ${rs(r.sale)}<br>सैलरी ${rs(r.sal)} + कमीशन ${rs(r.com)} (${esc(r.payT)})</span></div>`).join("")||"कोई वर्कर नहीं"}</div><button class="ok" id="pyE" style="width:100%;margin-top:8px">📥 Excel फ़ाइल</button>`;
+      $("#pyE").onclick=()=>{ const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+        const csv="\ufeff"+[["नाम","ड्यूटी दिन","घंटे","नए ग्राहक","बुकिंग","follow-up","बिक्री ₹","सैलरी ₹","कमीशन ₹","कुल ₹","सैलरी नियम"]].concat(rows.map(r=>[r.name,r.days,r.hrs,r.newC,r.book,r.fups,r.sale,r.sal,r.com,r.total,r.payT])).map(r=>r.map(q).join(",")).join("\r\n");
+        saveCsv(`salary-${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}.csv`, csv); toast("📥 सैलरी + कमीशन की Excel बनी"); };
+    }catch(e){ b.textContent=errMsg(e); } };
+  $("#pyC").onclick=()=>run(n); $("#pyP").onclick=()=>run(pm);
+}
 function pageHome(){
   app.innerHTML = `<div class="card hidden" id="pcReqs" style="border:2px solid #c0262d"></div><div class="stat"><div id="tapOn" style="cursor:pointer"><span class="muted">अभी ड्यूटी पर 👆</span><b id="sOn">0</b></div><div id="tapAll" style="cursor:pointer"><span class="muted">कुल वर्कर 👆</span><b id="sAll">0</b></div></div>
     <div class="card" style="border:2px solid #1a56a8"><h3>📞 वर्कर से जुड़ें</h3><div class="list" id="quickW"><p class="muted">लोड हो रहा है…</p></div></div>
     <div class="card"><h3>अभी ड्यूटी पर</h3><div class="list" id="onNow"></div></div>
-    <div class="card"><div class="between"><h3 style="margin:0">📝 वर्कर रिपोर्ट (ताज़ा)</h3><span><button class="sec sm" id="repXls" style="width:auto">📥 रिपोर्ट Excel</button> <button class="sec sm" id="dutyXls" style="width:auto">📥 ड्यूटी Excel</button></span></div>
+    <div class="card"><div class="between"><h3 style="margin:0">📝 वर्कर रिपोर्ट (ताज़ा)</h3><span><button class="sec sm" id="repXls" style="width:auto">📥 रिपोर्ट Excel</button> <button class="sec sm" id="dutyXls" style="width:auto">📥 ड्यूटी Excel</button> <button class="ok sm" id="payXls" style="width:auto">💰 सैलरी + कमीशन</button></span></div>
       <p class="muted" id="bkInfo" style="margin:6px 0 0">🗄️ 3 महीने (90 दिन) का डेटा रखा जाता है, उससे पुराना रोज़ रात अपने-आप हटता है।</p><div class="list" id="repList" style="margin-top:8px"><p class="muted">लोड हो रहा है…</p></div></div>
     <div class="card"><div class="between"><h3 style="margin:0">ड्यूटी रिपोर्ट</h3><input type="date" id="dt" style="width:auto"></div><div class="list" id="rep" style="margin-top:8px"></div></div>
+    ${isOwner?`<div class="card"><h3>✈️ मुझे Telegram पर</h3><p class="muted">रोज़ रात 9 बजे पूरे दिन की रिपोर्ट, सुबह 9 बजे आज की follow-up, 2 घंटे खाली बैठने का alert और महीने की 1 तारीख को सैलरी + कमीशन — सीधे आपके Telegram पर।</p><button id="ownTg" style="background:#229ED9;width:100%">✈️ अपना Telegram जोड़ें</button></div>`:""}
     <div class="card" id="myDutyCard"><h3>मेरी ड्यूटी</h3><button class="sec" id="openMyDuty">मेरी ड्यूटी शुरू/खत्म करें</button></div>`;
   $("#openMyDuty").onclick = () => { clearPage(); pageDuty(); };
+  { const ot=$("#ownTg"); if(ot) ot.onclick=()=>tgLink({id:OWNER_UID,name:"मालिक (आप)",mobile:""}); }
+  $("#payXls").onclick = () => payReport();
   const dt = $("#dt"); const today = new Date(), todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`; dt.value = todayStr;
   let all = [];
   const render = () => {
@@ -785,6 +841,7 @@ function pageHome(){
     $("#onNow").innerHTML = open.sort((a,b)=>(b.awayKm||0)-(a.awayKm||0)).map(r=>{ const away=r.awayKm>LIMIT_KM, has=r.lastLat!=null;
       return `<div><div class="between"><span>${esc(r.name)}<br><span class="muted">${devName(r.dev)} · ${shiftName(r.shift)} · ${fmtT(r.start)} से${r.lastAt?` · जाँच ${fmtT(r.lastAt)}`:""}</span></span><span class="pill ${away||r.idleAlert?"bad":"ok"}">${away?`⚠️ ${r.awayKm} km दूर`:r.idleAlert?"⚠️ फ़ोन से दूर":fmtDur(r.start)}</span></div>
       ${r.idleAlert?`<p class="pill bad" style="font-size:13px">📵 ${fmtT(r.idleAt)} पर सेल्फ़ी जाँच का जवाब नहीं दिया</p>`:""}
+      ${toD(r.noWorkAt)&&Date.now()-toD(r.noWorkAt)<2*3600e3?`<p class="pill warn" style="font-size:13px">⚠️ 2 घंटे से कोई follow-up/रिपोर्ट नहीं (${fmtT(r.noWorkAt)})</p>`:""}
       ${r.dev==="pc"&&toD(r.scrOff)&&(!toD(r.scrOn)||toD(r.scrOn)<toD(r.scrOff))?`<p class="pill bad" style="font-size:13px">🖥️ ${fmtT(r.scrOff)} से स्क्रीन शेयर बंद</p>`:""}
       <div class="row" style="margin-top:6px"><button class="sec sm watchreq" data-id="${r.id}" data-uid="${esc(r.uid)}" data-name="${esc(r.name)}">👁️ स्क्रीन + चेहरा देखें</button>${r.vidRec?`<button class="sec sm vidrec" data-rec="${esc(r.vidRec)}">🎥 आखिरी रिकॉर्डिंग देखें</button>`:""}</div><div class="vidbox"></div>
       ${toD(r.watchReq)&&(!toD(r.watchAt)||toD(r.watchAt)<toD(r.watchReq))&&Date.now()-toD(r.watchReq)<5*60000?`<p class="muted">⏳ 30 सेकंड का वीडियो आ रहा है… वर्कर का ऐप खुला होना चाहिए</p>`:""}
@@ -1296,6 +1353,18 @@ function startVoiceAlerts(){
     $("#vpT").onclick = () => { try{ localStorage.setItem(VA_KEY, vaOn() ? "0" : "1"); }catch(_){} paint(); p.classList.add("hidden"); toast(vaOn() ? "🔔 बोलकर सूचना चालू" : "🔕 बोलकर सूचना बंद"); };
     const n = $("#vpN"); if(n) n.onclick = async () => { try{ const r = await Notification.requestPermission(); toast(r==="granted" ? "✅ अनुमति मिल गई" : "अनुमति नहीं मिली"); }catch(_){ toast("इस ऐप में फ़ोन सूचना नहीं चलती — घंटी और आवाज़ चलेंगी"); } };
   };
+  /* ⚠️ ड्यूटी पर हैं पर 2 घंटे से कोई काम दर्ज नहीं + ⏰ आज की follow-up — हर 10 मिनट जाँच */
+  const workChk = async () => { try{
+    const open=(await getDocs(query(collection(db,"duty"),where("end","==",null)))).docs.map(d=>({id:d.id,...d.data()}));
+    if(open.length){ const F=(await getDocs(query(collection(db,"followups"),orderBy("at","desc"),limit(300)))).docs.map(d=>d.data());
+      const R=(await getDocs(query(collection(db,"reports"),orderBy("at","desc"),limit(100)))).docs.map(d=>d.data());
+      for(const d of open){ const ms=v=>toD(v)?.getTime()||0, last=Math.max(ms(d.start), ...F.filter(f=>f.uid===d.uid).map(f=>ms(f.at)), ...R.filter(r=>r.uid===d.uid).map(r=>ms(r.at)));
+        const gap=Date.now()-last; if(last && gap>2*3600e3){ const k="mcIdle_"+d.id+"_"+Math.floor(gap/(2*3600e3)); if(!localStorage.getItem(k)){ localStorage.setItem(k,"1"); vaPush(`ध्यान दें: ${d.name||"वर्कर"} ड्यूटी पर हैं पर ${Math.floor(gap/3600e3)} घंटे से कोई follow-up या रिपोर्ट दर्ज नहीं`, tabGo("home")); } } } }
+    const kd="mcFupAdm_"+todayKey(); if(!localStorage.getItem(kd) && new Date().getHours()>=9){ localStorage.setItem(kd,"1");
+      const due=dueFups((await getDocs(query(collection(db,"followups"),orderBy("at","desc"),limit(1000)))).docs.map(d=>d.data()));
+      if(due.length) vaPush(`आज ${due.length} ग्राहकों से follow-up बाकी: ${due.slice(0,4).map(f=>f.cname+(f.wname?" ("+f.wname+")":"")).join(", ")}`, tabGo("tour")); }
+  }catch(_){} };
+  setTimeout(workChk,20000); const wcIv=setInterval(workChk,10*60000); sub(()=>clearInterval(wcIv));
   /* 💻 PC/लैपटॉप पर काम की अनुमति — आते ही घंटी, जब तक बाकी है हर 5 मिनट याद */
   let pcPend=[];
   sub(onSnapshot(query(collection(db,"devReq"),where("status","==","pending")), s => { pcPend=s.docs.map(d=>d.data());
@@ -1426,7 +1495,7 @@ async function tgLink(u){
     ${!m.bot ? `<p>⏳ बॉट अभी चालू नहीं हुआ।</p><p class="muted">1) GitHub → master-connector → Settings → Secrets → Actions में <b>TELEGRAM_BOT_TOKEN</b> नाम से BotFather वाली चाबी डालें।<br>2) Actions → <b>Telegram bot</b> → Run workflow (या 15 मिनट रुकें)।<br>फिर यह बटन दोबारा दबाएँ।</p>`
     : !t.code ? `<p>⏳ इस वर्कर का कोड अगली बार (15 मिनट में) बनेगा — फिर दबाएँ।</p>`
     : `${t.chat?`<p style="color:#0a7d3b"><b>✅ Telegram से जुड़ा हुआ</b> — आदेश और नया पासवर्ड अपने-आप वहाँ जाते हैं, वर्कर का जवाब यहाँ घंटी में आता है।</p>`:`<p>वर्कर को यह लिंक भेजें — खोलकर <b>START</b> दबाते ही जुड़ जाएगा (15 मिनट तक लग सकते हैं)।</p>`}
-       <p style="word-break:break-all"><b>${esc(link)}</b></p>
+       <p style="word-break:break-all"><a href="${esc(link)}" target="_blank" rel="noopener"><b>${esc(link)}</b></a></p>
        <div class="row" style="gap:6px"><button class="sec sm" id="tgc">📋 कॉपी</button>${mob?`<button class="ok sm" id="tgw">💬 WhatsApp पर भेजें</button>`:""}</div>`}
     <p class="muted" style="margin-top:8px">बॉट: ${m.bot?"@"+esc(m.bot):"—"} · जुड़े वर्कर: ${+m.linked||0}${m.at?` · आखिरी जाँच ${fmtT(m.at)}`:""}</p></div>`;
   $("#tgx").onclick=()=>p.classList.add("hidden");

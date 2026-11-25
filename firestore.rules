@@ -195,7 +195,8 @@ service cloud.firestore {
     match /followups/{id} {
       allow read: if editor() || (active() && resource.data.uid == request.auth.uid);
       allow create: if active() && request.resource.data.uid == request.auth.uid
-        && request.resource.data.keys().hasOnly(['uid', 'wname', 'cust', 'cname', 'note', 'next', 'at'])
+        && request.resource.data.keys().hasOnly(['uid', 'wname', 'cust', 'cname', 'note', 'next', 'at', 'stage'])
+        && (!('stage' in request.resource.data) || request.resource.data.stage in ['', 'new', 'talk', 'booking', 'done'])
         && request.resource.data.note is string && request.resource.data.note.size() > 0 && request.resource.data.note.size() <= 300
         && request.resource.data.cust is string && request.resource.data.next is string && request.resource.data.next.size() <= 10
         && (editor() || get(/databases/$(db)/documents/tCustomers/$(request.resource.data.cust)).data.ref == request.auth.uid);

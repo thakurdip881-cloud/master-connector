@@ -4,6 +4,8 @@
 #   (2) वर्कर बॉट में /start CODE भेजे → जुड़ जाए + पासवर्ड अपने-आप
 #   (3) नए आदेश Telegram पर, (4) वर्कर का जवाब → MC में घंटी (acks.reply), "हो गया" → ✅
 #   (5) पासवर्ड बदले (🔁 नया पासवर्ड) → नया पासवर्ड अपने-आप Telegram पर
+#   (6) मालिक का Telegram: रात 9 बजे दिन की रिपोर्ट, सुबह 9 बजे आज की follow-up (वर्कर को भी),
+#       2 घंटे से कोई काम दर्ज नहीं → alert, महीने की 1 तारीख को सैलरी + कमीशन। मालिक 'रिपोर्ट' लिखे → अभी का हिसाब
 # repo public है — log में कोई नाम, नंबर, chat id या पासवर्ड नहीं छपता, सिर्फ़ गिनती।
 name: Telegram bot
 on:
@@ -40,19 +42,40 @@ jobs:
           const ms=t=>t&&t.toMillis?t.toMillis():0;
           const HELP="✈️ हुक्म:\n• पासवर्ड — अपना लॉगिन पासवर्ड\n• आदेश — आखिरी 5 आदेश\n• हो गया — आखिरी आदेश पूरा ✅\n• कुछ भी लिखें — वह आखिरी आदेश का जवाब बनकर एडमिन के पास जाएगा";
           (async()=>{
-            const n={codes:0,linked:0,cmds:0,replies:0,pw:0,upd:0};
+            const n={codes:0,linked:0,cmds:0,replies:0,pw:0,upd:0,rep:0,fup:0,pay:0,idle:0};
             const me=await tg("getMe"); if(!me.ok){ console.log("BOT_TOKEN_BAD"); process.exit(1); }
             const metaRef=db.doc("meta/telegram"); const meta=(await metaRef.get()).data()||{};
             // (1) कोड
             const users=(await db.collection("users").get()).docs.filter(d=>(d.data().role||"")!=="admin");
             const uMap={}; users.forEach(d=>uMap[d.id]=d.data());
             const tgDocs={}; (await db.collection("secrets").get()).docs.forEach(d=>{ if(d.id.startsWith("tg_")) tgDocs[d.id.slice(3)]=d.data(); });
-            for(const id of Object.keys(uMap)){ if(!tgDocs[id]||!tgDocs[id].code){ const c=code(); await db.doc("secrets/tg_"+id).set({uid:id,code:c,at:NOW},{merge:true}); tgDocs[id]={...(tgDocs[id]||{}),uid:id,code:c}; n.codes++; } }
+            const OWNER="Y7u25ODNNLOFBiiePyM7oR7Ts6n2";
+          for(const id of [...Object.keys(uMap),OWNER]){ if(!tgDocs[id]||!tgDocs[id].code){ const c=code(); await db.doc("secrets/tg_"+id).set({uid:id,code:c,at:NOW},{merge:true}); tgDocs[id]={...(tgDocs[id]||{}),uid:id,code:c}; n.codes++; } }
             const byChat={}, byCode={}; for(const [id,t] of Object.entries(tgDocs)){ if(t.chat) byChat[t.chat]=id; if(t.code) byCode[t.code]=id; }
             const pwOf=async id=>{ const s=(await db.doc("secrets/"+id).get()).data()||{}; return s; };
             const cmdsFor=async id=>{ const q=[...(await db.collection("commands").where("to","==",id).limit(30).get()).docs,...(await db.collection("commands").where("to","==","all").limit(30).get()).docs];
               return q.sort((x,y)=>ms(y.data().createdAt)-ms(x.data().createdAt)); };
-            // (2)+(4) आने वाले संदेश
+            // (6) के लिए: भारत का समय और रिपोर्टें
+          const IST=new Date(Date.now()+5.5*3600e3), dKey=IST.toISOString().slice(0,10), hr=IST.getUTCHours();
+          const day0=new Date(Date.UTC(IST.getUTCFullYear(),IST.getUTCMonth(),IST.getUTCDate())-5.5*3600e3);
+          const wName=id=>(uMap[id]&&uMap[id].name)||"वर्कर";
+          const mins=d=>Math.max(0,((d.end?ms(d.end):Date.now())-ms(d.start))/60000);
+          const hm=m=>Math.floor(m/60)+" घं "+Math.round(m%60)+" मि";
+          const dayReport=async()=>{
+            const D=(await db.collection("duty").where("start",">=",TS.fromDate(day0)).get()).docs.map(d=>d.data());
+            const C=(await db.collection("tCustomers").where("at",">=",TS.fromDate(day0)).get()).docs.map(d=>d.data());
+            const F=(await db.collection("followups").where("at",">=",TS.fromDate(day0)).get()).docs.map(d=>d.data());
+            const pc=(await db.collection("devReq").where("status","==","pending").get()).size;
+            const L=["📊 आज की रिपोर्ट ("+dKey.split("-").reverse().join("-")+")",""];
+            const ids=[...new Set([...D.map(d=>d.uid),...F.map(f=>f.uid),...C.map(c=>c.ref).filter(Boolean)])].filter(id=>id!==OWNER);
+            for(const id of ids){ const my=D.filter(d=>d.uid===id), m=my.reduce((t,d)=>t+mins(d),0);
+              L.push("👷 "+wName(id)+": "+hm(m)+(my.some(d=>!d.end)?" (अभी ड्यूटी पर)":"")+" · नए ग्राहक "+C.filter(c=>c.ref===id).length+" · follow-up "+F.filter(f=>f.uid===id).length+(my.some(d=>d.idleAlert)?" · ⚠️ सेल्फ़ी जाँच छूटी":"")); }
+            if(!ids.length) L.push("आज कोई ड्यूटी या काम दर्ज नहीं।");
+            const nr=C.filter(c=>!c.ref).length; L.push("","🧳 कुल नए ग्राहक: "+C.length+(nr?" ("+nr+" बिना वर्कर)":""));
+            const bk=new Set(F.filter(f=>f.stage==="booking"||f.stage==="done").map(f=>f.cust)).size; if(bk) L.push("📒 आज बुकिंग/पूरा: "+bk);
+            if(pc) L.push("💻 PC पर काम की अनुमति बाकी: "+pc);
+            return L.join("\n"); };
+          // (2)+(4) आने वाले संदेश
             const up=await tg("getUpdates",{offset:(meta.offset||0),timeout:0,allowed_updates:["message"]});
             let offset=meta.offset||0;
             for(const u of (up.ok?up.result:[])){ offset=u.update_id+1; n.upd++;
@@ -60,6 +83,8 @@ jobs:
               const chat=String(m.chat.id), text=m.text.trim();
               const st=text.match(/^\/start\s+([A-Z0-9]{6,20})/i);
               if(st){ const id=byCode[st[1].toUpperCase()];
+              if(id===OWNER){ const old=tgDocs[id].chat; if(old&&old!==chat) delete byChat[old]; await db.doc("secrets/tg_"+id).set({chat,linkedAt:NOW},{merge:true}); tgDocs[id].chat=chat; byChat[chat]=id; n.linked++;
+                await send(chat,"✅ नमस्ते मालिक! आप जुड़ गए।\n• रोज़ रात 9 बजे दिन की रिपोर्ट\n• सुबह 9 बजे आज की follow-up\n• वर्कर 2 घंटे खाली → alert\n• 1 तारीख को सैलरी + कमीशन\n\nअभी का हिसाब चाहिए तो लिखें: रिपोर्ट"); continue; }
                 if(!id||!uMap[id]){ await send(chat,"❌ यह लिंक पुराना या गलत है — एडमिन से नया लिंक माँगें।"); continue; }
                 if(uMap[id].active===false && uMap[id].status!=="pending"){ await send(chat,"⛔ आपका खाता बंद है — एडमिन से बात करें।"); continue; }
                 const old=tgDocs[id].chat; if(old&&old!==chat) delete byChat[old];
@@ -71,7 +96,8 @@ jobs:
                 continue; }
               const id=byChat[chat];
               if(!id){ await send(chat,"👋 जुड़ने के लिए एडमिन से मिला ✈️ Telegram लिंक खोलें।"); continue; }
-              const name=uMap[id]?.name||"वर्कर";
+              if(id===OWNER){ await send(chat,/रिपोर्ट|report/i.test(text)?await dayReport():"✈️ लिखें: रिपोर्ट — अभी तक का आज का हिसाब। बाकी सब अपने-आप आएगा।"); n.rep++; continue; }
+            const name=uMap[id]?.name||"वर्कर";
               if(/^\/(help|start)$/i.test(text)||/^मदद$/.test(text)){ await send(chat,HELP); continue; }
               if(/^\/password$/i.test(text)||/पासवर्ड|password/i.test(text)){ const s=await pwOf(id); await send(chat,s.pw?"🔑 आपका पासवर्ड: "+s.pw:"🔑 पासवर्ड रिकॉर्ड में नहीं — एडमिन से 🔁 नया पासवर्ड माँगें।"); n.pw++; continue; }
               const cs=await cmdsFor(id);
@@ -92,8 +118,42 @@ jobs:
             // (5) बदला पासवर्ड
             for(const [id,t] of Object.entries(tgDocs)){ if(!t.chat||!uMap[id]) continue; const s=await pwOf(id);
               if(s.pw && ms(s.at) && ms(s.at)>(t.pwSentAt||0)){ await send(t.chat,"🔁 आपका नया लॉगिन पासवर्ड: "+s.pw); await db.doc("secrets/tg_"+id).set({pwSentAt:ms(s.at)},{merge:true}); n.pw++; } }
-            await metaRef.set({bot:me.result.username,offset,lastCmd:last,at:NOW,linked:Object.values(tgDocs).filter(t=>t.chat).length},{merge:true});
-            console.log("TG_OK codes:",n.codes,"linked:",n.linked,"updates:",n.upd,"cmds:",n.cmds,"replies:",n.replies,"pw:",n.pw);
+            // (6) मालिक/वर्कर को रिपोर्ट और याद
+          const ownerChat=tgDocs[OWNER]&&tgDocs[OWNER].chat, upd={};
+          if(ownerChat && hr>=21 && meta.lastDaily!==dKey){ await send(ownerChat,await dayReport()); upd.lastDaily=dKey; n.rep++; }
+          if(hr>=9 && meta.lastFup!==dKey){
+            const F=(await db.collection("followups").orderBy("at","desc").limit(2000).get()).docs.map(d=>d.data());
+            const ref={}; (await db.collection("tCustomers").get()).docs.forEach(d=>{ ref[d.id]=d.data().ref||""; });
+            const seen={}, due=[]; for(const f of F){ if(seen[f.cust]) continue; seen[f.cust]=1; const st=(F.find(x=>x.cust===f.cust&&x.stage)||{}).stage; if(f.next&&f.next<=dKey&&st!=="done") due.push(f); }
+            if(due.length){
+              if(ownerChat) await send(ownerChat,"⏰ आज की follow-up ("+due.length+"):\n"+due.slice(0,25).map(f=>"• "+f.cname+" — 👷 "+(ref[f.cust]?wName(ref[f.cust]):"बिना वर्कर")+(f.note?": "+String(f.note).slice(0,40):"")).join("\n"));
+              const byW={}; due.forEach(f=>{ const w=ref[f.cust]; if(w) (byW[w]=byW[w]||[]).push(f); });
+              for(const [id,fs] of Object.entries(byW)){ const ch=tgDocs[id]&&tgDocs[id].chat; if(ch&&uMap[id]) await send(ch,"⏰ आज इन ग्राहकों से बात करनी है:\n"+fs.slice(0,20).map(f=>"• "+f.cname+(f.note?" — "+String(f.note).slice(0,40):"")).join("\n")+"\n\nMASTER CONNECTOR → 🧳 ग्राहक"); } }
+            upd.lastFup=dKey; n.fup++; }
+          const mKey=dKey.slice(0,7);
+          if(ownerChat && IST.getUTCDate()===1 && hr>=9 && meta.lastPay!==mKey){
+            const y=IST.getUTCFullYear(), mo=IST.getUTCMonth(), s0=Date.UTC(y,mo-1,1)-5.5*3600e3, e0=Date.UTC(y,mo,1)-5.5*3600e3, inM=t=>{ const v=ms(t); return v>=s0&&v<e0; };
+            const D=(await db.collection("duty").where("start",">=",TS.fromMillis(s0)).get()).docs.map(d=>d.data()).filter(d=>inM(d.start));
+            const R=(await db.collection("reports").where("at",">=",TS.fromMillis(s0)).get()).docs.map(d=>d.data()).filter(r=>inM(r.at));
+            const C=(await db.collection("tCustomers").get()).docs.map(d=>({id:d.id,...d.data()}));
+            const F=(await db.collection("followups").where("at",">=",TS.fromMillis(s0)).get()).docs.map(d=>d.data()).filter(f=>inM(f.at));
+            const L=["💰 पिछले महीने की सैलरी + कमीशन",""]; let tot=0;
+            for(const [id,u] of Object.entries(uMap)){ if(u.status==="pending") continue; const p=u.pay||{}, my=D.filter(d=>d.uid===id), days=new Set(my.map(d=>new Date(ms(d.start)+5.5*3600e3).toISOString().slice(0,10))).size;
+              const ids=new Set(C.filter(c=>c.ref===id).map(c=>c.id)), book=new Set(F.filter(f=>ids.has(f.cust)&&(f.stage==="booking"||f.stage==="done")).map(f=>f.cust)).size;
+              const sale=R.filter(r=>r.uid===id).reduce((t,r)=>t+(+r.amt||0),0), sal=+p.amt?(p.per==="day"?(+p.amt)*days:+p.amt):0, com=+p.comm?(p.ct==="pct"?Math.round(sale*(+p.comm)/100):book*(+p.comm)):0;
+              tot+=sal+com; L.push("👷 "+(u.name||"वर्कर")+": ₹"+(sal+com).toLocaleString("en-IN")+" (सैलरी ₹"+sal+" + कमीशन ₹"+com+") · "+days+" दिन · बुकिंग "+book); }
+            L.push("","कुल: ₹"+tot.toLocaleString("en-IN"),"Excel: MASTER CONNECTOR → होम → 💰 सैलरी + कमीशन");
+            await send(ownerChat,L.join("\n")); upd.lastPay=mKey; n.pay++; }
+          // 2 घंटे से ड्यूटी पर, पर कोई follow-up/रिपोर्ट नहीं → मालिक + वर्कर को
+          for(const d of (await db.collection("duty").where("end","==",null).get()).docs){ const x=d.data(); if(!x.start||!x.uid) continue; const st=ms(x.start); if(Date.now()-st<2*3600e3) continue;
+            const at=q=>q.docs.map(z=>ms(z.data().at));
+            const lw=Math.max(st,...at(await db.collection("followups").where("uid","==",x.uid).limit(200).get()),...at(await db.collection("reports").where("uid","==",x.uid).limit(200).get()));
+            const nw=ms(x.noWorkAt), gap=Date.now()-lw;
+            if(gap>2*3600e3 && (nw<lw || Date.now()-nw>2*3600e3)){ await d.ref.update({noWorkAt:NOW}); n.idle++;
+              if(ownerChat) await send(ownerChat,"⚠️ "+wName(x.uid)+" ड्यूटी पर हैं पर "+Math.floor(gap/3600e3)+" घंटे से कोई follow-up या रिपोर्ट दर्ज नहीं।\nदेखें: MASTER CONNECTOR → होम → 👁️ स्क्रीन + चेहरा देखें");
+              const ch=tgDocs[x.uid]&&tgDocs[x.uid].chat; if(ch) await send(ch,"⏰ 2 घंटे से कोई काम दर्ज नहीं हुआ। कृपया ग्राहक का follow-up या काम की रिपोर्ट MASTER CONNECTOR में लिखें।"); } }
+          await metaRef.set({bot:me.result.username,offset,lastCmd:last,at:NOW,linked:Object.values(tgDocs).filter(t=>t.chat).length,...upd},{merge:true});
+            console.log("TG_OK codes:",n.codes,"linked:",n.linked,"updates:",n.upd,"cmds:",n.cmds,"replies:",n.replies,"pw:",n.pw,"rep:",n.rep,"fup:",n.fup,"pay:",n.pay,"idle:",n.idle);
           })().catch(e=>{ console.log("ERR",e.code||e.name||""); process.exit(1); });
           JS
           node "$RUNNER_TEMP/bot.js"; r=$?
