@@ -367,7 +367,7 @@ onAuthStateChanged(auth, async user => {
   startVoiceAlerts();
 });
 
-const TABS_ADMIN = [["home","🏠","होम"],["workers","👥","वर्कर"],["cmd","📢","कमांड"],["files","📁","फ़ाइलें"],["tour","🧳","ग्राहक"],["dip","⚡","DIP"]];
+const TABS_ADMIN = [["home","🏠","होम"],["workers","👥","वर्कर"],["cmd","📢","कमांड"],["files","📁","फ़ाइलें"],["dip","⚡","DIP"]];
 const TABS_WORKER = [["duty","🕘","ड्यूटी"],["cmd","📢","सूचना"],["files","📁","फ़ाइलें"],["dip","⚡","DIP"]];
 let pageSubs = [];
 const clearPage = () => { pageSubs.forEach(u=>{try{u()}catch(e){}}); pageSubs=[]; };
@@ -1195,7 +1195,6 @@ const GUIDE_ADMIN = [
   {t:"किसी का खाता बंद कैसे करें / फिर चालू करें", k:"खाता अकाउंट बंद ब्लॉक हटाना निकालना चालू", d:"1. 👥 वर्कर टैब → उस वर्कर के नीचे लाल 'बंद करें' → हाँ\n2. वह तुरंत लॉग आउट होगा और लॉगिन नहीं कर पाएगा\n3. वापस चालू: वहीं 'चालू करें'\n4. पूरी तरह हटाना हो तो: बंद करने के बाद Firebase Console → Authentication से उसका लॉगिन हटाएँ"},
   {t:"नया वर्कर जोड़ना (2 तरीके)", k:"नया वर्कर जोड़ें जोड़ना हायरिंग लिंक बुलाएँ invite", d:"तरीका 1 (आसान): 👥 वर्कर → 'WhatsApp से वर्कर बुलाएँ' में मोबाइल नंबर → लिंक जाएगा, वर्कर फ़ॉर्म भरेगा, फिर आप मंज़ूरी दें\nतरीका 2 (सीधा): 'नया वर्कर जोड़ें' में नाम + मोबाइल → 'वर्कर जोड़ें' → 🔑 पासवर्ड WhatsApp से भेजें"},
   {t:"शिफ्ट, नाम या सैलरी बदलना", k:"शिफ्ट नाम सैलरी कमीशन वेतन बदलें", d:"👥 वर्कर टैब → वर्कर के नीचे ✏️ नाम / शिफ्ट बदलें / 💰 सैलरी-कमीशन बटन।"},
-  {t:"ग्राहक लिस्ट कहाँ है", k:"ग्राहक कस्टमर customer लिस्ट टूर सूची", d:"नीचे 🧳 ग्राहक टैब — सभी ग्राहकों का नाम, मोबाइल, WhatsApp, Gmail, Telegram, कॉल/WhatsApp बटन, खोज और 📥 Excel। टूर का बाकी काम (मैसेज, लेन-देन) अब इस ऐप में नहीं है।"},
   {t:"वर्कर को आदेश / कमांड कैसे भेजें", k:"आदेश कमांड भेजें सूचना हुक्म", d:"नीचे 📢 कमांड टैब → 'नई कमांड भेजें' में काम लिखें → सबको या एक वर्कर चुनें → भेजें। किसने देखा/पूरा किया 'भेजी गई कमांड' में दिखेगा, पूरा होने पर घंटी भी बजेगी।"},
   {t:"ड्यूटी, लोकेशन और हाज़िरी कैसे देखें", k:"ड्यूटी लोकेशन जगह दूर 30 km हाज़िरी फ़ोटो रिपोर्ट excel", d:"🏠 होम पर 'अभी ड्यूटी पर' में हर वर्कर की जगह। ड्यूटी की जगह से 30 km से दूर गया तो 🚩 और घंटी। हाज़िरी फ़ोटो न दे तो भी घंटी। 'रिपोर्ट Excel' / 'ड्यूटी Excel' से फ़ाइल।"},
   {t:"घंटी और बोलकर सूचना (चालू/बंद)", k:"घंटी रिंग सूचना notification आवाज़ बोलकर alert चालू बंद", d:"नीचे बाएँ 🔔 सूचना बटन → 'पेंडिंग काम सुनाओ', 'घंटी जाँचें', चालू/बंद। नई जॉइनिंग, रिपोर्ट, ड्यूटी, आदेश पूरा, प्लान अर्ज़ी पर घंटी बजती है (ऐप खुला या पीछे चलता हो तब)।"},
@@ -1447,7 +1446,7 @@ async function aiAction(q){
   return null;
 }
 
-/* 📇 सबका डेटा — वर्कर + टूर ग्राहक + DIP ग्राहक: मोबाइल, WhatsApp, Gmail, Telegram, पता… एक जगह; नाम बोलें → पूरा डेटा */
+/* 📇 सबका डेटा — वर्कर + DIP ग्राहक: मोबाइल, WhatsApp, Gmail, Telegram, पता… एक जगह; नाम बोलें → पूरा डेटा */
 async function allPeople(){
   const out = [];
   try{ const us = (await getDocs(collection(db,"users"))).docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.id!==OWNER_UID && u.role!=="admin");
@@ -1455,7 +1454,6 @@ async function allPeople(){
       const mob = u.mobile || k.mobile || (String(u.email).endsWith("@"+MOB_DOMAIN) ? String(u.email).split("@")[0] : "");
       out.push({ kind:"👷 वर्कर", name:u.name, mobile:mob, wa:mob, mail:k.mail || (String(u.email).includes("@") && !String(u.email).endsWith("@"+MOB_DOMAIN) ? u.email : ""), tg:k.tg||"",
         extra:[`${shiftName(u.shift)} शिफ्ट`, u.status==="pending"?"⏳ मंज़ूरी बाकी":u.active===false?"🔒 बंद":"✅ चालू", u.canEdit?"👑 एडमिन अनुमति":"", k.addr?`🏠 ${k.addr}`:"", k.dob?`🎂 ${k.dob}`:"", k.hours?`💼 ${k.hours} घंटे`:"", payText(u.pay)?`💰 ${payText(u.pay)}`:""].filter(Boolean).join(" · ") }); } }catch(_){}
-  try{ (await getDocs(collection(db,"tCustomers"))).docs.forEach(d=>{ const c=d.data(); out.push({ kind:"🧳 टूर ग्राहक", name:c.name, mobile:c.mobile, wa:c.wa||c.mobile, mail:c.mail||"", tg:c.tg||"", extra:c.at?`जुड़े: ${fmtD(c.at)}`:"" }); }); }catch(_){}
   try{ (await getDocs(query(collection(db,"dipPlanReq"),limit(200)))).docs.forEach(d=>{ const v=d.data(); out.push({ kind:"⚡ DIP ग्राहक", name:v.name, mobile:v.mobile, wa:v.mobile, mail:"", tg:"", extra:`${d.id} · ${+v.plan||30} दिन प्लान की अर्ज़ी` }); }); }catch(_){}
   return out.filter(p=>p.name);
 }
@@ -1467,7 +1465,7 @@ async function showPeople(pre){
   const all = await allPeople();
   p.innerHTML=`<div class="card" style="max-height:88vh;overflow:auto"><div class="between"><h3 style="margin:0">📇 सबका डेटा (${all.length})</h3><button class="sec sm" id="ppX">बंद</button></div>
     <input id="ppQ" placeholder="नाम / नंबर / Gmail से खोजें" value="${esc(pre||"")}" style="margin:8px 0">
-    <div class="row" style="gap:6px;flex-wrap:wrap"><button class="sec sm" data-pk="">सब</button><button class="sec sm" data-pk="👷 वर्कर">👷 वर्कर</button><button class="sec sm" data-pk="🧳 टूर ग्राहक">🧳 टूर ग्राहक</button><button class="sec sm" data-pk="⚡ DIP ग्राहक">⚡ DIP ग्राहक</button><button class="sec sm" id="ppCsv">📥 Excel</button></div>
+    <div class="row" style="gap:6px;flex-wrap:wrap"><button class="sec sm" data-pk="">सब</button><button class="sec sm" data-pk="👷 वर्कर">👷 वर्कर</button><button class="sec sm" data-pk="⚡ DIP ग्राहक">⚡ DIP ग्राहक</button><button class="sec sm" id="ppCsv">📥 Excel</button></div>
     <div id="ppL"></div></div>`;
   let kind="";
   const draw=()=>{ const q=$("#ppQ").value.trim().toLowerCase(), qs=skel(q);
@@ -1578,7 +1576,7 @@ function watchSys(){
 function startVoiceAI(){
   if(!window.DipVoiceAI){ if(vaTry++<20) setTimeout(startVoiceAI,500); return; }
   DipVoiceAI.init({ title: canEdit ? "MASTER CONNECTOR" : "मेरा काम", bottom: 78, action: aiAction,
-    chips: canEdit ? ["सिस्टम जाँचो","आज की रिपोर्ट","आज क्या बदला?","गलती से हुआ बदलाव वापस लो","Raj का डेटा दिखाओ","सबका डेटा","Raj को काम दो","रुका काम पूरा करो","सबको मंज़ूरी दो","सबको आदेश: आज समय पर आएँ","Raj का पासवर्ड भेजो","नगमा को पूरी अनुमति दो","आज का हाल बताओ","कितने काम बाकी हैं?","वर्कर लॉगिन कैसे करें?","पासवर्ड कहाँ मिलेगा?","सभी वर्कर के पासवर्ड","नई जॉइनिंग मंज़ूरी कैसे?","खाता बंद कैसे करें?","मोबाइल नंबर बदल गया","रुका काम कैसे पता चले?","ग्राहक लिस्ट"] : ["मेरे कितने आदेश बाकी हैं?","मेरी ड्यूटी का हाल","आज का हाल बताओ"],
+    chips: canEdit ? ["सिस्टम जाँचो","आज की रिपोर्ट","आज क्या बदला?","गलती से हुआ बदलाव वापस लो","Raj का डेटा दिखाओ","सबका डेटा","Raj को काम दो","रुका काम पूरा करो","सबको मंज़ूरी दो","सबको आदेश: आज समय पर आएँ","Raj का पासवर्ड भेजो","नगमा को पूरी अनुमति दो","आज का हाल बताओ","कितने काम बाकी हैं?","वर्कर लॉगिन कैसे करें?","पासवर्ड कहाँ मिलेगा?","सभी वर्कर के पासवर्ड","नई जॉइनिंग मंज़ूरी कैसे?","खाता बंद कैसे करें?","मोबाइल नंबर बदल गया","रुका काम कैसे पता चले?"] : ["मेरे कितने आदेश बाकी हैं?","मेरी ड्यूटी का हाल","आज का हाल बताओ"],
     facts: async () => {
       const F = [], now = new Date(), day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const acksQ = canEdit ? query(collection(db,"acks"),orderBy("at","desc"),limit(1500)) : query(collection(db,"acks"),where("uid","==",me.uid),limit(500));
