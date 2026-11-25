@@ -125,7 +125,7 @@ const ID_TYPES = {aadhaar:"आधार कार्ड", pan:"PAN कार्�
 const DIYA = sz => `<div class="diyaBig"><span class="diya" style="--s:${sz}px"><img class="b" src="img/diya-base.png" alt=""><span class="g"></span><img class="f" src="img/flame.png" alt=""></span></div>`;
 const DIP_PANEL = "https://thakurdip881-cloud.github.io/master-connector/dip/admin.html";
 const NATIVE = window.MCNative || null;   // Android ऐप के अंदर: फ़ोन लॉक होने पर भी duty location जाँच
-const LIMIT_KM = 2;
+const LIMIT_KM = 30;
 const kmBetween = (a,b,c,d) => { const R=6371, r=x=>x*Math.PI/180; const h=Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2; return 2*R*Math.asin(Math.sqrt(h)); };
 const getPos = () => new Promise(res => { if(!navigator.geolocation) return res(null); navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude}), ()=>res(null), {enableHighAccuracy:true,timeout:15000,maximumAge:60000}); });
 const errMsg = e => { const c=e?.code||""; if(c.includes("invalid-credential")||c.includes("wrong-password")||c.includes("user-not-found")) return "ईमेल या पासवर्ड गलत है"; if(c.includes("email-already-in-use")) return "ये ईमेल पहले से इस्तेमाल में है"; if(c.includes("weak-password")) return "पासवर्ड कम से कम 6 अक्षर का रखें"; if(c.includes("invalid-email")) return "ईमेल सही नहीं है"; if(c.includes("permission-denied")) return "इसकी अनुमति नहीं है"; if(c.includes("network")) return "इंटरनेट नहीं है"; return e?.message || "कुछ गड़बड़ हुई"; };
@@ -360,6 +360,7 @@ onAuthStateChanged(auth, async user => {
   watchCommands();
   buildNav();
   startVoiceAI();
+  startVoiceAlerts();
 });
 
 const TABS_ADMIN = [["home","🏠","होम"],["workers","👥","वर्कर"],["cmd","📢","कमांड"],["files","📁","फ़ाइलें"],["tour","🧳","टूर"],["dip","⚡","DIP"]];
@@ -708,6 +709,8 @@ function pageHome(){
 }
 
 /* ---------- ADMIN: WORKERS ---------- */
+const kycPw = {};
+const pwRow = p => `🔑 पासवर्ड: <b style="letter-spacing:1px">${esc(p)}</b> <button class="pwcp" data-pw="${esc(p)}" style="padding:2px 10px;font-size:13px;width:auto">📋 कॉपी</button> <a class="sec sm" style="text-decoration:none;padding:2px 10px;border-radius:8px;font-size:13px" href="https://wa.me/?text=${encodeURIComponent("MASTER CONNECTOR लॉगिन — ऊपर अपना 10 अंक का मोबाइल नंबर, पासवर्ड: "+p+" (बड़ा D और डैश - वैसे ही लिखें)")}" target="_blank" rel="noopener">📲 WhatsApp</a>`;
 const safeImg = d => /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(d||"") ? d : "";
 async function showKyc(u){
   const p=$("#popup"); p.innerHTML=`<div class="card">लोड हो रहा है…</div>`; p.classList.remove("hidden");
@@ -835,7 +838,7 @@ function pageWorkers(){
     $("#wl").innerHTML = rows.map(u=>{
       const owner=u.id===OWNER_UID;
       return `<div><div class="between"><span><b>${esc(u.name)}</b> ${owner?'<span class="pill warn">मुख्य एडमिन</span>':u.canEdit?'<span class="pill warn">एडमिन अनुमति</span>':''} ${u.status==="pending"?'<span class="pill warn">⏳ मंज़ूरी बाकी</span>':u.active===false?'<span class="pill bad">बंद</span>':''}<br><span class="muted">${esc(showId(u.email))} · ${shiftName(u.shift)} शिफ्ट${u.role==="trainee"?" · ट्रेनी":""}</span></span></div>
-      ${isOwner&&!owner&&u.pw?`<div class="muted" style="margin-top:4px">🔑 ${esc(u.pw)} <button class="pwcp" data-pw="${esc(u.pw)}" style="padding:2px 10px;font-size:13px;width:auto">📋 कॉपी</button></div>`:""}
+      ${isOwner&&!owner?`<div class="muted kpw" data-uid="${u.id}" style="margin-top:4px">${u.pw?pwRow(u.pw):"🔑 पासवर्ड देख रहा है…"}</div>`:""}
       ${!owner&&payText(u.pay)?`<div class="muted" style="margin-top:4px">💰 ${esc(payText(u.pay))}</div>`:""}
       ${isOwner&&owner?`<div class="row" style="margin-top:8px"><button class="sec sm" data-a="name" data-id="${u.id}">✏️ मेरा नाम बदलें</button></div>`:""}
       ${isOwner&&!owner?`<div class="row" style="margin-top:8px">
@@ -846,6 +849,9 @@ function pageWorkers(){
         ${u.invite?`<button class="sec sm" data-a="kyc" data-id="${u.id}">🪪 KYC</button>`:""}
         <button class="${u.active===false?"ok":"bad"} sm" data-a="act" data-id="${u.id}">${u.status==="pending"?"✅ मंज़ूरी दें":u.active===false?"चालू करें":"बंद करें"}</button></div>`:""}</div>`;
     }).join("");
+    if(isOwner) $("#wl").querySelectorAll(".kpw").forEach(async el=>{ if(el.querySelector(".pwcp")) return; const id=el.dataset.uid;
+      if(!(id in kycPw)) try{ const ks=await getDoc(doc(db,"kyc",id)); kycPw[id]=ks.exists()?(ks.data().pw||""):""; }catch(e){ kycPw[id]=""; }
+      el.innerHTML = kycPw[id] ? pwRow(kycPw[id]) : "🔑 पासवर्ड रिकॉर्ड में नहीं — Firebase → Authentication से यह नंबर हटाकर ऊपर 'वर्कर जोड़ें' से दोबारा जोड़ें, नया पासवर्ड यहीं दिखेगा"; });
     $("#wl").querySelectorAll("button[data-a]").forEach(b=>b.onclick=async()=>{
       const u=rows.find(r=>r.id===b.dataset.id); const r=doc(db,"users",u.id);
       try{
@@ -1085,6 +1091,108 @@ function pageDip(){
 
 /* ---------- 🎙️ बोलकर पूछें (voice-ai.js) — फ़्री, फ़ोन पर ही; सिर्फ़ पूछने पर Firebase से ताज़ा जानकारी ---------- */
 let vaTry=0;
+/* 🔔 एडमिन के लिए घंटी + बोलकर सूचना — नई जॉइनिंग, वर्कर रिपोर्ट, ड्यूटी, आदेश पूरा, ग्राहक मैसेज, प्लान अर्ज़ी
+   फ़ोन की अपनी आवाज़ (फ़्री), सिर्फ़ ऐप खुला/पीछे चल रहा हो तब। ऊपर 🔔 बटन से चालू/बंद और "पेंडिंग सुनाओ"। */
+const VA_KEY = "mcVoiceAlert";
+const vaOn = () => { try{ return localStorage.getItem(VA_KEY) !== "0"; }catch(_){ return true; } };
+let vaCtx = null, vaQ = [], vaTm = null, vaGo = null;
+document.addEventListener("click", () => { try{ vaCtx = vaCtx || new (window.AudioContext||window.webkitAudioContext)(); vaCtx.resume?.(); }catch(_){} }, { once:true });
+const vaRing = () => {
+  try{ navigator.vibrate?.([600,250,600,250,600]); }catch(_){}
+  try{ vaCtx = vaCtx || new (window.AudioContext||window.webkitAudioContext)(); vaCtx.resume?.(); const t0 = vaCtx.currentTime + 0.05;
+    [0,0.35,0.7,1.3,1.65,2.0].forEach((d,i) => { const o=vaCtx.createOscillator(), g=vaCtx.createGain(); o.type="sine"; o.frequency.value = i%2 ? 660 : 880;
+      g.gain.setValueAtTime(0.0001,t0+d); g.gain.exponentialRampToValueAtTime(0.5,t0+d+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t0+d+0.3);
+      o.connect(g); g.connect(vaCtx.destination); o.start(t0+d); o.stop(t0+d+0.32); }); }catch(_){}
+};
+const vaSay = t => { try{ if(window.MCNative && MCNative.speak){ MCNative.speak(t); return; } }catch(_){}
+  try{ const u = new SpeechSynthesisUtterance(t); u.lang = "hi-IN"; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(_){} };
+function vaPush(text, tabKey){
+  if(!vaOn()) return;
+  vaQ.push(text); if(tabKey) vaGo = tabKey;
+  clearTimeout(vaTm);
+  vaTm = setTimeout(() => {
+    const list = vaQ.splice(0, 6), more = vaQ.length; vaQ = [];
+    const msg = list.join("। ") + (more ? `। और ${more} सूचनाएँ।` : "");
+    vaRing(); setTimeout(() => vaSay("सूचना। " + msg), 2500);
+    try{ if(window.Notification && Notification.permission === "granted") new Notification("🔔 MASTER CONNECTOR", { body: msg, icon: "icon-192.png" }); }catch(_){}
+    let b = $("#vaBox"); if(!b){ b = document.createElement("div"); b.id = "vaBox";
+      b.style.cssText = "position:fixed;left:10px;right:10px;top:10px;z-index:9999;background:#fff8e1;border:2px solid #e69500;border-radius:14px;padding:12px;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:15px"; document.body.appendChild(b); }
+    const go = vaGo; vaGo = null;
+    b.innerHTML = `<b>🔔 नई सूचना</b><div style="margin:6px 0">${list.map(x=>"• "+esc(x)).join("<br>")}${more?`<br>• और ${more}`:""}</div>
+      <div class="row">${go?`<button class="ok sm" id="vaOpen">👉 खोलें / मंज़ूरी दें</button>`:""}<button class="sec sm" id="vaRep">🔊 फिर सुनाओ</button><button class="sec sm" id="vaX">ठीक है</button></div>`;
+    const o = $("#vaOpen"); if(o) o.onclick = () => { b.remove(); go && go(); };
+    $("#vaRep").onclick = () => vaSay(msg); $("#vaX").onclick = () => b.remove();
+  }, 2500);
+}
+const vaFirst = fn => { let first = true; return s => { if(first){ first = false; fn(s, true); return; } fn(s, false); }; };
+async function vaPending(speakIt){
+  const parts = [];
+  try{ const us = (await getDocs(collection(db,"users"))).docs.map(d=>d.data()); const p = us.filter(u=>u.status==="pending"); if(p.length) parts.push(`${p.length} नई जॉइनिंग की मंज़ूरी बाकी — ${p.map(u=>u.name).filter(Boolean).slice(0,3).join(", ")}`); }catch(_){}
+  try{ const ds = (await getDocs(query(collection(db,"duty"),orderBy("start","desc"),limit(100)))).docs.map(d=>d.data()).filter(d=>!d.end); const idle = ds.filter(d=>d.idleAlert);
+    parts.push(`${ds.length} वर्कर अभी ड्यूटी पर`); if(idle.length) parts.push(`${idle.length} ने हाज़िरी फ़ोटो नहीं दी — ${idle.map(d=>d.name).slice(0,3).join(", ")}`); }catch(_){}
+  if(isOwner) try{ const n = (await getDocs(query(collection(db,"dipPlanReq"),limit(200)))).size; if(n) parts.push(`${n} DIP प्लान अर्ज़ियाँ बाकी`); }catch(_){}
+  const msg = parts.length ? "पेंडिंग काम: " + parts.join("। ") : "कोई पेंडिंग काम नहीं";
+  if(speakIt) vaSay(msg); return msg;
+}
+function startVoiceAlerts(){
+  if(!canEdit) return;
+  const tabGo = k => () => go(k);
+  /* ऊपर छोटा 🔔 बटन: दबाएँ → पेंडिंग सुनाओ / चालू-बंद */
+  let btn = $("#vaBtn"); if(!btn){ btn = document.createElement("button"); btn.id = "vaBtn";
+    btn.style.cssText = "position:fixed;left:12px;bottom:84px;z-index:50;width:auto;padding:8px 12px;border-radius:24px;font-size:15px;box-shadow:0 3px 10px rgba(0,0,0,.25)";
+    document.body.appendChild(btn); }
+  const paint = () => { btn.textContent = vaOn() ? "🔔 सूचना" : "🔕 बंद"; btn.className = vaOn() ? "ok" : "sec"; };
+  paint();
+  btn.onclick = async () => {
+    const p = $("#popup"); const msg = await vaPending(false);
+    p.innerHTML = `<div class="card"><div class="between"><h3 style="margin:0">🔔 बोलकर सूचना</h3><button class="sec sm" id="vpX">बंद</button></div>
+      <p class="muted">नई जॉइनिंग, वर्कर रिपोर्ट, ड्यूटी शुरू/खत्म, हाज़िरी फ़ोटो न देना, आदेश पूरा, ग्राहक मैसेज और प्लान अर्ज़ी आते ही घंटी बजेगी और फ़ोन बोलकर बताएगा (ऐप खुला या पीछे चलता हो तब)।</p>
+      <p><b>${esc(msg)}</b></p>
+      <div class="row"><button class="ok sm" id="vpS">🔊 पेंडिंग काम सुनाओ</button><button class="sec sm" id="vpT">${vaOn()?"🔕 सूचना बंद करें":"🔔 सूचना चालू करें"}</button><button class="sec sm" id="vpR">🔔 घंटी जाँचें</button>${window.Notification&&Notification.permission!=="granted"?`<button class="sec sm" id="vpN">📲 फ़ोन सूचना की अनुमति</button>`:""}</div></div>`;
+    p.classList.remove("hidden");
+    $("#vpX").onclick = () => p.classList.add("hidden");
+    $("#vpS").onclick = () => vaSay(msg);
+    $("#vpR").onclick = () => { vaRing(); setTimeout(()=>vaSay("घंटी और आवाज़ ठीक चल रही है"), 2500); };
+    $("#vpT").onclick = () => { try{ localStorage.setItem(VA_KEY, vaOn() ? "0" : "1"); }catch(_){} paint(); p.classList.add("hidden"); toast(vaOn() ? "🔔 बोलकर सूचना चालू" : "🔕 बोलकर सूचना बंद"); };
+    const n = $("#vpN"); if(n) n.onclick = async () => { try{ const r = await Notification.requestPermission(); toast(r==="granted" ? "✅ अनुमति मिल गई" : "अनुमति नहीं मिली"); }catch(_){ toast("इस ऐप में फ़ोन सूचना नहीं चलती — घंटी और आवाज़ चलेंगी"); } };
+  };
+  /* नई जॉइनिंग (मंज़ूरी/एक्सेस माँगना) */
+  sub(onSnapshot(collection(db,"users"), vaFirst((s, first) => { if(first) return;
+    s.docChanges().forEach(c => { const u = c.doc.data(); if(c.type==="added" && u.status==="pending") vaPush(`नई जॉइनिंग: ${u.name||"नया वर्कर"} — मंज़ूरी और अनुमति दें`, tabGo("workers")); });
+  }), ()=>{}));
+  /* वर्कर रिपोर्ट */
+  sub(onSnapshot(query(collection(db,"reports"),orderBy("at","desc"),limit(5)), vaFirst((s, first) => { if(first) return;
+    s.docChanges().forEach(c => { if(c.type==="added" && !c.doc.metadata.hasPendingWrites){ const r = c.doc.data(); vaPush(`${r.name||"वर्कर"} की नई काम रिपोर्ट आई`, tabGo("home")); } });
+  }), ()=>{}));
+  /* ड्यूटी शुरू/खत्म, हाज़िरी फ़ोटो नहीं दी, दूर गया */
+  const dPrev = {};
+  sub(onSnapshot(query(collection(db,"duty"),orderBy("start","desc"),limit(30)), vaFirst((s, first) => {
+    s.docChanges().forEach(c => { const d = c.doc.data(), id = c.doc.id, p = dPrev[id];
+      if(!first){
+        if(c.type==="added" && !d.end) vaPush(`${d.name||"वर्कर"} ने ड्यूटी शुरू की`, tabGo("home"));
+        else if(c.type==="modified" && p){
+          if(d.end && !p.end) vaPush(`${d.name||"वर्कर"} ने ड्यूटी खत्म की`, tabGo("home"));
+          if(d.idleAlert && !p.idleAlert) vaPush(`ध्यान दें: ${d.name||"वर्कर"} ने हाज़िरी फ़ोटो नहीं दी`, tabGo("home"));
+          if(d.awayKm > LIMIT_KM && !(p.awayKm > LIMIT_KM)) vaPush(`ध्यान दें: ${d.name||"वर्कर"} ड्यूटी की जगह से दूर है`, tabGo("home"));
+        } }
+      dPrev[id] = { end: !!d.end, idleAlert: !!d.idleAlert, awayKm: +d.awayKm||0 }; });
+  }), ()=>{}));
+  /* आदेश पूरा */
+  sub(onSnapshot(query(collection(db,"acks"),orderBy("at","desc"),limit(20)), vaFirst((s, first) => { if(first) return;
+    s.docChanges().forEach(c => { const a = c.doc.data(); if((c.type==="added"||c.type==="modified") && a.status==="done") vaPush(`${a.name||"वर्कर"} ने आदेश पूरा किया`, tabGo("cmd")); });
+  }), ()=>{}));
+  /* टूर ग्राहक का मैसेज */
+  sub(onSnapshot(query(collection(db,"tMsgs"),orderBy("at","desc"),limit(10)), vaFirst((s, first) => { if(first) return;
+    s.docChanges().forEach(c => { const m = c.doc.data(); if(c.type==="added" && m.from==="c") vaPush(`ग्राहक का नया मैसेज: ${String(m.text||"").slice(0,60)}`, tabGo("tour")); });
+  }), ()=>{}));
+  /* DIP प्लान अर्ज़ी */
+  if(isOwner) sub(onSnapshot(query(collection(db,"dipPlanReq"),limit(200)), vaFirst((s, first) => { if(first) return;
+    s.docChanges().forEach(c => { const v = c.doc.data(); if(c.type==="added") vaPush(`नई DIP प्लान अर्ज़ी: ${v.name||""}`, tabGo("dip")); });
+  }), ()=>{}));
+  /* खुलते ही एक बार पेंडिंग काम बोलकर (दिन में हर 3 घंटे में एक बार से ज़्यादा नहीं) */
+  try{ const last = +localStorage.getItem("mcVaSaid")||0; if(vaOn() && Date.now()-last > 3*3600e3) setTimeout(async () => { const m = await vaPending(false); if(/मंज़ूरी|फ़ोटो|अर्ज़ि/.test(m)) vaPush(m.replace(/^पेंडिंग काम: /,"पेंडिंग काम — "), tabGo("workers")); try{ localStorage.setItem("mcVaSaid", String(Date.now())); }catch(_){} }, 4000); }catch(_){}
+}
+
 function startVoiceAI(){
   if(!window.DipVoiceAI){ if(vaTry++<20) setTimeout(startVoiceAI,500); return; }
   DipVoiceAI.init({ title: canEdit ? "MASTER CONNECTOR" : "मेरा काम", bottom: 78,

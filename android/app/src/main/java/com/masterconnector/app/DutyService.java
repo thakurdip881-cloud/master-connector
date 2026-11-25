@@ -35,13 +35,13 @@ import java.util.concurrent.Executors;
 
 /**
  * Duty चालू रहते फ़ोन लॉक होने पर भी हर 2 मिनट location जाँच।
- * duty शुरू होने की जगह से 2 km से ज़्यादा दूर → वर्कर के फ़ोन पर alert, और Firebase (duty दस्तावेज़) में
+ * duty शुरू होने की जगह से 30 km से ज़्यादा दूर → वर्कर के फ़ोन पर alert, और Firebase (duty दस्तावेज़) में
  * awayKm + जगह लिखी जाती है, जो Admin के होम पेज पर ⚠️ के साथ दिखती है।
  */
 public class DutyService extends Service implements LocationListener {
     private static final String API_KEY = "AIzaSyApw_GttyXeEmHFvKlJjoQFI11KuL4ahxI";
     private static final String PROJECT = "master-connector-f2a0d";
-    private static final double LIMIT_KM = 2.0;
+    private static final double LIMIT_KM = 30.0;
     private static final long EVERY_MS = 2 * 60_000L;
     private static final String CH_RUN = "duty_run", CH_ALERT = "duty_alert";
 
@@ -80,7 +80,7 @@ public class DutyService extends Service implements LocationListener {
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationManager nm = getSystemService(NotificationManager.class);
             nm.createNotificationChannel(new NotificationChannel(CH_RUN, "Duty चालू", NotificationManager.IMPORTANCE_LOW));
-            nm.createNotificationChannel(new NotificationChannel(CH_ALERT, "Duty alert (2 km)", NotificationManager.IMPORTANCE_HIGH));
+            nm.createNotificationChannel(new NotificationChannel(CH_ALERT, "Duty alert (30 km)", NotificationManager.IMPORTANCE_HIGH));
         }
     }
 
@@ -209,7 +209,7 @@ public class DutyService extends Service implements LocationListener {
     private Notification runningNote() {
         return builder(CH_RUN).setSmallIcon(android.R.drawable.ic_menu_mylocation)
                 .setContentTitle("ड्यूटी चालू है")
-                .setContentText("हर 2 मिनट जगह जाँच · 2 km से दूर जाने पर alert")
+                .setContentText("हर 2 मिनट जगह जाँच · 30 km से दूर जाने पर alert")
                 .setOngoing(true).setContentIntent(openApp()).build();
     }
 
