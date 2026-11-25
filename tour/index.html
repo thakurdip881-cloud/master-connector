@@ -91,6 +91,29 @@ let GUIDE="";
 { const g=document.createElement("button"); g.id="guideBtn"; g.textContent="🔊 AI से सुनें"; g.style.cssText="position:fixed;left:12px;bottom:14px;z-index:50;width:auto;padding:10px 14px;border-radius:24px;box-shadow:0 3px 10px rgba(0,0,0,.25)";
   g.onclick=()=>{ try{ const ss=speechSynthesis; if(ss.speaking){ ss.cancel(); g.textContent="🔊 AI से सुनें"; return; } const u=new SpeechSynthesisUtterance(GUIDE||"नमस्ते"); u.lang="hi-IN"; u.rate=0.95; u.onend=u.onerror=()=>{ g.textContent="🔊 AI से सुनें"; }; ss.speak(u); g.textContent="⏹ रोकें"; }catch(_){ toast("इस फ़ोन में आवाज़ नहीं चल पाई"); } };
   document.body.appendChild(g); }
+// 🎥 ग्राहक का 3 मिनट कैमरा वीडियो (फ़ॉर्म भरते समय) — custVid में टुकड़ों में, 7 दिन बाद अपने-आप हटे
+let cRec=null, cStream=null, cParts=[], cStopT=null, cTick=null, cT0=0;
+async function custRecStart(){
+  if(cRec) { const v=$("#cvView"); if(v&&cStream){ v.srcObject=cStream; v.play().catch(()=>{}); } return; }
+  const T=$("#cvT"); if(!window.MediaRecorder||!navigator.mediaDevices){ if(T) T.textContent="⚠️ इस ब्राउज़र में वीडियो नहीं चलता — Chrome में खोलें"; return; }
+  try{ cStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:240},height:{ideal:320},frameRate:{ideal:10,max:12}},audio:{echoCancellation:true,noiseSuppression:true}}); }
+  catch(_){ if($("#cvT")) $("#cvT").textContent="⚠️ कैमरा की अनुमति नहीं मिली — ऊपर ताले 🔒 से Camera Allow करें"; return; }
+  const v=$("#cvView"); if(v){ v.srcObject=cStream; v.play().catch(()=>{}); }
+  const mt=["video/webm;codecs=vp8,opus","video/webm","video/mp4"].find(x=>{ try{ return MediaRecorder.isTypeSupported(x); }catch(_){ return false; } })||"";
+  cParts=[]; cRec=new MediaRecorder(cStream,Object.assign({videoBitsPerSecond:70000,audioBitsPerSecond:16000},mt?{mimeType:mt}:{}));
+  cRec.ondataavailable=e=>{ if(e.data&&e.data.size) cParts.push(e.data); };
+  cRec.start(1000); cT0=Date.now(); cStopT=setTimeout(()=>{ try{ cRec.state!=="inactive"&&cRec.stop(); }catch(_){} },180000);
+  cTick=setInterval(()=>{ const s=Math.min(180,Math.round((Date.now()-cT0)/1000)), el=$("#cvT"); if(el) el.textContent=s>=180?"✅ 3 मिनट का वीडियो पूरा":`🔴 रिकॉर्डिंग चालू · ${Math.floor(s/60)}:${String(s%60).padStart(2,"0")} / 3:00`; if(s>=180) clearInterval(cTick); },1000);
+}
+function custRecFinish(){ return new Promise(res=>{ if(!cRec){ return res(null); } clearTimeout(cStopT); clearInterval(cTick);
+  const done=()=>{ try{ cStream&&cStream.getTracks().forEach(x=>x.stop()); }catch(_){} const bl=cParts.length?new Blob(cParts,{type:(cRec.mimeType||"video/webm").split(";")[0]}):null; cRec=null; cParts=[]; res(bl); };
+  if(cRec.state==="inactive") return done(); cRec.onstop=done; try{ cRec.stop(); }catch(_){ done(); } setTimeout(done,4000); }); }
+function custRecDrop(){ try{ clearTimeout(cStopT); clearInterval(cTick); cRec&&cRec.state!=="inactive"&&cRec.stop(); cStream&&cStream.getTracks().forEach(x=>x.stop()); }catch(_){} cRec=null; cParts=[]; }
+async function custVidUpload(uid,blob){
+  const url=await new Promise((ok,no)=>{ const r=new FileReader(); r.onload=()=>ok(r.result); r.onerror=no; r.readAsDataURL(blob); });
+  const CH=700000, n=Math.min(Math.ceil(url.length/CH),8), rec=uid+"_"+Date.now();
+  for(let i=0;i<n;i++) await setDoc(doc(db,"custVid",rec+"_"+i),{uid,rec,i,n,part:url.slice(i*CH,(i+1)*CH),at:serverTimestamp()});
+}
 let subs=[]; const clear=()=>{ subs.forEach(u=>{try{u()}catch(_){}}); subs=[]; };
 $("#out").onclick=async()=>{ if(confirm("लॉग आउट करें?")){ clear(); await signOut(auth); } };
 
@@ -98,7 +121,8 @@ function showAuth(reg){
   $("#who").textContent="ग्राहक लॉगिन"; $("#out").classList.add("hidden");
   let last={}; try{ last=JSON.parse(localStorage.getItem("tourLast")||"{}"); }catch(_){}
   app.innerHTML=`<div style="text-align:center;margin:4px 0 10px"><img src="logo-512.jpg" alt="DIP" style="width:150px;height:150px;border-radius:50%;box-shadow:0 4px 16px rgba(0,0,0,.25)"></div><div class="card"><div class="row" style="margin-bottom:6px"><button id="tL" class="${reg?"sec":""}">लॉगिन</button><button id="tR" class="${reg?"":"sec"}">नया रजिस्ट्रेशन</button></div>
-  ${reg?`<label class="req">पूरा नाम</label><input id="rN" maxlength="60" autocomplete="name">
+  ${reg?`<div id="cvBox" style="background:#fff7e6;border:1px solid #f0c36d;border-radius:12px;padding:8px;margin:4px 0 8px;display:flex;gap:8px;align-items:center"><video id="cvView" muted playsinline style="width:60px;height:80px;object-fit:cover;border-radius:8px;background:#000"></video><span style="font-size:13px">🎥 <b>जाँच के लिए 3 मिनट का कैमरा वीडियो</b> रिकॉर्ड होगा कि फ़ॉर्म सही भरा गया। फ़ोन पूछे तो Allow करें। वीडियो सिर्फ़ DIP टीम देखेगी और 7 दिन बाद अपने-आप हट जाएगा।<br><b id="cvT">⏳ कैमरा चालू हो रहा है…</b></span></div>
+    <label class="req">पूरा नाम</label><input id="rN" maxlength="60" autocomplete="name">
     <label class="req">मोबाइल नंबर</label><input id="rM" inputmode="numeric" maxlength="13" placeholder="10 अंक">
     <label>WhatsApp नंबर (अलग हो तो)</label><input id="rW" inputmode="numeric" maxlength="13">
     <label class="req">Gmail</label><input id="rE" type="email" inputmode="email" placeholder="naam@gmail.com">
@@ -109,16 +133,19 @@ function showAuth(reg){
     <label class="req">पासवर्ड फिर से</label><input id="rP2" type="password" autocomplete="new-password">
     <label class="req">🆔 वर्कर ID — जिस वर्कर ने link भेजा (8 अंक, जैसे 13174393)</label><input id="rRef" inputmode="numeric" maxlength="12" placeholder="13174393" value="${esc(/^(\d{8}|DIP[A-Z0-9]{4,6})$/i.test(REF)?REF.toUpperCase():"")}"><p class="muted" style="margin:2px 0 0">यह वर्कर का ID है। आपका अपना ग्राहक ID रजिस्ट्रेशन के बाद अलग बनेगा।</p>
     <label class="row" style="color:var(--ink);margin-top:10px"><input type="checkbox" id="rC" style="width:auto;flex:none"> <span class="req">मैं सहमति देता/देती हूँ कि मेरी जानकारी सिर्फ़ यात्रा के रिकॉर्ड के लिए DIP Tour & Travels देख सकेगा।</span></label>
+    <label class="row" style="color:var(--ink);margin-top:8px"><input type="checkbox" id="rS" style="width:auto;flex:none" checked> <span>🔐 पासवर्ड इस फ़ोन में याद रखें</span></label>
     <button id="rGo" style="width:100%;margin-top:12px">✅ रजिस्टर करें</button>`
   :`${last.name?`<div style="background:#e8f6f1;border-radius:12px;padding:10px;margin:6px 0"><b>👋 ${esc(last.name)}</b><br><span class="muted">📱 ${esc(last.id||"")}</span></div>`:""}
     <label>मोबाइल नंबर</label><input id="lM" inputmode="numeric" maxlength="13" value="${esc(last.id||"")}">
-    <label>पासवर्ड</label><div class="row" style="gap:6px"><input id="lP" type="password" autocomplete="current-password" style="flex:1"><button type="button" class="sec" id="lEye" style="width:auto;flex:none">👁️</button></div>
+    <label>पासवर्ड</label><div class="row" style="gap:6px"><input id="lP" type="password" autocomplete="current-password" style="flex:1" value="${esc(last.pw||"")}"><button type="button" class="sec" id="lEye" style="width:auto;flex:none">👁️</button></div>
+    <label class="row" style="color:var(--ink);margin-top:8px"><input type="checkbox" id="lS" style="width:auto;flex:none" ${last.pw!==""?"checked":""}> <span>🔐 पासवर्ड इस फ़ोन में याद रखें</span></label>
     <button id="lGo" style="width:100%;margin-top:12px">लॉगिन करें</button><p class="muted">पासवर्ड भूल गए? सपोर्ट पर WhatsApp/Telegram करें।</p>`}</div>`;
   GUIDE=reg?"नया रजिस्ट्रेशन। अपना पूरा नाम, मोबाइल नंबर, जीमेल और आईडी भरें। फिर पासवर्ड बनाएँ। सबसे नीचे वर्कर आईडी में उस वर्कर का आठ अंक का आईडी होगा जिसने आपको लिंक भेजा। लिंक से आए हैं तो यह अपने-आप भरा होगा। आखिर में सहमति पर टिक लगाकर रजिस्टर करें दबाएँ।":"लॉगिन। अपना मोबाइल नंबर और पासवर्ड डालकर लॉगिन करें दबाएँ। पहली बार आए हैं तो ऊपर नया रजिस्ट्रेशन दबाएँ।";
-  $("#tL").onclick=()=>showAuth(false); $("#tR").onclick=()=>showAuth(true);
+  $("#tL").onclick=()=>{ custRecDrop(); showAuth(false); }; $("#tR").onclick=()=>showAuth(true);
+  if(reg) custRecStart();
   if(!reg){ $("#lEye").onclick=()=>{ const p=$("#lP"); p.type=p.type==="password"?"text":"password"; };
     $("#lGo").onclick=async()=>{ const m=mob($("#lM").value), p=$("#lP").value.trim(); if(!m) return toast("सही मोबाइल नंबर डालें"); if(!p) return toast("पासवर्ड डालें");
-      const b=$("#lGo"); b.disabled=true; try{ await signInWithEmailAndPassword(auth,m+"@"+DOM,p); }catch(e){ toast(errM(e)); } b.disabled=false; }; return; }
+      const b=$("#lGo"); b.disabled=true; try{ await signInWithEmailAndPassword(auth,m+"@"+DOM,p); try{ const L=JSON.parse(localStorage.getItem("tourLast")||"{}"); L.id=m; L.pw=$("#lS").checked?p:""; localStorage.setItem("tourLast",JSON.stringify(L)); }catch(_){} }catch(e){ toast(errM(e)); } b.disabled=false; }; return; }
   const fixI=()=>{ const t=$("#rIt").value; $("#rI").inputMode=t==="aadhaar"?"numeric":"text"; $("#rI").placeholder=t==="aadhaar"?"1234 5678 9012":t==="pan"?"ABCDE1234F":""; $("#rIh").textContent=t==="aadhaar"?"आधार: सुरक्षा के लिए सिर्फ़ आखिरी 4 अंक सेव होंगे।":""; $("#rI").value=""; };
   $("#rIt").onchange=fixI;
   $("#rI").oninput=e=>{ if($("#rIt").value!=="aadhaar") return; const d=e.target.value.replace(/\D/g,"").slice(0,12); e.target.value=d.replace(/(\d{4})(?=\d)/g,"$1 "); };
@@ -135,8 +162,9 @@ function showAuth(reg){
     try{ const c=await createUserWithEmailAndPassword(auth,m+"@"+DOM,p);
       const rec={uid:c.user.uid,name,mobile:m,wa,mail,tg:tg?"@"+tg:"",idType:it,idNo,consent:true,at:serverTimestamp(),...(rc&&refUid?{refCode:rc}:{})};
       try{ sessionStorage.setItem("tourNew","1"); }catch(_){}
+      b.textContent="🎥 वीडियो भेजा जा रहा है…"; try{ const bl=await custRecFinish(); if(bl) await custVidUpload(c.user.uid,bl); }catch(_){}
       try{ await setDoc(doc(db,"tCustomers",c.user.uid),refUid?{...rec,ref:refUid}:rec); }catch(e1){ if(!refUid) throw e1; const {refCode,...r2}=rec; await setDoc(doc(db,"tCustomers",c.user.uid),r2); }
-      try{ localStorage.setItem("tourLast",JSON.stringify({name,id:m})); }catch(_){}
+      try{ localStorage.setItem("tourLast",JSON.stringify({name,id:m,pw:$("#rS")&&$("#rS").checked?p:""})); }catch(_){}
       mailCopy("🧳 नया ग्राहक — "+name,{"नाम":name,"मोबाइल":m,"WhatsApp":wa,"Gmail":mail,"Telegram":tg?"@"+tg:"—","ID":it+": "+idNo,"रेफर ID":rc||(refUid?"पुराना link":"—"),"समय":new Date().toLocaleString("hi-IN")},mail);
       toast("✅ रजिस्ट्रेशन हो गया");
     }catch(e){ toast(errM(e)); b.disabled=false; b.textContent="✅ रजिस्टर करें"; } };
@@ -146,7 +174,7 @@ async function showHome(user){
   clear(); $("#out").classList.remove("hidden");
   let me=null; try{ const s=await getDoc(doc(db,"tCustomers",user.uid)); me=s.exists()?s.data():null; }catch(_){}
   if(!me){ app.innerHTML=`<div class="card">आपका ग्राहक रिकॉर्ड नहीं मिला। सपोर्ट से संपर्क करें।</div>`; return; }
-  try{ localStorage.setItem("tourLast",JSON.stringify({name:me.name,id:me.mobile})); }catch(_){}
+  try{ const L=JSON.parse(localStorage.getItem("tourLast")||"{}"); localStorage.setItem("tourLast",JSON.stringify({...L,name:me.name,id:me.mobile})); }catch(_){}
   $("#who").textContent=me.name+" · ग्राहक";
   let cfg={}; try{ const c=await getDoc(doc(db,"tour","config")); cfg=c.exists()?c.data():{}; }catch(_){} if(!cfg.wa) cfg.wa="8691019233"; if(!cfg.tg1) cfg.tg1="@WorkforhomeIndia";
   const tgA=t=>String(t||"").replace(/^@/,""), custId="C"+String(me.mobile||"").slice(-4)+String(user.uid).slice(0,3).toUpperCase();
