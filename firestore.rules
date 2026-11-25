@@ -211,6 +211,14 @@ service cloud.firestore {
         && request.resource.data.at == request.time);
     }
 
+    // ---------- 📜 बदलाव का रिकॉर्ड (कौन, क्या, कब) — एडमिन लिखे, मालिक पढ़े/वापस ले ----------
+    match /audit/{id} {
+      allow read: if editor();
+      allow create: if editor() && request.resource.data.by == request.auth.uid && request.resource.data.at == request.time;
+      allow update: if isOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['undone']);
+      allow delete: if isOwner();
+    }
+
     // बाकी सब बंद
     match /{document=**} { allow read, write: if false; }
   }

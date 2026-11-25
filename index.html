@@ -744,7 +744,7 @@ function showPay(u){
   $("#px").onclick=()=>p.classList.add("hidden");
   $("#pSave").onclick=async()=>{ const amt=Math.max(0,parseInt($("#pAmt").value.replace(/\D/g,""))||0), comm=Math.max(0,parseFloat($("#pCom").value)||0);
     if($("#pCt").value==="pct" && comm>100) return toast("कमीशन 100% से ज़्यादा नहीं");
-    try{ await updateDoc(doc(db,"users",u.id),{pay:{amt,per:$("#pPer").value,comm,ct:$("#pCt").value,note:$("#pNote").value.trim().slice(0,60)}}); toast("💰 सेव हुआ"); p.classList.add("hidden"); }catch(e){ toast(errMsg(e)); } };
+    try{ await updUser(u.id,{pay:{amt,per:$("#pPer").value,comm,ct:$("#pCt").value,note:$("#pNote").value.trim().slice(0,60)}}); toast("💰 सेव हुआ"); p.classList.add("hidden"); }catch(e){ toast(errMsg(e)); } };
 }
 function pageWorkers(){
   app.innerHTML = `${isOwner?`<div class="card"><h3>नया वर्कर जोड़ें</h3>
@@ -859,12 +859,12 @@ function pageWorkers(){
     $("#wl").querySelectorAll("button[data-a]").forEach(b=>b.onclick=async()=>{
       const u=rows.find(r=>r.id===b.dataset.id); const r=doc(db,"users",u.id);
       try{
-        if(b.dataset.a==="shift") await updateDoc(r,{shift:u.shift==="evening"?"morning":"evening"});
-        if(b.dataset.a==="perm"){ if(!confirm(u.canEdit?"इस व्यक्ति से एडमिन अनुमति हटाएँ?":"इस व्यक्ति को बदलाव करने की अनुमति दें?")) return; await updateDoc(r,{canEdit:!u.canEdit}); }
+        if(b.dataset.a==="shift") await updUser(u.id,{shift:u.shift==="evening"?"morning":"evening"});
+        if(b.dataset.a==="perm"){ if(!confirm(u.canEdit?"इस व्यक्ति से एडमिन अनुमति हटाएँ?":"इस व्यक्ति को बदलाव करने की अनुमति दें?")) return; await updUser(u.id,{canEdit:!u.canEdit}); }
         if(b.dataset.a==="kyc"){ return showKyc(u); }
         if(b.dataset.a==="pay"){ return showPay(u); }
-        if(b.dataset.a==="name"){ const n=(prompt("नया नाम लिखें:", u.name||"")||"").trim().slice(0,40); if(!n || n===u.name) return; await updateDoc(r,{name:n}); if(u.id===me.uid){ profile.name=n; $("#who").textContent=`${n} · मुख्य एडमिन`; } }
-        if(b.dataset.a==="act"){ if(!confirm(u.status==="pending"?"KYC देख ली? इस वर्कर को मंज़ूरी दें?":u.active===false?"अकाउंट चालू करें?":"अकाउंट बंद करें? ये व्यक्ति लॉगिन नहीं कर पाएगा।")) return; await updateDoc(r,{active:u.active===false,status:u.active===false?"approved":"blocked"}); }
+        if(b.dataset.a==="name"){ const n=(prompt("नया नाम लिखें:", u.name||"")||"").trim().slice(0,40); if(!n || n===u.name) return; await updUser(u.id,{name:n}); if(u.id===me.uid){ profile.name=n; $("#who").textContent=`${n} · मुख्य एडमिन`; } }
+        if(b.dataset.a==="act"){ if(!confirm(u.status==="pending"?"KYC देख ली? इस वर्कर को मंज़ूरी दें?":u.active===false?"अकाउंट चालू करें?":"अकाउंट बंद करें? ये व्यक्ति लॉगिन नहीं कर पाएगा।")) return; await updUser(u.id,{active:u.active===false,status:u.active===false?"approved":"blocked"}); }
         toast("बदलाव सेव हुआ");
       }catch(e){ toast(errMsg(e)); }
     });
@@ -1155,10 +1155,10 @@ function startVoiceAlerts(){
     p.innerHTML = `<div class="card"><div class="between"><h3 style="margin:0">🔔 बोलकर सूचना</h3><button class="sec sm" id="vpX">बंद</button></div>
       <p class="muted">नई जॉइनिंग, वर्कर रिपोर्ट, ड्यूटी शुरू/खत्म, हाज़िरी फ़ोटो न देना, आदेश पूरा, ग्राहक मैसेज और प्लान अर्ज़ी आते ही घंटी बजेगी और फ़ोन बोलकर बताएगा (ऐप खुला या पीछे चलता हो तब)।</p>
       <p><b>${esc(msg)}</b></p>
-      <div class="row"><button class="ok sm" id="vpS">🔊 पेंडिंग काम सुनाओ</button><button class="sec sm" id="vpT">${vaOn()?"🔕 सूचना बंद करें":"🔔 सूचना चालू करें"}</button><button class="sec sm" id="vpR">🔔 घंटी जाँचें</button><button class="sec sm" id="vpH">🆘 वर्कर अर्ज़ियाँ</button><button class="sec sm" id="vpP">📇 सबका डेटा</button>${window.Notification&&Notification.permission!=="granted"?`<button class="sec sm" id="vpN">📲 फ़ोन सूचना की अनुमति</button>`:""}</div></div>`;
+      <div class="row"><button class="ok sm" id="vpS">🔊 पेंडिंग काम सुनाओ</button><button class="sec sm" id="vpT">${vaOn()?"🔕 सूचना बंद करें":"🔔 सूचना चालू करें"}</button><button class="sec sm" id="vpR">🔔 घंटी जाँचें</button><button class="sec sm" id="vpH">🆘 वर्कर अर्ज़ियाँ</button><button class="sec sm" id="vpP">📇 सबका डेटा</button><button class="sec sm" id="vpY">🩺 सिस्टम जाँच</button><button class="sec sm" id="vpA">📜 बदलाव</button>${window.Notification&&Notification.permission!=="granted"?`<button class="sec sm" id="vpN">📲 फ़ोन सूचना की अनुमति</button>`:""}</div></div>`;
     p.classList.remove("hidden");
     $("#vpX").onclick = () => p.classList.add("hidden");
-    $("#vpS").onclick = () => vaSay(msg); $("#vpH").onclick = showHelpList; $("#vpP").onclick = () => showPeople("");
+    $("#vpS").onclick = () => vaSay(msg); $("#vpH").onclick = showHelpList; $("#vpP").onclick = () => showPeople(""); $("#vpA").onclick = showAudit; $("#vpY").onclick = () => { p.classList.add("hidden"); const f=document.querySelector(".dva-fab"); if(f){ if(!document.querySelector(".dva")) f.click(); setTimeout(()=>{ const i=document.querySelector(".dva input"); if(i){ i.value="सिस्टम जाँचो"; document.querySelector(".dva .go")?.click(); } }, 300); } };
     $("#vpR").onclick = () => { vaRing(); setTimeout(()=>vaSay("घंटी और आवाज़ ठीक चल रही है"), 2500); };
     $("#vpT").onclick = () => { try{ localStorage.setItem(VA_KEY, vaOn() ? "0" : "1"); }catch(_){} paint(); p.classList.add("hidden"); toast(vaOn() ? "🔔 बोलकर सूचना चालू" : "🔕 बोलकर सूचना बंद"); };
     const n = $("#vpN"); if(n) n.onclick = async () => { try{ const r = await Notification.requestPermission(); toast(r==="granted" ? "✅ अनुमति मिल गई" : "अनुमति नहीं मिली"); }catch(_){ toast("इस ऐप में फ़ोन सूचना नहीं चलती — घंटी और आवाज़ चलेंगी"); } };
@@ -1172,7 +1172,7 @@ function startVoiceAlerts(){
   sub(onSnapshot(collection(db,"help"), vaFirst((s, first) => { if(first) return;
     s.docChanges().forEach(c => { const h = c.doc.data(); if((c.type==="added"||c.type==="modified") && !h.done && !c.doc.metadata.hasPendingWrites) vaPush(h.type==="pw" ? `${h.name} (${h.mobile}) पासवर्ड भूल गए — एक टैप में WhatsApp पर भेजें` : `${h.name} का मोबाइल नंबर बदला: ${h.newMobile} — एक टैप में नया खाता बनाएँ`, showHelpList); });
   }), ()=>{}));
-  setTimeout(autoApprove, 5000); watchStuck();
+  setTimeout(autoApprove, 5000); watchStuck(); watchSys();
   /* वर्कर रिपोर्ट */
   sub(onSnapshot(query(collection(db,"reports"),orderBy("at","desc"),limit(5)), vaFirst((s, first) => { if(first) return;
     s.docChanges().forEach(c => { if(c.type==="added" && !c.doc.metadata.hasPendingWrites){ const r = c.doc.data(); vaPush(`${r.name||"वर्कर"} की नई काम रिपोर्ट आई`, tabGo("home")); } });
@@ -1208,7 +1208,7 @@ function startVoiceAlerts(){
 
 /* 📘 AI गाइड — पूरी ऐप चलाने का तरीका (🎙️ पूछें / 🤖 AI में पूछने पर यही बताता है) */
 const GUIDE_ADMIN = [
-  {t:"AI से काम करवाना (बोलकर)", k:"काम करवाना करो बोलकर हुक्म आदेश ai खुद", d:"बस बोलें, AI पूछेगा 'करूँ?' — ✅ दबाएँ या 'हाँ' बोलें, AI खुद कर देगा:\n• रुका काम पूरा करो (मंज़ूरी + अधूरे आदेश की याद + अर्ज़ियाँ)\n• सबको मंज़ूरी दो / Raj को मंज़ूरी दो\n• नगमा को पूरी अनुमति दो / अनुमति हटाओ\n• Raj का खाता बंद करो / चालू करो\n• Raj का पासवर्ड भेजो\n• Raj को काम दो → AI पूछेगा कौन सा काम → बोलें → हाँ\n• सबको आदेश: … / Raj को आदेश: …\n• Raj की शिफ्ट शाम करो\n• अर्ज़ियाँ दिखाओ\n• Raj का डेटा दिखाओ / सबका डेटा (मोबाइल, WhatsApp, Gmail, Telegram)"},
+  {t:"AI से काम करवाना (बोलकर)", k:"काम करवाना करो बोलकर हुक्म आदेश ai खुद", d:"बस बोलें, AI पूछेगा 'करूँ?' — ✅ दबाएँ या 'हाँ' बोलें, AI खुद कर देगा:\n• रुका काम पूरा करो (मंज़ूरी + अधूरे आदेश की याद + अर्ज़ियाँ)\n• सबको मंज़ूरी दो / Raj को मंज़ूरी दो\n• नगमा को पूरी अनुमति दो / अनुमति हटाओ\n• Raj का खाता बंद करो / चालू करो\n• Raj का पासवर्ड भेजो\n• Raj को काम दो → AI पूछेगा कौन सा काम → बोलें → हाँ\n• सबको आदेश: … / Raj को आदेश: …\n• Raj की शिफ्ट शाम करो\n• सिस्टम जाँचो → हर गड़बड़ी + ठीक करो बटन\n• आज की रिपोर्ट (रात 9 बजे अपने-आप बोलकर)\n• आज क्या बदला? / गलती से हुआ बदलाव वापस लो\n• अर्ज़ियाँ दिखाओ\n• Raj का डेटा दिखाओ / सबका डेटा (मोबाइल, WhatsApp, Gmail, Telegram)"},
   {t:"वर्कर लॉगिन कैसे करें (मोबाइल नंबर + पासवर्ड)", k:"वर्कर लॉगिन login कैसे करे खाता अकाउंट ऑनलाइन नहीं जा रहा मोबाइल नंबर", d:"1. ऊपर वाले खाने में सिर्फ़ 10 अंक का मोबाइल नंबर (Gmail नहीं, +91 या 0 नहीं)\n2. नीचे पासवर्ड वैसा ही जैसा 🔑 में है, जैसे Dip-abcd1234 (बड़ा D और डैश -)\n3. 👁️ दबाकर देख लें, फिर 'लॉगिन करें'\n4. लॉगिन के बाद लॉगआउट न करें — दोबारा पासवर्ड नहीं माँगेगा"},
   {t:"Gmail से लॉगिन क्यों नहीं होता", k:"gmail जीमेल ईमेल email लॉगिन नहीं हो रहा गलत", d:"वर्कर के खाते मोबाइल नंबर से बने हैं — उनकी Gmail से लॉगिन कभी नहीं होगा। Gmail से सिर्फ़ मुख्य एडमिन (आप) लॉगिन करते हैं। वर्कर हमेशा मोबाइल नंबर + Dip-… पासवर्ड डालें।"},
   {t:"वर्कर का पासवर्ड कहाँ मिलेगा / कैसे ढूँढें", k:"पासवर्ड password ढूँढें कहाँ मिलेगा भूल गया पता नहीं गलत", d:"1. नीचे 👥 वर्कर टैब खोलें\n2. 'सभी लोग' में वर्कर के नाम के नीचे 🔑 पासवर्ड दिखेगा\n3. 📋 कॉपी या 📲 WhatsApp दबाएँ — लॉगिन का तरीका + पासवर्ड वर्कर को चला जाएगा\n(आप यहाँ 'Raj का पासवर्ड' जैसा भी पूछ सकते हैं)"},
@@ -1299,7 +1299,7 @@ async function showHelpList(){
     try{ const cred=await createUserWithEmailAndPassword(getAuth(tmp), nm+"@"+MOB_DOMAIN, pass);
       const nd={name:u.name,email:nm+"@"+MOB_DOMAIN,mobile:nm,role:u.role==="trainee"?"trainee":"worker",canEdit:false,active:true,shift:u.shift||"morning",pw:pass,from:u.id,createdAt:serverTimestamp()}; if(u.pay) nd.pay=u.pay;
       await setDoc(doc(db,"users",cred.user.uid),nd);
-      await updateDoc(doc(db,"users",u.id),{active:false,movedTo:cred.user.uid}).catch(()=>{});
+      await updUser(u.id,{active:false,movedTo:cred.user.uid}).catch(()=>{});
       await done(h.id);
       p.innerHTML=`<div class="card"><h3>✅ नया खाता बन गया</h3><p>${esc(u.name)} — मोबाइल ${esc(nm)}<br>पासवर्ड: <b>${esc(pass)}</b></p><a class="ok" style="display:block;text-align:center;text-decoration:none;padding:10px;border-radius:10px" target="_blank" rel="noopener" href="${waTo(nm,`नमस्ते ${u.name}, आपका MASTER CONNECTOR खाता नए नंबर से बन गया:\nमोबाइल: ${nm}\nपासवर्ड: ${pass}\n(बड़ा D और डैश - वैसे ही लिखें)`)}">📲 नए नंबर के WhatsApp पर भेजें</a><button class="sec" id="mvX" style="width:100%;margin-top:8px">बंद</button></div>`;
       $("#mvX").onclick=()=>p.classList.add("hidden");
@@ -1311,7 +1311,7 @@ const genPw2 = () => { const A="abcdefghjkmnpqrstuvwxyz", r=crypto.getRandomValu
 async function autoApprove(){
   if(!isOwner) return;
   try{ const us=(await getDocs(collection(db,"users"))).docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.status==="pending");
-    for(const u of us){ try{ const k=(await getDoc(doc(db,"kyc",u.id))).data(); if(k && k.selfie && k.idImg){ await updateDoc(doc(db,"users",u.id),{active:true,status:"auto",autoAt:serverTimestamp()}); vaPush(`${u.name} की जॉइनिंग अपने-आप मंज़ूर हो गई — KYC पूरी थी`, ()=>go("workers")); } }catch(_){} }
+    for(const u of us){ try{ const k=(await getDoc(doc(db,"kyc",u.id))).data(); if(k && k.selfie && k.idImg){ await updUser(u.id,{active:true,status:"auto",autoAt:serverTimestamp()}); vaPush(`${u.name} की जॉइनिंग अपने-आप मंज़ूर हो गई — KYC पूरी थी`, ()=>go("workers")); } }catch(_){} }
   }catch(_){}
 }
 /* ⏰ रुके काम: 2 घंटे से अधूरे आदेश */
@@ -1366,6 +1366,17 @@ async function aiAction(q){
     return { text: m.length ? `${m.length} लोग मिले — किसका ${verb}?` : `किसका ${verb}? नाम पर दबाएँ (या नाम साफ़ बोलें)`, buttons: list.slice(0,8).map(u => ({ label: u.name, run: async () => fn(u) })) }; };
   const ownerOnly = () => isOwner ? null : "यह काम सिर्फ़ मुख्य एडमिन कर सकते हैं।";
   const yes = (text, run) => ({ text: text + "\n\n✅ हाँ दबाएँ या बोलें \"हाँ\"", say: text + "। करूँ? हाँ या नहीं बोलें।", confirm: true, buttons: [{ label: "✅ हाँ, करो", run }, { label: "❌ नहीं", run: async () => "ठीक है, नहीं किया।" }] });
+
+  // 🩺 सिस्टम जाँच / गड़बड़ी / हाल
+  if(has(/सिस्टम|गड़बड़|गडबड|समस्या|प्रॉब्लम|problem|दिक्कत|हाल|स्थिति|स्टेटस|status|सब ठीक|क्या चल/) && !has(/कैसे/)) return sysReport(await sysCheck());
+  // 🌙 आज की रिपोर्ट
+  if(has(/रिपोर्ट|report/) && has(/आज|रात|दिन|पूरी|daily/)) return await dayReport();
+  // 📜 बदलाव / ↩️ वापस
+  if(has(/वापस ले|undo|अनडू|गलती से/)){ if(!isOwner) return ownerOnly(); const L=(await auditList(24)).filter(a=>!a.undone);
+    if(!L.length) return "पिछले 24 घंटे में वापस लेने लायक कोई बदलाव नहीं।";
+    return { text:"कौन सा बदलाव वापस लूँ?", buttons: L.slice(0,8).map(a=>({ label:`${a.name}: ${a.act}`, run: async()=>undoAudit(a) })) }; }
+  if(has(/बदलाव|बदला|हिस्ट्री|history|रिकॉर्ड|किसने/) && !has(/नंबर|शिफ्ट|नाम|कैसे/)){ const L=await auditList(24);
+    return { text: L.length ? `📜 पिछले 24 घंटे के ${L.length} बदलाव:\n`+L.slice(0,10).map(a=>`• ${a.name}: ${a.act} — ${a.byName}${a.undone?" (↩️ वापस)":""}`).join("\n") : "📜 पिछले 24 घंटे में कोई बदलाव नहीं।", buttons:[{label:"📜 पूरा रिकॉर्ड / वापस लें", run: async()=>{ setTimeout(showAudit,200); return "📜 रिकॉर्ड खोल दिया।"; }}] }; }
 
   // 📇 किसी का पूरा डेटा (मोबाइल, WhatsApp, Gmail, Telegram…)
   if(has(/डेटा|डाटा|data|जानकारी|डिटेल|detail|नंबर|ईमेल|मेल|gmail|जीमेल|टेलीग्राम|telegram|व्हाट्सएप|व्हाट्सऐप|whatsapp|संपर्क|कॉन्टैक्ट|contact|पता/) && !has(/पासवर्ड|आदेश|कमांड|काम दो|मंज़ूरी|मंजूरी|अनुमति|शिफ्ट|बदल|कैसे|खाता बंद|खाता चालू/)){
@@ -1423,7 +1434,7 @@ async function aiAction(q){
     const e = ownerOnly(); if(e) return e;
     const pend = users.filter(u=>u.status==="pending");
     if(!pend.length) return "✅ कोई मंज़ूरी बाकी नहीं।";
-    const ok = async u => { await updateDoc(doc(db,"users",u.id),{active:true,status:"auto",autoAt:serverTimestamp()}); return `✅ ${u.name} को मंज़ूरी दे दी — अब लॉगिन कर सकता है। पासवर्ड भेजना हो तो बोलें "${u.name} का पासवर्ड भेजो"।`; };
+    const ok = async u => { await updUser(u.id,{active:true,status:"auto",autoAt:serverTimestamp()}); return `✅ ${u.name} को मंज़ूरी दे दी — अब लॉगिन कर सकता है। पासवर्ड भेजना हो तो बोलें "${u.name} का पासवर्ड भेजो"।`; };
     if(has(/सब|सभी|all/)) return yes(`${pend.length} लोगों को मंज़ूरी दूँ: ${pend.map(u=>u.name).join(", ")}`, async () => { for(const u of pend) await ok(u); return `✅ ${pend.length} को मंज़ूरी दे दी: ${pend.map(u=>u.name).join(", ")}`; });
     const m = findUsers(q, pend); if(m.length===1) return yes(`${m[0].name} को मंज़ूरी दूँ?`, () => ok(m[0]));
     return { text: "किसको मंज़ूरी दूँ?", buttons: pend.map(u => ({ label: u.name, run: async () => ok(u) })).concat([{ label: "✅ सबको", run: async () => { for(const u of pend) await ok(u); return `✅ ${pend.length} को मंज़ूरी दे दी`; } }]) };
@@ -1434,20 +1445,20 @@ async function aiAction(q){
     const e = ownerOnly(); if(e) return e; const off = has(/हटा|वापस|बंद|ले लो/);
     return pick(u => yes(`${u.name} की एडमिन (पूरी) अनुमति ${off?"हटाऊँ":"दूँ — वह सब कुछ देख और बदल सकेगा"}?`, async () => {
       const d = off ? {canEdit:false} : {canEdit:true, active:true}; if(!off && u.status==="pending") d.status="auto";
-      await updateDoc(doc(db,"users",u.id), d); return `✅ ${u.name} की एडमिन अनुमति ${off?"हटा दी":"दे दी"}।`; }), "अनुमति");
+      await updUser(u.id, d); return `✅ ${u.name} की एडमिन अनुमति ${off?"हटा दी":"दे दी"}।`; }), "अनुमति");
   }
 
   // 🔒 खाता बंद / चालू
   if(has(/खाता|अकाउंट|account|ब्लॉक/) && has(/बंद|ब्लॉक|चालू|खोल/) && !has(/कैसे|क्या/)){
     const e = ownerOnly(); if(e) return e; const on = has(/चालू|खोल/) && !has(/बंद|ब्लॉक/);
     return pick(u => yes(`${u.name} का खाता ${on?"चालू":"बंद"} करूँ?${on?"":" वह तुरंत लॉग आउट होगा।"}`, async () => {
-      await updateDoc(doc(db,"users",u.id), on ? {active:true} : {active:false}); return `✅ ${u.name} का खाता ${on?"चालू":"बंद"} कर दिया।`; }), on?"खाता चालू":"खाता बंद");
+      await updUser(u.id, on ? {active:true} : {active:false}); return `✅ ${u.name} का खाता ${on?"चालू":"बंद"} कर दिया।`; }), on?"खाता चालू":"खाता बंद");
   }
 
   // 🕘 शिफ्ट
   if(has(/शिफ्ट/) && has(/सुबह|शाम|morning|evening/) && !has(/कैसे|क्या/)){
     const e = ownerOnly(); if(e) return e; const sh = has(/शाम|evening/) ? "evening" : "morning";
-    return pick(u => yes(`${u.name} की शिफ्ट ${shiftName(sh)} करूँ?`, async () => { await updateDoc(doc(db,"users",u.id),{shift:sh}); return `✅ ${u.name} की शिफ्ट ${shiftName(sh)} कर दी।`; }), "शिफ्ट");
+    return pick(u => yes(`${u.name} की शिफ्ट ${shiftName(sh)} करूँ?`, async () => { await updUser(u.id,{shift:sh}); return `✅ ${u.name} की शिफ्ट ${shiftName(sh)} कर दी।`; }), "शिफ्ट");
   }
 
   // 🔑 पासवर्ड भेजो / बताओ
@@ -1500,10 +1511,95 @@ async function showPeople(pre){
   draw();
 }
 
+/* 📜 बदलाव का रिकॉर्ड + ↩️ वापस लेना — users में हर बदलाव audit में (कौन, क्या, कब, पहले क्या था) */
+const ACT_NAME = d => d.canEdit===true ? "👑 एडमिन अनुमति दी" : d.canEdit===false && Object.keys(d).length===1 ? "👑 अनुमति हटाई" : d.active===false ? "🔒 खाता बंद" : d.status==="auto"||d.status==="approved" ? "✅ मंज़ूरी/चालू" : d.active===true ? "🔓 खाता चालू" : d.shift ? `🕘 शिफ्ट: ${shiftName(d.shift)}` : d.name ? `✏️ नाम: ${d.name}` : d.pay ? "💰 सैलरी बदली" : "बदलाव";
+async function updUser(id, data){
+  let old = {}; try{ old = (await getDoc(doc(db,"users",id))).data() || {}; }catch(_){}
+  await updateDoc(doc(db,"users",id), data);
+  const before = {}, after = {}; Object.keys(data).forEach(k => { if(k==="autoAt") return; before[k] = old[k] ?? null; after[k] = data[k]; });
+  try{ await addDoc(collection(db,"audit"),{at:serverTimestamp(), by:me.uid, byName:profile?.name||"Admin", uid:id, name:old.name||"", act:ACT_NAME(data), before, after:JSON.parse(JSON.stringify(after))}); }catch(_){}
+}
+async function auditList(hours=24){
+  const s = await getDocs(query(collection(db,"audit"),orderBy("at","desc"),limit(100)));
+  const t0 = Date.now() - hours*3600e3; return s.docs.map(d=>({id:d.id,...d.data()})).filter(a => (toD(a.at)?.getTime()||Date.now()) >= t0);
+}
+async function undoAudit(a){
+  if(!isOwner) return "वापस सिर्फ़ मुख्य एडमिन ले सकते हैं।";
+  if(a.undone) return "यह बदलाव पहले ही वापस हो चुका है।";
+  if(Date.now() - (toD(a.at)?.getTime()||0) > 24*3600e3) return "24 घंटे से पुराना बदलाव वापस नहीं होता — वर्कर टैब से हाथ से बदलें।";
+  await updUser(a.uid, a.before); await updateDoc(doc(db,"audit",a.id),{undone:true}).catch(()=>{});
+  return `↩️ वापस ले लिया: ${a.name} — ${a.act}`;
+}
+async function showAudit(){
+  const p=$("#popup"); p.innerHTML=`<div class="card">लोड हो रहा है…</div>`; p.classList.remove("hidden");
+  let L=[]; try{ L = await auditList(24*7); }catch(e){ p.innerHTML=`<div class="card"><p>रिकॉर्ड नहीं खुला: ${esc(errMsg(e))}</p><button class="sec" onclick="this.closest('.popup').classList.add('hidden')">बंद</button></div>`; return; }
+  p.innerHTML=`<div class="card" style="max-height:85vh;overflow:auto"><div class="between"><h3 style="margin:0">📜 बदलाव का रिकॉर्ड (7 दिन)</h3><button class="sec sm" id="auX">बंद</button></div>
+    ${L.map(a=>`<div style="border-bottom:1px solid #e5e7eb;padding:7px 0;${a.undone?"opacity:.5":""}"><b>${esc(a.act)}</b> — ${esc(a.name)}<br><span class="muted">${a.at?fmtD(a.at)+" "+fmtT(a.at):""} · किया: ${esc(a.byName)}${a.undone?" · ↩️ वापस हुआ":""}</span>
+      ${isOwner&&!a.undone&&Date.now()-(toD(a.at)?.getTime()||0)<24*3600e3?`<div><button class="sec sm" data-un="${esc(a.id)}">↩️ वापस लें</button></div>`:""}</div>`).join("")||"<p class='muted'>कोई बदलाव नहीं</p>"}</div>`;
+  $("#auX").onclick=()=>p.classList.add("hidden");
+  p.querySelectorAll("[data-un]").forEach(b=>b.onclick=async()=>{ if(!confirm("यह बदलाव वापस लें?")) return; toast(await undoAudit(L.find(x=>x.id===b.dataset.un))); showAudit(); });
+}
+/* 🩺 पूरा सिस्टम जाँच — हर गड़बड़ी + "ठीक करो" बटन */
+async function sysCheck(){
+  const I = [], now = new Date(), day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const us = (await getDocs(collection(db,"users"))).docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.id!==OWNER_UID && u.role!=="admin");
+  const act = us.filter(u=>u.active!==false && u.status!=="pending");
+  const pend = us.filter(u=>u.status==="pending");
+  if(pend.length) I.push({sev:"⚠️", text:`${pend.length} नई जॉइनिंग की मंज़ूरी बाकी: ${pend.map(u=>u.name).join(", ")}`, fix: isOwner ? {label:"✅ KYC पूरी वालों को मंज़ूरी", run: async()=>{ await autoApprove(); return "✅ KYC पूरी वालों को मंज़ूरी दे दी। बाकी की KYC अधूरी — 👥 वर्कर में 🪪 देखें।"; }} : null});
+  try{ const hs=(await getDocs(collection(db,"help"))).docs.map(d=>d.data()).filter(h=>!h.done); if(hs.length) I.push({sev:"🆘", text:`${hs.length} वर्कर अर्ज़ी बाकी (पासवर्ड/नंबर): ${hs.map(h=>h.name).slice(0,3).join(", ")}`, fix:{label:"🆘 अर्ज़ियाँ खोलें", run: async()=>{ setTimeout(showHelpList,200); return "🆘 अर्ज़ियाँ खोल दीं।"; }}}); }catch(_){}
+  try{ const st=await stuckCmds(); if(st.length) I.push({sev:"⏰", text:`${st.length} आदेश 2 घंटे से अधूरे: ${st.slice(0,2).map(x=>`"${String(x.text).slice(0,25)}" (${x.left.slice(0,2).join(", ")})`).join("; ")}`, fix:{label:"🔁 सबको याद भेजो", run: async()=>{ let n=0; for(const c of st) for(const name of c.left){ const u=us.find(x=>x.name===name); if(!u) continue; await addDoc(collection(db,"commands"),{text:`🔁 याद: ${c.text}\n(${c.hrs} घंटे से अधूरा — काम करके ✅ हो गया दबाएँ)`,to:u.id,toName:u.name,kind:"msg",ref:"",autoOpen:false,by:me.uid,byName:"🤖 AI",createdAt:serverTimestamp()}); n++; } return `🔁 ${n} वर्कर को याद भेज दी।`; }}}); }catch(_){}
+  let duty=[]; try{ duty=(await getDocs(query(collection(db,"duty"),orderBy("start","desc"),limit(200)))).docs.map(d=>({id:d.id,...d.data()})); }catch(_){}
+  const open = duty.filter(d=>!d.end), idle = open.filter(d=>d.idleAlert), far = open.filter(d=>d.awayKm>LIMIT_KM);
+  if(idle.length) I.push({sev:"📸", text:`${idle.length} वर्कर ने हाज़िरी फ़ोटो नहीं दी: ${idle.map(d=>d.name).join(", ")}`, fix:{label:"📞 पहले वाले को कॉल", run: async()=>{ const u=us.find(x=>x.id===idle[0].uid); if(u&&u.mobile) window.open("tel:+91"+u.mobile); return `📞 ${idle[0].name} को कॉल खोल दी।`; }}});
+  if(far.length) I.push({sev:"🚩", text:`${far.length} वर्कर ड्यूटी की जगह से ${LIMIT_KM} km से दूर: ${far.map(d=>`${d.name} (${d.awayKm} km)`).join(", ")}`, fix:null});
+  const inToday = new Set(duty.filter(d=>(toD(d.start)?.getTime()||0)>=day0).map(d=>d.uid));
+  const absent = act.filter(u=>!u.canEdit && !inToday.has(u.id) && (u.shift==="evening" ? now.getHours()>=15 : now.getHours()>=10));
+  if(absent.length) I.push({sev:"🕘", text:`आज ${absent.length} वर्कर ड्यूटी पर नहीं आए: ${absent.map(u=>u.name).join(", ")}`, fix:{label:"📢 उन्हें ड्यूटी की याद भेजो", run: async()=>{ for(const u of absent) await addDoc(collection(db,"commands"),{text:"🕘 आपकी ड्यूटी अभी शुरू नहीं हुई — ऐप में ड्यूटी शुरू करें या एडमिन को बताएँ।",to:u.id,toName:u.name,kind:"msg",ref:"",autoOpen:false,by:me.uid,byName:"🤖 AI",createdAt:serverTimestamp()}); return `📢 ${absent.length} वर्कर को ड्यूटी की याद भेज दी।`; }}});
+  const mobs = {}; us.filter(u=>u.active!==false).forEach(u=>{ const m=u.mobile||String(u.email).split("@")[0]; if(m) (mobs[m]=mobs[m]||[]).push(u.name); });
+  const dup = Object.entries(mobs).filter(([m,n])=>n.length>1);
+  if(dup.length) I.push({sev:"⚠️", text:`एक ही नंबर दो चालू खातों में: ${dup.map(([m,n])=>`${m} (${n.join(" + ")})`).join("; ")} — एक बंद करें`, fix:{label:"👥 वर्कर खोलें", run: async()=>{ go("workers"); return "👥 वर्कर टैब खोल दिया।"; }}});
+  if(isOwner){ const noPw=[]; for(const u of act.filter(x=>!x.canEdit)){ if(!(await findPw(u))) noPw.push(u.name); }
+    if(noPw.length) I.push({sev:"🔑", text:`${noPw.length} चालू वर्कर का पासवर्ड रिकॉर्ड में नहीं: ${noPw.join(", ")} — भूल गए तो नया खाता बनाना पड़ेगा`, fix:null}); }
+  const admins = us.filter(u=>u.canEdit && u.active!==false); if(admins.length) I.push({sev:"👑", text:`एडमिन अनुमति वाले: ${admins.map(u=>u.name).join(", ")} (ठीक है ना?)`, fix:null, info:true});
+  try{ const ms=(await getDocs(query(collection(db,"tMsgs"),orderBy("at","desc"),limit(150)))).docs.map(d=>d.data()); const last={}; ms.forEach(m=>{ if(!(m.uid in last)) last[m.uid]=m; });
+    const un = Object.values(last).filter(m=>m.from==="c"); if(un.length) I.push({sev:"💬", text:`${un.length} टूर ग्राहक के मैसेज का जवाब बाकी`, fix:{label:"🧳 टूर खोलें", run: async()=>{ go("tour"); return "🧳 टूर टैब खोल दिया — ग्राहक पर दबाकर जवाब दें।"; }}}); }catch(_){}
+  try{ const au = await auditList(24); if(au.length) I.push({sev:"📜", text:`पिछले 24 घंटे में ${au.length} बदलाव (${[...new Set(au.map(a=>a.byName))].join(", ")} ने)`, fix:{label:"📜 देखें / वापस लें", run: async()=>{ setTimeout(showAudit,200); return "📜 बदलाव का रिकॉर्ड खोल दिया।"; }}, info:true}); }catch(_){}
+  return { I, open: open.length, act: act.length };
+}
+function sysReport(r){
+  const bad = r.I.filter(x=>!x.info);
+  const head = `🩺 सिस्टम जाँच: ${r.act} चालू वर्कर, ${r.open} अभी ड्यूटी पर। ${bad.length ? `${bad.length} बातें ध्यान देने की:` : "✅ कोई गड़बड़ी नहीं।"}`;
+  const text = head + "\n" + r.I.map((x,i)=>`${i+1}. ${x.sev} ${x.text}`).join("\n");
+  const fixes = r.I.filter(x=>x.fix).map(x=>x.fix).slice(0,6);
+  const safe = r.I.filter(x=>x.fix && /मंज़ूरी|याद/.test(x.fix.label)).map(x=>x.fix);
+  if(safe.length > 1) fixes.unshift({label:"🔧 सब ठीक करो", run: async()=>{ const o=[]; for(const f of safe) o.push(await f.run()); return "🔧 रिपोर्ट:\n"+o.join("\n"); }});
+  return { text, say: head + " " + r.I.filter(x=>!x.info).slice(0,4).map(x=>x.text.split(":")[0]).join("। "), buttons: fixes };
+}
+async function dayReport(){
+  const now=new Date(), day0=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime(), td=x=>(toD(x)?.getTime()||0)>=day0;
+  const [ds,cs,as,us]=await Promise.all([getDocs(query(collection(db,"duty"),orderBy("start","desc"),limit(200))),getDocs(query(collection(db,"commands"),orderBy("createdAt","desc"),limit(60))),getDocs(query(collection(db,"acks"),orderBy("at","desc"),limit(1500))),getDocs(collection(db,"users"))]);
+  const duty=ds.docs.map(d=>d.data()).filter(d=>td(d.start)), names=[...new Set(duty.map(d=>d.name))];
+  const cmds=cs.docs.map(d=>({id:d.id,...d.data()})).filter(c=>td(c.createdAt)), acks=as.docs.map(d=>d.data());
+  const doneN=cmds.filter(c=>acks.some(a=>a.cmd===c.id && a.status==="done")).length;
+  const newJ=us.docs.map(d=>d.data()).filter(u=>td(u.createdAt)&&u.role!=="admin");
+  let au=[]; try{ au=await auditList(24); }catch(_){}
+  const L=[`🕘 आज ड्यूटी पर आए: ${names.length} — ${names.join(", ")||"कोई नहीं"}`, `📢 आज के आदेश: ${cmds.length}, जिनमें से ${doneN} पर किसी ने ✅ किया`, `👋 नई जॉइनिंग: ${newJ.length}${newJ.length?" — "+newJ.map(u=>u.name).join(", "):""}`, `📜 बदलाव: ${au.length}${au.length?" — "+au.slice(0,3).map(a=>`${a.name}: ${a.act}`).join("; "):""}`];
+  const r = await sysCheck(); const bad=r.I.filter(x=>!x.info);
+  return { text:"🌙 आज की रिपोर्ट\n"+L.join("\n")+"\n\n"+(bad.length?`⚠️ ध्यान दें:\n`+bad.map(x=>`${x.sev} ${x.text}`).join("\n"):"✅ कोई गड़बड़ी नहीं"), say:`आज की रिपोर्ट। ${names.length} वर्कर ड्यूटी पर आए। ${cmds.length} आदेश, ${doneN} पूरे। ${newJ.length} नई जॉइनिंग। ${bad.length?bad.length+" बातें ध्यान देने की।":"कोई गड़बड़ी नहीं।"}`, buttons: sysReport(r).buttons };
+}
+/* 🔔 बटन पर गड़बड़ी गिनती + रात 9 बजे बोलकर रिपोर्ट */
+function watchSys(){
+  if(!canEdit) return;
+  const tick = async () => { try{ const r=await sysCheck(); const n=r.I.filter(x=>!x.info).length; const b=$("#vaBtn"); if(b && vaOn()) b.textContent = n ? `🔔 ${n} गड़बड़ी` : "🔔 सब ठीक";
+      const h=new Date().getHours(), key="mcNight"+new Date().toDateString(); let said=false; try{ said=!!localStorage.getItem(key); }catch(_){}
+      if(h>=21 && !said && vaOn()){ try{ localStorage.setItem(key,"1"); }catch(_){} const d=await dayReport(); vaPush(d.say, ()=>{ document.querySelector(".dva-fab")?.click(); }); } }catch(_){} };
+  setTimeout(tick, 20e3); sub((()=>{ const iv=setInterval(tick, 10*60e3); return ()=>clearInterval(iv); })());
+}
+
 function startVoiceAI(){
   if(!window.DipVoiceAI){ if(vaTry++<20) setTimeout(startVoiceAI,500); return; }
   DipVoiceAI.init({ title: canEdit ? "MASTER CONNECTOR" : "मेरा काम", bottom: 78, action: aiAction,
-    chips: canEdit ? ["Raj का डेटा दिखाओ","सबका डेटा","Raj को काम दो","रुका काम पूरा करो","सबको मंज़ूरी दो","सबको आदेश: आज समय पर आएँ","Raj का पासवर्ड भेजो","नगमा को पूरी अनुमति दो","आज का हाल बताओ","कितने काम बाकी हैं?","वर्कर लॉगिन कैसे करें?","पासवर्ड कहाँ मिलेगा?","सभी वर्कर के पासवर्ड","नई जॉइनिंग मंज़ूरी कैसे?","खाता बंद कैसे करें?","मोबाइल नंबर बदल गया","रुका काम कैसे पता चले?","ग्राहक मैसेज का जवाब कैसे?"] : ["मेरे कितने आदेश बाकी हैं?","मेरी ड्यूटी का हाल","आज का हाल बताओ"],
+    chips: canEdit ? ["सिस्टम जाँचो","आज की रिपोर्ट","आज क्या बदला?","गलती से हुआ बदलाव वापस लो","Raj का डेटा दिखाओ","सबका डेटा","Raj को काम दो","रुका काम पूरा करो","सबको मंज़ूरी दो","सबको आदेश: आज समय पर आएँ","Raj का पासवर्ड भेजो","नगमा को पूरी अनुमति दो","आज का हाल बताओ","कितने काम बाकी हैं?","वर्कर लॉगिन कैसे करें?","पासवर्ड कहाँ मिलेगा?","सभी वर्कर के पासवर्ड","नई जॉइनिंग मंज़ूरी कैसे?","खाता बंद कैसे करें?","मोबाइल नंबर बदल गया","रुका काम कैसे पता चले?","ग्राहक मैसेज का जवाब कैसे?"] : ["मेरे कितने आदेश बाकी हैं?","मेरी ड्यूटी का हाल","आज का हाल बताओ"],
     facts: async () => {
       const F = [], now = new Date(), day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const acksQ = canEdit ? query(collection(db,"acks"),orderBy("at","desc"),limit(1500)) : query(collection(db,"acks"),where("uid","==",me.uid),limit(500));
