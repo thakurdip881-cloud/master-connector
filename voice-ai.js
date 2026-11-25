@@ -99,7 +99,7 @@
     const t = facts.find(f => f.s === 'baki'); if (t) ex.push('"' + toks(t.t).slice(0, 2).join(' ') + ' के बारे में बताओ"');
     return ex.join('\n');
   }
-  function help(facts) { return '🎙️ बोलकर या लिखकर पूछिए:\n' + examples(facts) + '\n\nजवाब यहीं लिखा भी आएगा और 🔊 बोलकर भी।'; }
+  function help(facts) { return '🎙️ बोलकर या लिखकर पूछिए:\n' + examples(facts) + '\n\nजवाब यहीं लिखा भी आएगा और 🔊 बोलकर भी।\n🙌 दबाएँ — फिर बिना टैप बात करते रहें (रोकना हो तो "बस")।'; }
 
   /* ---------- काम की लिस्ट (NEXT_UPDATE.md) से तथ्य ---------- */
   function factsFromMd(md) {
@@ -121,17 +121,22 @@
   }
 
   /* ---------- सुनना / बोलना ---------- */
-  function speak(t) {
+  function speak(t, done) {
     t = String(t).replace(/[⏳✅ℹ️🎉⚠️📍👷🔊🎙️•]/gu, '').replace(/\n+/g, '। ');
-    try { if (window.MCNative && MCNative.speak) { MCNative.speak(t); return; } } catch (e) {}
-    try { if (window.N && N.speak) { N.speak(t); return; } } catch (e) {}
+    const est = Math.min(30000, 900 + t.length * 70); let fired = false; const fin = () => { if (!fired && done) { fired = true; done(); } };
+    try { if (window.MCNative && MCNative.speak) { MCNative.speak(t); setTimeout(fin, est); return; } } catch (e) {}
+    try { if (window.N && N.speak) { N.speak(t); setTimeout(fin, est); return; } } catch (e) {}
     try {
-      const ss = window.speechSynthesis; if (!ss) return; ss.cancel();
+      const ss = window.speechSynthesis; if (!ss) { fin(); return; } ss.cancel();
       const u = new SpeechSynthesisUtterance(t); u.lang = 'hi-IN'; u.rate = 0.95;
       const v = ss.getVoices().find(v => /hi[-_]IN/i.test(v.lang)); if (v) u.voice = v;
-      ss.speak(u);
-    } catch (e) {}
+      u.onend = () => setTimeout(fin, 300); u.onerror = fin; ss.speak(u); setTimeout(fin, est + 4000);
+    } catch (e) { fin(); }
   }
+  /* 🙌 लगातार बात: एक बार चालू करें — AI बोलता है, फिर अपने-आप सुनता है; "बस" कहने या 3 बार चुप रहने तक चलता रहता है */
+  let LOOP = false, MISS = 0;
+  function reply(t) { const next = () => { if (LOOP && box) setTimeout(mic, 500); }; if (speakOn) speak(t, next); else next(); }
+  function setLoop(on) { LOOP = on; MISS = 0; try { localStorage.setItem('dva_loop', on ? '1' : '0'); } catch (e) {} const b = box && box.querySelector('.lp'); if (b) { b.textContent = on ? '🙌 चालू' : '🙌'; b.style.color = on ? '#f59e0b' : ''; } }
   function listen(cb, onErr) {
     try { if (window.MCNative && MCNative.listen) { window.__dipVoice = t => (t && t !== '?' && t !== '!') ? cb(t) : onErr(t); MCNative.listen('hi-IN'); return true; } } catch (e) {}
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -170,35 +175,41 @@
         x.onclick = async () => { PEND = null; x.disabled = true; a.textContent = '⏳ कर रहा हूँ…'; let o; try { o = await b.run(); } catch (e) { o = '❌ नहीं हुआ: ' + (e.message || e); } showAct(o || '✅ हो गया'); }; d.appendChild(x); });
       a.appendChild(d);
     }
-    if (speakOn) speak(r.say || r.text);
+    reply(r.say || r.text);
   }
   async function ask(q) {
     const a = box.querySelector('.ans');
     const nq = norm(q);
+    if (LOOP && /^(बस|रुको|रुक जाओ|स्टॉप|stop|बात बंद|अभी नहीं|धन्यवाद|थैंक)/.test(nq)) { setLoop(false); PEND = null; NEXT = null; a.textContent = '❓ ' + q + '\n\n🙌 ठीक है, लगातार बात बंद। फिर शुरू करने के लिए 🙌 दबाएँ।'; if (speakOn) speak('ठीक है, बात बंद।'); return; }
     if (PEND && /^(हा|हां|हाँ|yes|ok|ओके|ठीक|कर दो|करो|जी)/.test(nq)) { const b = PEND; PEND = null; a.textContent = '⏳ कर रहा हूँ…'; let o; try { o = await b.run(); } catch (e) { o = '❌ नहीं हुआ: ' + (e.message || e); } showAct(o || '✅ हो गया', q); return; }
     if ((PEND || NEXT) && /^(नहीं|नही|no|रद्द|मत|cancel)/.test(nq)) { PEND = null; NEXT = null; showAct('❌ ठीक है, नहीं किया।', q); return; }
     if (NEXT) { const f = NEXT; NEXT = null; a.textContent = '⏳ देख रहा हूँ…'; let o; try { o = await f(q); } catch (e) { o = '❌ ' + (e.message || e); } showAct(o || '✅ हो गया', q); return; }
     if (OPT.action) { let r = null; a.textContent = '⏳ देख रहा हूँ…'; try { r = await OPT.action(q); } catch (e) { r = '❌ ' + (e.message || e); } if (r) { showAct(r, q); return; } }
     a.textContent = '⏳ देख रहा हूँ…';
     try { FACTS = (await OPT.facts()) || []; } catch (e) { FACTS = []; a.textContent = '❌ जानकारी नहीं मिल पाई: ' + (e.message || e); return; }
-    const t = answer(q, FACTS); a.textContent = '❓ ' + q + '\n\n' + t; if (speakOn) speak(t);
+    const t = answer(q, FACTS); a.textContent = '❓ ' + q + '\n\n' + t; reply(t);
   }
   function mic() {
     const inp = box.querySelector('input'), m = box.querySelector('.mut');
-    m.textContent = '🎙️ बोलिए…';
-    const ok = listen(t => { inp.value = t; m.textContent = ''; ask(t); },
-      e => { m.textContent = e === '!' ? 'इस फ़ोन में बोलकर लिखने वाला Google ऐप नहीं मिला — कीबोर्ड का 🎤 दबाकर बोलें' : '🎙️ आवाज़ समझ नहीं आई — फिर से बोलें'; });
-    if (!ok) { m.textContent = 'कीबोर्ड पर 🎤 वाला बटन दबाकर बोलें, फिर ➤ दबाएँ'; inp.focus(); }
+    m.textContent = LOOP ? '🙌 सुन रहा हूँ… (रोकना हो तो बोलें "बस")' : '🎙️ बोलिए…';
+    const ok = listen(t => { MISS = 0; inp.value = t; m.textContent = ''; ask(t); },
+      e => { if (e === '!') { setLoop(false); m.textContent = 'इस फ़ोन में बोलकर लिखने वाला Google ऐप नहीं मिला — कीबोर्ड का 🎤 दबाकर बोलें'; return; }
+        if (LOOP && box && ++MISS < 3) { m.textContent = '🙌 कुछ सुनाई नहीं दिया — फिर सुन रहा हूँ…'; setTimeout(mic, 700); return; }
+        if (LOOP) { setLoop(false); m.textContent = '🙌 3 बार कुछ नहीं सुना, लगातार बात रोक दी — 🙌 दबाकर फिर शुरू करें'; return; }
+        m.textContent = '🎙️ आवाज़ समझ नहीं आई — फिर से बोलें'; });
+    if (!ok) { setLoop(false); m.textContent = 'कीबोर्ड पर 🎤 वाला बटन दबाकर बोलें, फिर ➤ दबाएँ'; inp.focus(); }
   }
   function open() {
-    if (box) { box.remove(); box = null; return; }
+    if (box) { LOOP = false; box.remove(); box = null; return; }
     box = document.createElement('div'); box.className = 'dva'; box.style.bottom = ((OPT.bottom || 18) + 56) + 'px';
-    box.innerHTML = `<h4>🤖 ${OPT.title || 'AI सहायक'} — पूछिए<span><button class="sp" aria-label="आवाज़">${speakOn ? '🔊' : '🔇'}</button><button class="x" aria-label="बंद">✕</button></span></h4>
+    box.innerHTML = `<h4>🤖 ${OPT.title || 'AI सहायक'} — पूछिए<span><button class="lp" aria-label="लगातार बात" title="लगातार बात — एक बार दबाएँ, फिर बिना टैप बोलते रहें">🙌</button><button class="sp" aria-label="आवाज़">${speakOn ? '🔊' : '🔇'}</button><button class="x" aria-label="बंद">✕</button></span></h4>
 <div class="row"><input placeholder="जैसे: कितने काम बाकी हैं?" enterkeyhint="send"><button class="b m" aria-label="बोलें">🎙️</button><button class="b alt go" aria-label="पूछें">➤</button></div>
 <div class="mut"></div><div class="chips">${(OPT.chips || ['कितने काम बाकी हैं?', 'आज का हाल बताओ', 'क्या-क्या पूरा हो गया?']).map(c => `<button>${c}</button>`).join('')}</div><div class="ans">${help([])}</div>`;
     document.body.appendChild(box);
     const inp = box.querySelector('input');
     box.querySelector('.x').onclick = open;
+    box.querySelector('.lp').onclick = () => { if (LOOP) { setLoop(false); box.querySelector('.mut').textContent = '🙌 लगातार बात बंद'; } else { setLoop(true); if (!speakOn) { speakOn = true; const sp = box.querySelector('.sp'); if (sp) sp.textContent = '🔊'; } speak('लगातार बात चालू। बोलिए, मैं सुन रहा हूँ। रोकना हो तो बस बोलें।', () => setTimeout(mic, 400)); } };
+    try { if (localStorage.getItem('dva_loop') === '1') { setLoop(true); setTimeout(mic, 600); } } catch (e) {}
     box.querySelector('.sp').onclick = e => { speakOn = !speakOn; try { localStorage.setItem('dva_sp', speakOn ? '1' : '0'); } catch (x) {} e.target.textContent = speakOn ? '🔊' : '🔇'; if (!speakOn) try { speechSynthesis.cancel(); } catch (x) {} };
     box.querySelector('.m').onclick = mic;
     box.querySelector('.go').onclick = () => inp.value.trim() && ask(inp.value.trim());
