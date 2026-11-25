@@ -1,0 +1,100 @@
+# ✈️ Telegram बॉट — MASTER CONNECTOR के वर्कर Telegram पर (सब फ़्री: GitHub Actions + Telegram Bot API + Firebase)
+# ज़रूरी: repo Settings → Secrets → Actions में TELEGRAM_BOT_TOKEN (BotFather वाली चाबी)। न हो तो चुपचाप रुक जाता है।
+# हर 15 मिनट: (1) हर वर्कर का जोड़ने वाला कोड secrets/tg_{uid} में (सिर्फ़ मालिक पढ़े)
+#   (2) वर्कर बॉट में /start CODE भेजे → जुड़ जाए + पासवर्ड अपने-आप
+#   (3) नए आदेश Telegram पर, (4) वर्कर का जवाब → MC में घंटी (acks.reply), "हो गया" → ✅
+#   (5) पासवर्ड बदले (🔁 नया पासवर्ड) → नया पासवर्ड अपने-आप Telegram पर
+# repo public है — log में कोई नाम, नंबर, chat id या पासवर्ड नहीं छपता, सिर्फ़ गिनती।
+name: Telegram bot
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '3,18,33,48 * * * *'
+permissions:
+  contents: read
+concurrency: { group: telegram-bot, cancel-in-progress: false }
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: बॉट चलाओ
+        env:
+          SA: '${{ secrets.FIREBASE_SA }}'
+          TG: '${{ secrets.TELEGRAM_BOT_TOKEN }}'
+        run: |
+          [ -z "$TG" ] && { echo "TELEGRAM_BOT_TOKEN नहीं — रुका"; exit 0; }
+          [ -z "$SA" ] && { echo "सेवा खाता नहीं — रुका"; exit 0; }
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npm i --silent --no-save firebase-admin@12 >/dev/null 2>&1
+          cat > "$RUNNER_TEMP/bot.js" <<'JS'
+          const a=require("firebase-admin"), cr=require("crypto");
+          a.initializeApp({credential:a.credential.applicationDefault(),projectId:"master-connector-f2a0d"});
+          const db=a.firestore(), TS=a.firestore.Timestamp, NOW=a.firestore.FieldValue.serverTimestamp();
+          const API="https://api.telegram.org/bot"+process.env.TG+"/";
+          const tg=async(m,b)=>{ try{ const r=await fetch(API+m,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b||{})}); return await r.json(); }catch(e){ return {ok:false}; } };
+          const send=(chat,text)=>tg("sendMessage",{chat_id:chat,text:String(text).slice(0,4000),disable_web_page_preview:true});
+          const code=()=>{ const A="ABCDEFGHJKMNPQRSTUVWXYZ23456789"; let t=""; for(let i=0;i<10;i++) t+=A[cr.randomInt(A.length)]; return t; };
+          const ms=t=>t&&t.toMillis?t.toMillis():0;
+          const HELP="✈️ हुक्म:\n• पासवर्ड — अपना लॉगिन पासवर्ड\n• आदेश — आखिरी 5 आदेश\n• हो गया — आखिरी आदेश पूरा ✅\n• कुछ भी लिखें — वह आखिरी आदेश का जवाब बनकर एडमिन के पास जाएगा";
+          (async()=>{
+            const n={codes:0,linked:0,cmds:0,replies:0,pw:0,upd:0};
+            const me=await tg("getMe"); if(!me.ok){ console.log("BOT_TOKEN_BAD"); process.exit(1); }
+            const metaRef=db.doc("meta/telegram"); const meta=(await metaRef.get()).data()||{};
+            // (1) कोड
+            const users=(await db.collection("users").get()).docs.filter(d=>(d.data().role||"")!=="admin");
+            const uMap={}; users.forEach(d=>uMap[d.id]=d.data());
+            const tgDocs={}; (await db.collection("secrets").get()).docs.forEach(d=>{ if(d.id.startsWith("tg_")) tgDocs[d.id.slice(3)]=d.data(); });
+            for(const id of Object.keys(uMap)){ if(!tgDocs[id]||!tgDocs[id].code){ const c=code(); await db.doc("secrets/tg_"+id).set({uid:id,code:c,at:NOW},{merge:true}); tgDocs[id]={...(tgDocs[id]||{}),uid:id,code:c}; n.codes++; } }
+            const byChat={}, byCode={}; for(const [id,t] of Object.entries(tgDocs)){ if(t.chat) byChat[t.chat]=id; if(t.code) byCode[t.code]=id; }
+            const pwOf=async id=>{ const s=(await db.doc("secrets/"+id).get()).data()||{}; return s; };
+            const cmdsFor=async id=>{ const q=[...(await db.collection("commands").where("to","==",id).limit(30).get()).docs,...(await db.collection("commands").where("to","==","all").limit(30).get()).docs];
+              return q.sort((x,y)=>ms(y.data().createdAt)-ms(x.data().createdAt)); };
+            // (2)+(4) आने वाले संदेश
+            const up=await tg("getUpdates",{offset:(meta.offset||0),timeout:0,allowed_updates:["message"]});
+            let offset=meta.offset||0;
+            for(const u of (up.ok?up.result:[])){ offset=u.update_id+1; n.upd++;
+              const m=u.message; if(!m||!m.text||!m.chat||m.chat.type!=="private") continue;
+              const chat=String(m.chat.id), text=m.text.trim();
+              const st=text.match(/^\/start\s+([A-Z0-9]{6,20})/i);
+              if(st){ const id=byCode[st[1].toUpperCase()];
+                if(!id||!uMap[id]){ await send(chat,"❌ यह लिंक पुराना या गलत है — एडमिन से नया लिंक माँगें।"); continue; }
+                if(uMap[id].active===false && uMap[id].status!=="pending"){ await send(chat,"⛔ आपका खाता बंद है — एडमिन से बात करें।"); continue; }
+                const old=tgDocs[id].chat; if(old&&old!==chat) delete byChat[old];
+                await db.doc("secrets/tg_"+id).set({chat,linkedAt:NOW},{merge:true}); tgDocs[id].chat=chat; byChat[chat]=id; n.linked++;
+                await db.doc("users/"+id).set({tgLinked:true},{merge:true});
+                const s=await pwOf(id);
+                await send(chat,"✅ नमस्ते "+(uMap[id].name||"")+"! आप MASTER CONNECTOR से जुड़ गए।\nअब आदेश यहाँ भी आएँगे।"+(s.pw?"\n\n🔑 आपका लॉगिन पासवर्ड: "+s.pw:"")+"\n\n"+HELP);
+                if(s.pw){ await db.doc("secrets/tg_"+id).set({pwSentAt:ms(s.at)||Date.now()},{merge:true}); tgDocs[id].pwSentAt=ms(s.at)||Date.now(); n.pw++; }
+                continue; }
+              const id=byChat[chat];
+              if(!id){ await send(chat,"👋 जुड़ने के लिए एडमिन से मिला ✈️ Telegram लिंक खोलें।"); continue; }
+              const name=uMap[id]?.name||"वर्कर";
+              if(/^\/(help|start)$/i.test(text)||/^मदद$/.test(text)){ await send(chat,HELP); continue; }
+              if(/^\/password$/i.test(text)||/पासवर्ड|password/i.test(text)){ const s=await pwOf(id); await send(chat,s.pw?"🔑 आपका पासवर्ड: "+s.pw:"🔑 पासवर्ड रिकॉर्ड में नहीं — एडमिन से 🔁 नया पासवर्ड माँगें।"); n.pw++; continue; }
+              const cs=await cmdsFor(id);
+              if(/^\/(aadesh|orders)$/i.test(text)||/^आदेश$/.test(text)){ await send(chat,cs.length?"📋 आखिरी आदेश:\n"+cs.slice(0,5).map((d,i)=>(i+1)+". "+d.data().text).join("\n"):"📋 अभी कोई आदेश नहीं।"); continue; }
+              if(!cs.length){ await send(chat,"📋 अभी कोई आदेश नहीं, जिसका जवाब जाए।"); continue; }
+              const c=cs[0], ref=db.doc("acks/"+c.id+"_"+id), old=(await ref.get()).data()||{};
+              if(/^\/done$/i.test(text)||/^(हो गया|हो गया ✅|done|ok done|✅)$/i.test(text)){ await ref.set({cmd:c.id,uid:id,name,status:"done",at:NOW,via:"telegram"},{merge:true}); await send(chat,"✅ ‘"+String(c.data().text).slice(0,60)+"’ पूरा दर्ज।"); n.replies++; continue; }
+              await ref.set({cmd:c.id,uid:id,name,status:old.status||"seen",reply:text.slice(0,1000),at:NOW,via:"telegram"},{merge:true});
+              await send(chat,"📨 जवाब एडमिन को भेजा (आदेश: ‘"+String(c.data().text).slice(0,50)+"’)"); n.replies++;
+            }
+            // (3) नए आदेश
+            let last=meta.lastCmd||TS.now();
+            const nc=await db.collection("commands").where("createdAt",">",last).orderBy("createdAt").limit(50).get();
+            for(const d of nc.docs){ const c=d.data(); last=c.createdAt||last;
+              const ids=c.to==="all"?Object.keys(tgDocs).filter(i=>uMap[i]&&uMap[i].active!==false):[c.to];
+              for(const id of ids){ const ch=tgDocs[id]&&tgDocs[id].chat; if(!ch) continue;
+                await send(ch,"📢 आदेश"+(c.byName?" ("+c.byName+")":"")+":\n"+c.text+(c.ref?"\n🔗 "+c.ref:"")+"\n\nजवाब यहीं लिखें, पूरा होने पर ‘हो गया’ लिखें।"); n.cmds++; } }
+            // (5) बदला पासवर्ड
+            for(const [id,t] of Object.entries(tgDocs)){ if(!t.chat||!uMap[id]) continue; const s=await pwOf(id);
+              if(s.pw && ms(s.at) && ms(s.at)>(t.pwSentAt||0)){ await send(t.chat,"🔁 आपका नया लॉगिन पासवर्ड: "+s.pw); await db.doc("secrets/tg_"+id).set({pwSentAt:ms(s.at)},{merge:true}); n.pw++; } }
+            await metaRef.set({bot:me.result.username,offset,lastCmd:last,at:NOW,linked:Object.values(tgDocs).filter(t=>t.chat).length},{merge:true});
+            console.log("TG_OK codes:",n.codes,"linked:",n.linked,"updates:",n.upd,"cmds:",n.cmds,"replies:",n.replies,"pw:",n.pw);
+          })().catch(e=>{ console.log("ERR",e.code||e.name||""); process.exit(1); });
+          JS
+          node "$RUNNER_TEMP/bot.js"; r=$?
+          rm -f "$RUNNER_TEMP/sa.json" "$RUNNER_TEMP/bot.js"; exit $r
