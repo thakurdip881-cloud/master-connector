@@ -1,0 +1,21 @@
+# सिर्फ़ जाँच: screen-native branch का Android code बनता है या नहीं (कोई APK release नहीं)
+name: Compile check (screen-native)
+on:
+  push:
+    branches: [screen-native]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0" > /dev/null || true
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.7' }
+      - run: gradle -p android assembleDebug --no-daemon 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
+      - if: failure()
+        run: grep -B2 -A12 "error:\|What went wrong" build.log | head -60

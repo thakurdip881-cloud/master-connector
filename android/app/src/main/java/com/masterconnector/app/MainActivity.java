@@ -35,7 +35,8 @@ import java.util.List;
 
 public class MainActivity extends Activity {
     private static final String APP_URL = "https://thakurdip881-cloud.github.io/master-connector/";
-    private static final int REQ_PERM = 7, REQ_VOICE = 8, REQ_FILE = 9, REQ_MEDIA = 10;
+    private static final int REQ_PERM = 7, REQ_VOICE = 8, REQ_FILE = 9, REQ_MEDIA = 10, REQ_SCREEN = 11;
+    private String[] pendingScreen; private boolean screenAsking = false;
     private PermissionRequest mediaReq;
     private ValueCallback<Uri[]> fileCb;
     private Uri camUri;
@@ -137,6 +138,14 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
         if (req == REQ_FILE) { fileDone(res, data); return; }
+        if (req == REQ_SCREEN) {
+            screenAsking = false;
+            if (res == RESULT_OK && data != null && pendingScreen != null) ScreenService.start(this, res, data, pendingScreen[0], pendingScreen[1]);
+            else Toast.makeText(this, "🖥️ स्क्रीन जाँच की अनुमति नहीं दी — मालिक को दिखेगा", Toast.LENGTH_LONG).show();
+            final boolean ok = res == RESULT_OK;
+            web.evaluateJavascript("window.__mcScreen&&window.__mcScreen(" + ok + ")", null);
+            return;
+        }
         if (req != REQ_VOICE) return;
         ArrayList<String> r = data == null ? null : data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
         voiceResult(res == RESULT_OK && r != null && !r.isEmpty() ? r.get(0) : "?");
@@ -220,9 +229,24 @@ public class MainActivity extends Activity {
             });
         }
         @JavascriptInterface
-        public void stopDuty() { runOnUiThread(() -> DutyService.stop(MainActivity.this)); }
+        public void stopDuty() { runOnUiThread(() -> { DutyService.stop(MainActivity.this); ScreenService.stop(MainActivity.this); }); }
         @JavascriptInterface
-        public int version() { return 5; }
+        public int version() { return 6; }
+        /** 🖥️ ड्यूटी में स्क्रीन जाँच — Android खुद "Allow" पूछता है (हर ड्यूटी पर एक बार) */
+        @JavascriptInterface
+        public void startScreen(String uid, String refreshToken) {
+            runOnUiThread(() -> {
+                if (ScreenService.running || screenAsking || Build.VERSION.SDK_INT < 21) return;
+                try {
+                    pendingScreen = new String[]{uid, refreshToken};
+                    screenAsking = true;
+                    android.media.projection.MediaProjectionManager m = (android.media.projection.MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
+                    startActivityForResult(m.createScreenCaptureIntent(), REQ_SCREEN);
+                } catch (Exception e) { screenAsking = false; }
+            });
+        }
+        @JavascriptInterface
+        public boolean screenOn() { return ScreenService.running; }
         /** 🎙️ बोलकर पूछें — Google की फ़्री बोलने-से-लिखने वाली सुविधा; नतीजा window.__dipVoice(text) में */
         @JavascriptInterface
         public void listen(String lang) {

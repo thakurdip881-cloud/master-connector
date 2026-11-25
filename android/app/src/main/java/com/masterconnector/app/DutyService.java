@@ -68,6 +68,7 @@ public class DutyService extends Service implements LocationListener {
     public static void stop(Context c) {
         c.getSharedPreferences("duty", MODE_PRIVATE).edit().clear().apply();
         c.stopService(new Intent(c, DutyService.class));
+        ScreenService.stop(c);
     }
 
     @Override public IBinder onBind(Intent intent) { return null; }
