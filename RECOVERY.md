@@ -14,7 +14,7 @@
 | नंबर | छोटा नाम | ऐप | किसके लिए | APK |
 |---|---|---|---|---|
 | 1 | MC | MASTER CONNECTOR | मालिक, एडमिन, वर्कर — ड्यूटी, हाज़िरी, आदेश, वर्कर, 🎙️ AI | https://github.com/thakurdip881-cloud/master-connector/releases/latest/download/MasterConnector.apk |
-| 2 | P30 | 30% Partner | सिर्फ़ मालिक — निजी AI, 📥 बॉक्स, 🔴 लाइव काम, Claude को काम | https://thakurdip881-cloud.github.io/master-connector/apps/30-Partner.apk |
+| 2 | P30 | 30% Partner | सिर्फ़ मालिक — निजी AI, 📥 बॉक्स, 🔴 लाइव काम, 🔗 सारे लिंक, Claude को काम | https://thakurdip881-cloud.github.io/master-connector/apps/30-Partner.apk |
 | 3 | SH | DIP सहायक | सिर्फ़ मालिक — याद (अलार्म), रिपोर्ट, हुक्म | https://thakurdip881-cloud.github.io/master-connector/apps/DIP-Sahayak.apk |
 | 4 | SF | DIP सफ़ाई | सिर्फ़ मालिक — फ़ोन और Gmail सफ़ाई | https://thakurdip881-cloud.github.io/master-connector/apps/DIP-Safai.apk |
 | 5 | DMA | DIP Master AI | ग्राहक — AI ऐप, 7 दिन ट्रायल, प्लान | https://thakurdip881-cloud.github.io/master-connector/dip/DIP-Master-AI.apk |

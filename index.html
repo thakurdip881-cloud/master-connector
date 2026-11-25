@@ -1544,14 +1544,22 @@ async function allPeople(){
   try{ (await getDocs(query(collection(db,"dipPlanReq"),limit(200)))).docs.forEach(d=>{ const v=d.data(); out.push({ kind:"⚡ DIP ग्राहक", name:v.name, mobile:v.mobile, wa:v.mobile, mail:"", tg:"", extra:`${d.id} · ${+v.plan||30} दिन प्लान की अर्ज़ी` }); }); }catch(_){}
   return out.filter(p=>p.name);
 }
-const pLinks = p => { const L=[]; const m=mobDigits(p.mobile), w=mobDigits(p.wa)||m, tg=String(p.tg||"").replace(/^@/,"");
-  if(m) L.push(["📞 कॉल","tel:+91"+m]); if(w) L.push(["💬 WhatsApp","https://wa.me/91"+w]); if(tg) L.push(["✈️ Telegram","https://t.me/"+tg]); if(p.mail) L.push(["✉️ Gmail","mailto:"+p.mail]); return L; };
+let pMsg = "";
+const pLinks = p => { const L=[]; const m=mobDigits(p.mobile), w=mobDigits(p.wa)||m, tg=String(p.tg||"").replace(/^@/,""), t=encodeURIComponent(pMsg||"");
+  if(m) L.push(["📞 कॉल","tel:+91"+m]); if(w) L.push(["💬 WhatsApp","https://wa.me/91"+w+(t?"?text="+t:"")]); if(tg) L.push(["✈️ Telegram","https://t.me/"+tg]); if(p.mail) L.push(["✉️ Gmail","mailto:"+p.mail+(t?"?subject="+encodeURIComponent("DIP")+"&body="+t:"")]); return L; };
 const pText = p => `${p.kind}: ${p.name}\n📱 मोबाइल: ${p.mobile||"—"}\n💬 WhatsApp: ${p.wa||p.mobile||"—"}\n✉️ Gmail: ${p.mail||"—"}\n✈️ Telegram: ${p.tg||"—"}${p.extra?`\nℹ️ ${p.extra}`:""}`;
 async function showPeople(pre){
   const p=$("#popup"); p.innerHTML=`<div class="card">लोड हो रहा है…</div>`; p.classList.remove("hidden");
   const all = await allPeople();
   p.innerHTML=`<div class="card" style="max-height:88vh;overflow:auto"><div class="between"><h3 style="margin:0">📇 सबका डेटा (${all.length})</h3><button class="sec sm" id="ppX">बंद</button></div>
     <input id="ppQ" placeholder="नाम / नंबर / Gmail से खोजें" value="${esc(pre||"")}" style="margin:8px 0">
+    <details id="ppMsgBox" style="margin:4px 0 8px"><summary style="cursor:pointer;font-weight:700">📢 सबको मैसेज भेजें</summary>
+      <textarea id="ppMsg" rows="2" placeholder="मैसेज लिखें — जैसे: कल सुबह 9 बजे मीटिंग है" style="width:100%;margin-top:6px">${esc(pMsg)}</textarea>
+      <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">
+        <button class="ok sm" id="ppApp" style="width:auto">📲 ऐप में सब वर्कर को (बिना टैप, घंटी के साथ)</button>
+        <button class="sec sm" id="ppWaNext" style="width:auto">💬 WhatsApp पर एक-एक करके</button>
+        <button class="sec sm" id="ppMail" style="width:auto">✉️ Gmail से सबको एक साथ</button></div>
+      <p class="muted" style="margin:6px 0 0">WhatsApp और Telegram किसी ऐप को अपने-आप भेजने नहीं देते — खुलने पर वहाँ <b>भेजें ➤</b> दबाना पड़ता है। बिना टैप के: पहला बटन (ऐप में आदेश)।</p></details>
     <div class="row" style="gap:6px;flex-wrap:wrap"><button class="sec sm" data-pk="">सब</button><button class="sec sm" data-pk="👷 वर्कर">👷 वर्कर</button><button class="sec sm" data-pk="⚡ DIP ग्राहक">⚡ DIP ग्राहक</button><button class="sec sm" id="ppCsv">📥 Excel</button></div>
     <div id="ppL"></div></div>`;
   let kind="";
@@ -1561,6 +1569,16 @@ async function showPeople(pre){
       <span class="muted">📱 ${esc(x.mobile||"—")} · ✉️ ${esc(x.mail||"—")} · ✈️ ${esc(x.tg||"—")}${x.extra?`<br>${esc(x.extra)}`:""}</span>
       <div class="row" style="margin-top:4px;gap:6px;flex-wrap:wrap">${pLinks(x).map(([l,h])=>`<a class="sec sm" style="text-decoration:none;padding:4px 10px;border-radius:8px" href="${esc(h)}" target="_blank" rel="noopener">${l}</a>`).join("")}</div></div>`).join("") || "<p class='muted'>कोई नहीं मिला</p>"; };
   $("#ppQ").oninput=draw; p.querySelectorAll("[data-pk]").forEach(b=>b.onclick=()=>{ kind=b.dataset.pk; draw(); });
+  $("#ppMsg").oninput=e=>{ pMsg=e.target.value; draw(); };
+  const vis=()=>{ const q=$("#ppQ").value.trim().toLowerCase(); return all.filter(x=>(!kind||x.kind===kind) && (!q || [x.name,x.mobile,x.mail].join(" ").toLowerCase().includes(q))); };
+  $("#ppApp").onclick=async()=>{ const t=$("#ppMsg").value.trim(); if(t.length<2) return toast("पहले मैसेज लिखें");
+    try{ await addDoc(collection(db,"commands"),{text:t,to:"all",toName:"सब",kind:"msg",ref:"",autoOpen:false,by:me.uid,byName:profile.name||"Admin",createdAt:serverTimestamp()}); toast("✅ सब वर्कर के ऐप में भेज दिया — घंटी बजेगी, पढ़ा/पूरा 📢 कमांड में दिखेगा"); }catch(e){ toast(errMsg(e)); } };
+  let waI=0; $("#ppWaNext").onclick=()=>{ const t=$("#ppMsg").value.trim(); if(t.length<2) return toast("पहले मैसेज लिखें"); pMsg=t;
+    const L=vis().filter(x=>mobDigits(x.wa)||mobDigits(x.mobile)); if(!L.length) return toast("किसी का WhatsApp नंबर नहीं");
+    if(waI>=L.length) waI=0; const x=L[waI++]; window.open("https://wa.me/91"+(mobDigits(x.wa)||mobDigits(x.mobile))+"?text="+encodeURIComponent(t),"_blank");
+    $("#ppWaNext").textContent = waI<L.length ? `💬 अगला: ${L[waI].name} (${waI}/${L.length})` : `✅ सब ${L.length} हो गए — फिर से शुरू`; };
+  $("#ppMail").onclick=()=>{ const t=$("#ppMsg").value.trim(); if(t.length<2) return toast("पहले मैसेज लिखें"); const M=[...new Set(vis().map(x=>x.mail).filter(Boolean))]; if(!M.length) return toast("किसी का Gmail नहीं");
+    location.href="mailto:?bcc="+encodeURIComponent(M.join(","))+"&subject="+encodeURIComponent("DIP")+"&body="+encodeURIComponent(t); };
   $("#ppX").onclick=()=>p.classList.add("hidden");
   $("#ppCsv").onclick=()=>{ const c=v=>`"${String(v||"").replace(/"/g,'""')}"`; const csv="﻿प्रकार,नाम,मोबाइल,WhatsApp,Gmail,Telegram,जानकारी\n"+all.map(x=>[x.kind,x.name,x.mobile,x.wa,x.mail,x.tg,x.extra].map(c).join(",")).join("\n");
     const b64=btoa(unescape(encodeURIComponent(csv))); const name=`सबका-डेटा-${new Date().toISOString().slice(0,10)}.csv`;
