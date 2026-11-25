@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DIP पूरा मैनुअल</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1d2430;--mut:#5d6675;--line:#e2ddd2;--acc:#c96f12;--soft:#fbead2;--blue:#1a56a8}
+@media (prefers-color-scheme:dark){:root{--bg:#14171c;--fg:#ece7dd;--mut:#a3a9b4;--line:#2d333c;--acc:#f0a04b;--soft:#3a2a17;--blue:#7fb0ff}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 "Noto Sans Devanagari","Mukta",system-ui,sans-serif}
+main{max-width:820px;margin:0 auto;padding:24px max(16px,env(safe-area-inset-left))}
+h1{font-size:28px;margin:0 0 4px}h2{font-size:21px;margin:28px 0 8px;border-bottom:2px solid var(--acc);display:inline-block}h3{font-size:17px;margin:16px 0 6px}
+.mut{color:var(--mut)}table{border-collapse:collapse;width:100%;margin:8px 0}th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}th{background:var(--soft)}
+code{background:var(--soft);padding:1px 6px;border-radius:5px;font-size:.92em;word-break:break-all}.box{border-left:4px solid var(--acc);background:var(--soft);padding:10px 14px;border-radius:0 10px 10px 0;margin:10px 0}
+a{color:var(--blue)}ol,ul{padding-left:1.3em}li{margin:3px 0}
+@media print{body{background:#fff;color:#000}h2{page-break-after:avoid}table,.box{page-break-inside:avoid}a{color:#000}}
+</style></head><body><main>
+<h1>🪔 DIP पूरा मैनुअल</h1>
+<p class="mut">मालिक के लिए · सारे ऐप, रोज़ का काम, बोलकर हुक्म, गड़बड़ी का हल · अपडेट 25-11-2026 · इसमें कोई पासवर्ड, Token या वर्कर का नंबर नहीं है</p>
+<div class="box">ऑनलाइन: <a href="https://thakurdip881-cloud.github.io/master-connector/manual.html">thakurdip881-cloud.github.io/master-connector/manual.html</a> · ऑफ़लाइन: इसी की PDF फ़ोन में रखें · फ़ोन गुम हो तो: <a href="https://github.com/thakurdip881-cloud/master-connector/blob/main/RECOVERY.md">RECOVERY पेज</a></div>
+
+<h2>1. ऐप, छोटे नाम और APK</h2>
+<table><tr><th>नाम</th><th>ऐप</th><th>किसके लिए</th><th>APK / लिंक</th></tr>
+<tr><td>1 · MC</td><td>MASTER CONNECTOR</td><td>मालिक, एडमिन, वर्कर</td><td><code>https://github.com/thakurdip881-cloud/master-connector/releases/latest/download/MasterConnector.apk</code></td></tr>
+<tr><td>2 · P30</td><td>30% Partner</td><td>सिर्फ़ मालिक</td><td><code>https://thakurdip881-cloud.github.io/master-connector/apps/30-Partner.apk</code></td></tr>
+<tr><td>3 · SH</td><td>DIP सहायक</td><td>सिर्फ़ मालिक</td><td><code>https://thakurdip881-cloud.github.io/master-connector/apps/DIP-Sahayak.apk</code></td></tr>
+<tr><td>4 · SF</td><td>DIP सफ़ाई</td><td>सिर्फ़ मालिक</td><td><code>https://thakurdip881-cloud.github.io/master-connector/apps/DIP-Safai.apk</code></td></tr>
+<tr><td>5 · DMA</td><td>DIP Master AI</td><td>ग्राहक</td><td><code>https://thakurdip881-cloud.github.io/master-connector/dip/DIP-Master-AI.apk</code></td></tr>
+<tr><td>6 · DCP</td><td>DIP Control Panel</td><td>मालिक</td><td><code>https://thakurdip881-cloud.github.io/master-connector/dip/admin.html</code></td></tr>
+<tr><td>7 · TOUR</td><td>टूर ग्राहक ऐप</td><td>ग्राहक (आप खुद संभालते हैं)</td><td><code>https://github.com/thakurdip881-cloud/master-connector/releases/download/tour-apk-v1/DipTour.apk</code></td></tr>
+<tr><td>8 · TRN</td><td>ट्रेनिंग साइट</td><td>वर्कर</td><td><code>https://github-netlify-deploy-0cc412.netlify.app/</code></td></tr></table>
+<p>सारे लिंक एक पेज पर: <code>https://thakurdip881-cloud.github.io/master-connector/links.html</code> · APK डालना: लिंक → डाउनलोड → <b>Update</b> (पुराना हटाना नहीं)। MC के बदलाव ऐप बंद करके खोलते ही आ जाते हैं।</p>
+
+<h2>2. MASTER CONNECTOR — रोज़ का काम (बोलकर)</h2>
+<p>MC खोलें → नीचे दाएँ <b>🎙️ पूछें</b> → ऊपर <b>🙌</b> एक बार दबाएँ (लगातार बात, बिना टैप) → बोलते रहें। हर बदलाव से पहले AI पूछेगा "करूँ?" → <b>हाँ</b>। रोकना: <b>बस</b>।</p>
+<table><tr><th>बोलें</th><th>क्या होगा</th></tr>
+<tr><td>सिस्टम जाँचो</td><td>हर गड़बड़ी + ठीक करो बटन (मंज़ूरी, अधूरे आदेश, हाज़िरी, 30 km, अर्ज़ियाँ, पेज/APK)</td></tr>
+<tr><td>आज की रिपोर्ट</td><td>कौन आया, आदेश, जॉइनिंग, बदलाव (रात 9 बजे अपने-आप)</td></tr>
+<tr><td>Raj को काम दो</td><td>AI पूछेगा "कौन सा काम?" → बोलें → हाँ → वर्कर को घंटी</td></tr>
+<tr><td>सबको आदेश: …</td><td>सब वर्कर के ऐप में</td></tr>
+<tr><td>कतार में जोड़ो: … फिर … / कतार चलाओ / 2 नंबर पहले करो</td><td>कई काम एक-एक करके, हर काम की रिपोर्ट</td></tr>
+<tr><td>सबको मंज़ूरी दो / नगमा को पूरी अनुमति दो</td><td>जॉइनिंग मंज़ूर / एडमिन अनुमति</td></tr>
+<tr><td>Raj का खाता बंद करो / चालू करो</td><td>लॉगिन बंद/चालू</td></tr>
+<tr><td>दिलीप ठाकुर की शिफ्ट शाम करो</td><td>शिफ्ट बदलना</td></tr>
+<tr><td>नगमा का पासवर्ड भेजो</td><td>पासवर्ड + 📲 WhatsApp बटन (सिर्फ़ मालिक)</td></tr>
+<tr><td>Raj का डेटा दिखाओ / सबका डेटा</td><td>मोबाइल, WhatsApp, Gmail, Telegram (सिर्फ़ एडमिन)</td></tr>
+<tr><td>आज क्या बदला? / गलती से हुआ बदलाव वापस लो</td><td>📜 रिकॉर्ड, 24 घंटे में ↩️ वापस</td></tr>
+<tr><td>अर्ज़ियाँ दिखाओ</td><td>पासवर्ड भूले / नंबर बदला</td></tr></table>
+<p><b>🔔 सूचना</b> बटन (नीचे बाएँ): पेंडिंग सुनाओ · घंटी जाँचें · 🆘 अर्ज़ियाँ · 📇 सबका डेटा (📢 सबको मैसेज) · 🩺 सिस्टम जाँच · 📜 बदलाव · 📋 कतार। घंटी तभी बजती है जब ऐप खुला/पीछे चल रहा हो।</p>
+
+<h2>3. वर्कर — लॉगिन, पासवर्ड, जवाब</h2>
+<ul><li><b>लॉगिन:</b> ऊपर सिर्फ़ 10 अंक का मोबाइल नंबर (Gmail नहीं, +91/0 नहीं), नीचे <code>Dip-xxxx1234</code> जैसा पासवर्ड (बड़ा D, डैश)। लॉगआउट न करें।</li>
+<li><b>पासवर्ड भूले:</b> वर्कर → लॉगिन पेज पर "🔑 पासवर्ड भूल गए (वर्कर)" → नाम → एडमिन को भेजें → आपको घंटी → पट्टी में <b>📲 पासवर्ड WhatsApp पर भेजें</b> → WhatsApp में ➤। पासवर्ड हमेशा रजिस्टर्ड नंबर पर।</li>
+<li><b>नंबर बदला:</b> "📱 मोबाइल नंबर बदल गया" → आपको घंटी → 🔁 नए नंबर से खाता बनाएँ (पुराना बंद) → 📲 नए नंबर पर भेजें।</li>
+<li><b>नई जॉइनिंग:</b> फ़ॉर्म में लाइव फ़ोटो + ID हो तो अपने-आप मंज़ूर। एडमिन अनुमति कभी अपने-आप नहीं।</li>
+<li><b>जवाब:</b> वर्कर आदेश पर ✍️ जवाब भेजे → आपको घंटी → ↩️ जवाब दें। 📢 कमांड में सारे जवाब।</li>
+<li><b>सुरक्षा:</b> पासवर्ड सिर्फ़ मालिक देख सकता है। नंबर सिर्फ़ लॉगिन एडमिन। वर्कर सिर्फ़ अपना डेटा।</li></ul>
+
+<h2>4. 30% Partner (P30)</h2>
+<table><tr><th>बोलें/लिखें</th><th>क्या होगा</th></tr>
+<tr><td>चाबी जाँचो</td><td>Gemini चाबी 1/2, GitHub Token, मास्टर कनेक्टर — ✅/❌ + कदम</td></tr>
+<tr><td>अपडेट करो</td><td>नया संस्करण डाउनलोड (बिना Token) → Update</td></tr>
+<tr><td>सारे ऐप के अपडेट लिंक दो / सहायक का लिंक भेजो</td><td>लिंक + ⬇️ अपडेट / 📋 कॉपी / 💬 WhatsApp</td></tr>
+<tr><td>📥 बॉक्स में स्क्रीनशॉट/वीडियो</td><td>पढ़कर रिपोर्ट → काम अपने-आप Claude को (Token चाहिए)</td></tr>
+<tr><td>Claude को काम: … / हुक्म की स्थिति</td><td>Claude रोज़ 9:12, 2:12, 7:12 पर करता है; 🔴 लाइव काम में प्रगति</td></tr></table>
+<h3>चाबियाँ (⚙️ सेटिंग)</h3>
+<ol><li><b>Gemini चाबी 1</b> (ज़रूरी): "यहाँ दबाकर Google खाते से लॉगिन करें" → Create API key → कॉपी → 📋 पेस्ट → ✅ सेव। चाबी 2 (वैकल्पिक): दूसरी Google ID से।</li>
+<li><b>GitHub Token</b> (ज़रूरी): Chrome में <code>https://github.com/settings/tokens/new?scopes=repo&amp;description=DIP-Sahayak</code> → Expiration: No expiration → repo ✅ → Generate → <code>ghp_…</code> कॉपी → P30 "🤖 Claude से जोड़ें" और सहायक ⚙️ में पेस्ट।</li>
+<li><b>मास्टर कनेक्टर</b>: ⚙️ नीचे "👷 मास्टर कनेक्टर से जोड़ें" → मालिक Gmail + पासवर्ड।</li></ol>
+<p>जवाब अटके तो "यहाँ पूछें": ChatGPT, Gemini, Google, Chrome, Claude, Perplexity, Copilot (+ सॉफ़्टवेयर: Stack Overflow, GitHub)।</p>
+
+<h2>5. सहायक (SH) और सफ़ाई (SF)</h2>
+<ul><li><b>सहायक:</b> ⚙️ में GitHub Token (पीली पट्टी हटेगी) + MC लॉगिन (वर्कर हाज़िरी)। याद/अलार्म, रिपोर्ट, हुक्म।</li>
+<li><b>सफ़ाई:</b> फ़ोन की फ़ालतू फ़ाइलें; रात 2:30 पावर सफ़ाई, 3 बजे Gmail सफ़ाई।</li>
+<li>दोनों में नया संस्करण आने पर ऊपर पट्टी → ⬇️ अपडेट करें।</li></ul>
+
+<h2>6. अपने-आप चलने वाले काम</h2>
+<table><tr><th>कब</th><th>क्या</th></tr>
+<tr><td>हर 10 मिनट (MC खुला हो)</td><td>🔔 पर गड़बड़ी गिनती, 11 पेज/APK की जाँच</td></tr>
+<tr><td>हर 30 मिनट</td><td>2 घंटे से अधूरे आदेश पर वर्कर को याद</td></tr>
+<tr><td>9:11 · 2:11 · 7:11</td><td>GitHub Health check — 15 पेज/APK</td></tr>
+<tr><td>9:12 · 2:12 · 7:12</td><td>Claude — रिपोर्ट, ऑटो-ठीक, आपके हुक्म</td></tr>
+<tr><td>हर 2 घंटे</td><td>Claude — पेंडिंग काम की याद</td></tr>
+<tr><td>हर 3 घंटे (P30 खुला हो)</td><td>नया संस्करण जाँच</td></tr>
+<tr><td>रोज़</td><td>☁️ P30 ऑनलाइन बैकअप, Gemini मॉडल चुनना, 3 महीने पुराना डेटा साफ़</td></tr>
+<tr><td>रात 9 बजे</td><td>MC आज की रिपोर्ट बोलकर</td></tr></table>
+
+<h2>7. गड़बड़ी हो तो</h2>
+<table><tr><th>दिखे</th><th>करें</th></tr>
+<tr><td>सहायक में पीली पट्टी "GitHub Token काम नहीं कर रहा"</td><td>नया Token (ऊपर 4.2) → सहायक ⚙️ में पेस्ट → 🔄</td></tr>
+<tr><td>चाबी जाँच: GitHub Token 404</td><td>Token को Dip रिपो की अनुमति नहीं — 4.2 वाले लिंक से नया बनाएँ (repo ✅)</td></tr>
+<tr><td>"Unable to resolve host … googleapis"</td><td>नेट बंद-चालू, Settings → Private DNS → Automatic, VPN/ad-blocker बंद → 🔁 फिर भेजें</td></tr>
+<tr><td>Gemini 404 "model no longer available"</td><td>P30 1.49 डालें (मॉडल अपने-आप बदलता है)</td></tr>
+<tr><td>"सोच रहा हूँ…" बहुत देर</td><td>🔁 फिर भेजें, या "यहाँ पूछें" बटन</td></tr>
+<tr><td>वर्कर: "मोबाइल नंबर या पासवर्ड गलत"</td><td>पासवर्ड भूल गए वाली अर्ज़ी (भाग 3) या "उसका पासवर्ड भेजो"</td></tr>
+<tr><td>"Gmail से नहीं — मोबाइल नंबर से"</td><td>वर्कर Gmail नहीं, 10 अंक का नंबर डाले</td></tr>
+<tr><td>WhatsApp खुलता है पर मैसेज नहीं जाता</td><td>➤ दबाना पड़ता है (WhatsApp की शर्त); बिना टैप: MC का "📲 ऐप में सब वर्कर को"</td></tr>
+<tr><td>घंटी नहीं बजी</td><td>MC खुला/पीछे चलना चाहिए; 🔔 → घंटी जाँचें</td></tr>
+<tr><td>नया बदलाव नहीं दिखा</td><td>ऐप पूरा बंद करके खोलें</td></tr></table>
+
+<h2>8. फ़ोन गुम हो जाए तो</h2>
+<p>सारा डेटा Firebase में सुरक्षित है। नए फ़ोन में: Chrome में मालिक Gmail से लॉगिन → भाग 1 के APK → MC लॉगिन → नया GitHub Token → P30 में ☁️ "वापस लाएँ"। किसी भी AI को यह दें: <code>https://github.com/thakurdip881-cloud/master-connector/blob/main/RECOVERY.md</code> और लिखें "पढ़कर बताओ नए फ़ोन में सब कैसे वापस लाऊँ"। Gmail Drafts में "🆘 DIP पूरा सेटअप" मेल भी है।</p>
+
+<h2>9. अभी बाकी (25-11)</h2>
+<ol><li>30% Partner <b>1.49</b> डालना (एक बार हाथ से, आगे "अपडेट करो")</li>
+<li>नया GitHub Token (repo ✅) → P30 + सहायक, फिर "चाबी जाँचो" — सब ✅</li>
+<li>MC एक बार खोलना (पासवर्ड सुरक्षित जगह में खिसकेंगे)</li>
+<li>✈️ Telegram बॉट बनाना (@BotFather → /newbot) → फिर अपने-आप पासवर्ड/आदेश/जवाब</li>
+<li>रोज़ 3 बार वाले Claude में [30% Partner] लाइन (आपकी अनुमति पर)</li></ol>
+
+<h2>10. हमेशा के नियम</h2>
+<ul><li>सिर्फ़ फ़्री सेवाएँ (GitHub, Firebase फ़्री, Gemini फ़्री)। Netlify credits खत्म।</li><li>नया ऐप नहीं — हर बदलाव मौजूदा ऐप में।</li><li>डेटा कम खर्च।</li><li>पासवर्ड, Token, चाबी कभी chat/फ़ाइल/मेल में नहीं।</li></ul>
+</main></body></html>

@@ -7,6 +7,8 @@
 
 पेज का लिंक: https://github.com/thakurdip881-cloud/master-connector/blob/main/RECOVERY.md
 
+📖 रोज़ के काम का पूरा मैनुअल (बोलकर हुक्म, गड़बड़ी का हल): https://thakurdip881-cloud.github.io/master-connector/manual.html
+
 ---
 
 ## 1. ऐप (नाम · काम · APK)
