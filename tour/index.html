@@ -100,6 +100,7 @@ function showAuth(reg){
     <label>Telegram ID (अगर है)</label><input id="rT" placeholder="@username" autocapitalize="none">
     <label class="req">ID</label><select id="rIt"><option value="aadhaar">आधार (UID)</option><option value="pan">PAN</option><option value="voter">वोटर ID</option><option value="dl">ड्राइविंग लाइसेंस</option><option value="passport">पासपोर्ट</option></select>
     <label class="req">ID नंबर</label><input id="rI" autocapitalize="characters" inputmode="numeric" placeholder="1234 5678 9012"><p class="muted" id="rIh">आधार: सुरक्षा के लिए सिर्फ़ आखिरी 4 अंक सेव होंगे।</p>
+    <label>🆔 रेफर ID (जिस वर्कर ने भेजा, जैसे DIP5070)</label><input id="rRef" autocapitalize="characters" maxlength="12" placeholder="DIP1234" value="${esc(/^DIP[A-Z0-9]{4,6}$/i.test(REF)?REF.toUpperCase():"")}">
     <label class="req">पासवर्ड बनाएँ (कम से कम 6 अक्षर)</label><input id="rP" type="password" autocomplete="new-password">
     <label class="req">पासवर्ड फिर से</label><input id="rP2" type="password" autocomplete="new-password">
     <label class="row" style="color:var(--ink);margin-top:10px"><input type="checkbox" id="rC" style="width:auto;flex:none"> <span class="req">मैं सहमति देता/देती हूँ कि मेरी जानकारी सिर्फ़ यात्रा के रिकॉर्ड के लिए DIP Tour & Travels देख सकेगा।</span></label>
@@ -120,12 +121,15 @@ function showAuth(reg){
     if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(mail)) return toast("सही Gmail लिखें"); if(tg && !/^[A-Za-z0-9_]{5,32}$/.test(tg)) return toast("Telegram ID सही नहीं");
     if(it==="aadhaar" && !/^[2-9]\d{11}$/.test(raw)) return toast("आधार 12 अंक का होना चाहिए"); if(it==="pan" && !/^[A-Z]{5}\d{4}[A-Z]$/.test(raw)) return toast("PAN सही नहीं"); if(raw.length<5) return toast("ID नंबर सही डालें");
     if(p.length<6) return toast("पासवर्ड कम से कम 6 अक्षर"); if(p!==$("#rP2").value) return toast("दोनों पासवर्ड एक जैसे नहीं"); if(!$("#rC").checked) return toast("सहमति पर ✔ लगाएँ");
+    const rc=$("#rRef").value.replace(/[^A-Za-z0-9]/g,"").toUpperCase(); let refUid="";
+    if(rc){ if(!/^DIP[A-Z0-9]{4,6}$/.test(rc)) return toast("रेफर ID सही नहीं (जैसे DIP5070)"); try{ const g=await getDoc(doc(db,"refCodes",rc)); if(!g.exists()) return toast("यह रेफर ID नहीं मिला — वर्कर से दोबारा पूछें"); refUid=g.data().uid; }catch(_){ return toast("रेफर ID जाँच नहीं हो पाई, इंटरनेट देखें"); } }
+    else if(REF && !/^DIP/i.test(REF)) refUid=REF;   // पुराना लंबा link
     const idNo=it==="aadhaar"?"XXXX-XXXX-"+raw.slice(-4):raw, b=$("#rGo"); b.disabled=true; b.textContent="रजिस्टर हो रहा है…";
     try{ const c=await createUserWithEmailAndPassword(auth,m+"@"+DOM,p);
       const rec={uid:c.user.uid,name,mobile:m,wa,mail,tg:tg?"@"+tg:"",idType:it,idNo,consent:true,at:serverTimestamp()};
-      try{ await setDoc(doc(db,"tCustomers",c.user.uid),REF?{...rec,ref:REF}:rec); }catch(e1){ if(!REF) throw e1; await setDoc(doc(db,"tCustomers",c.user.uid),rec); }
+      try{ await setDoc(doc(db,"tCustomers",c.user.uid),refUid?{...rec,ref:refUid}:rec); }catch(e1){ if(!refUid) throw e1; await setDoc(doc(db,"tCustomers",c.user.uid),rec); }
       try{ localStorage.setItem("tourLast",JSON.stringify({name,id:m})); }catch(_){}
-      mailCopy("🧳 नया ग्राहक — "+name,{"नाम":name,"मोबाइल":m,"WhatsApp":wa,"Gmail":mail,"Telegram":tg?"@"+tg:"—","ID":it+": "+idNo,"वर्कर link":REF?"हाँ ("+REF.slice(0,6)+"…)":"—","समय":new Date().toLocaleString("hi-IN")},mail);
+      mailCopy("🧳 नया ग्राहक — "+name,{"नाम":name,"मोबाइल":m,"WhatsApp":wa,"Gmail":mail,"Telegram":tg?"@"+tg:"—","ID":it+": "+idNo,"रेफर ID":rc||(refUid?"पुराना link":"—"),"समय":new Date().toLocaleString("hi-IN")},mail);
       toast("✅ रजिस्ट्रेशन हो गया");
     }catch(e){ toast(errM(e)); b.disabled=false; b.textContent="✅ रजिस्टर करें"; } };
 }

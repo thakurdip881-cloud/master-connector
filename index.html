@@ -741,12 +741,22 @@ function pageTour(){
   psub(onSnapshot(collection(db,"tCustomers"),s=>{ all=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(toD(b.at)||0)-(toD(a.at)||0)); draw(); },e=>{ $("#gL").innerHTML=`<p class="muted">${esc(errMsg(e))}</p>`; }));
 }
 /* 👷 वर्कर: मेरे ग्राहक — अपना link + सिर्फ़ अपने ग्राहक + follow-up */
-function pageMyCust(){
-  const link=TOUR_URL+"?ref="+me.uid, today=new Date().toISOString().slice(0,10);
-  app.innerHTML=`<div class="card" style="border:2px solid #0e8a6a"><h3>🔗 मेरा ग्राहक link</h3><p class="muted">यह link ग्राहक को भेजें। जो इससे रजिस्टर करेगा, वह आपके ग्राहक में आएगा।</p>
+// 🆔 वर्कर का छोटा रेफर ID (DIP + मोबाइल के आखिरी 4 अंक) — refCodes/{ID} = {uid}
+async function myRefCode(){
+  try{ const q=await getDocs(query(collection(db,"refCodes"),where("uid","==",me.uid),limit(1))); if(!q.empty) return q.docs[0].id;
+    const l4=(mobDigits(profile?.mobile)||String(me.uid)).slice(-4).toUpperCase().replace(/[^A-Z0-9]/g,"0");
+    for(const sfx of ["","2","3","4","5","6","7","8","9"]){ const id="DIP"+l4+sfx, r=doc(db,"refCodes",id), g=await getDoc(r);
+      if(g.exists()){ if(g.data().uid===me.uid) return id; continue; }
+      await setDoc(r,{uid:me.uid}); return id; }
+  }catch(_){} return "";
+}
+async function pageMyCust(){
+  const t0=tab, code=await myRefCode(); if(tab!==t0) return; const link=TOUR_URL+"?ref="+(code||me.uid), today=new Date().toISOString().slice(0,10);
+  app.innerHTML=`<div class="card" style="border:2px solid #0e8a6a"><h3>🔗 मेरा ग्राहक link</h3>${code?`<p style="font-size:20px;margin:4px 0">🆔 मेरा रेफर ID: <b>${esc(code)}</b> <button id="myCc" class="sec sm" style="width:auto">📋 कॉपी</button></p>`:""}<p class="muted">यह link ग्राहक को भेजें। जो इससे रजिस्टर करेगा (या फ़ॉर्म में यह रेफर ID लिखेगा), वह सीधे आपके ग्राहक में आएगा।</p>
     <div class="row" style="gap:6px"><input id="myLink" readonly value="${esc(link)}" style="flex:1"><button id="myCp" style="flex:none;width:auto">📋 कॉपी</button></div>
     <a href="https://wa.me/?text=${encodeURIComponent("नमस्ते! DIP Tour & Travels में रजिस्टर करें: "+link)}" target="_blank" rel="noopener" style="text-decoration:none"><button class="ok" style="width:100%;margin-top:8px">💬 WhatsApp पर भेजें</button></a></div>
     <div class="card"><h3>🧳 मेरे ग्राहक <span class="pill" id="mcN">0</span></h3><div class="list" id="mcL"><p class="muted">लोड हो रहा है…</p></div></div>`;
+  { const cc=$("#myCc"); if(cc) cc.onclick=()=>{ try{ navigator.clipboard.writeText(code).then(()=>toast("📋 रेफर ID कॉपी हो गया")); }catch(_){} }; }
   $("#myCp").onclick=()=>{ try{ navigator.clipboard.writeText(link).then(()=>toast("📋 link कॉपी हो गया"),()=>{ $("#myLink").select(); document.execCommand("copy"); toast("📋 link कॉपी हो गया"); }); }catch(_){ $("#myLink").select(); } };
   let C=[], F=[], open="";
   const draw=()=>{ $("#mcN").textContent=C.length;
