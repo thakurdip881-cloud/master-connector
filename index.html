@@ -1099,7 +1099,7 @@ function vaPush(text, tabKey){
       b.style.cssText = "position:fixed;left:10px;right:10px;top:10px;z-index:9999;background:#fff8e1;border:2px solid #e69500;border-radius:14px;padding:12px;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:15px"; document.body.appendChild(b); }
     const go = vaGo; vaGo = null;
     b.innerHTML = `<b>🔔 नई सूचना</b><div style="margin:6px 0">${list.map(x=>"• "+esc(x)).join("<br>")}${more?`<br>• और ${more}`:""}</div>
-      <div class="row">${go?`<button class="ok sm" id="vaOpen">👉 खोलें / मंज़ूरी दें</button>`:""}<button class="sec sm" id="vaRep">🔊 फिर सुनाओ</button><button class="sec sm" id="vaX">ठीक है</button></div>`;
+      <div class="row">${go?`<button class="ok sm" id="vaOpen">${/पासवर्ड भूल/.test(list.join(" "))?"📲 पासवर्ड WhatsApp पर भेजें":"👉 खोलें / मंज़ूरी दें"}</button>`:""}<button class="sec sm" id="vaRep">🔊 फिर सुनाओ</button><button class="sec sm" id="vaX">ठीक है</button></div>`;
     const o = $("#vaOpen"); if(o) o.onclick = () => { b.remove(); go && go(); };
     $("#vaRep").onclick = () => vaSay(msg); $("#vaX").onclick = () => b.remove();
   }, 2500);
@@ -1145,7 +1145,7 @@ function startVoiceAlerts(){
   }), ()=>{}));
   /* 🆘 पासवर्ड भूले / नंबर बदला अर्ज़ी */
   sub(onSnapshot(collection(db,"help"), vaFirst((s, first) => { if(first) return;
-    s.docChanges().forEach(c => { const h = c.doc.data(); if((c.type==="added"||c.type==="modified") && !h.done && !c.doc.metadata.hasPendingWrites) vaPush(h.type==="pw" ? `${h.name} (${h.mobile}) पासवर्ड भूल गए — एक टैप में WhatsApp पर भेजें` : `${h.name} का मोबाइल नंबर बदला: ${h.newMobile} — एक टैप में नया खाता बनाएँ`, showHelpList); });
+    s.docChanges().forEach(c => { const h = c.doc.data(); if((c.type==="added"||c.type==="modified") && !h.done && !c.doc.metadata.hasPendingWrites) vaPush(h.type==="pw" ? `${h.name} (${h.mobile}) पासवर्ड भूल गए — एक टैप में WhatsApp पर भेजें` : `${h.name} का मोबाइल नंबर बदला: ${h.newMobile} — एक टैप में नया खाता बनाएँ`, h.type==="pw" ? ()=>sendPwHelp(c.doc.id, h) : showHelpList); });
   }), ()=>{}));
   setTimeout(autoApprove, 5000); watchStuck(); watchSys();
   /* वर्कर रिपोर्ट */
@@ -1242,6 +1242,15 @@ function helpForm(type){
 }
 const waTo = (m,t) => `https://wa.me/91${m}?text=${encodeURIComponent(t)}`;
 async function findPw(u){ if(u.pw) return u.pw; if(u.id in kycPw) return kycPw[u.id]; try{ const ks=await getDoc(doc(db,"kyc",u.id)); return kycPw[u.id]=ks.exists()?(ks.data().pw||""):""; }catch(_){ return kycPw[u.id]=""; } }
+/* 🔑 एक टैप: अर्ज़ी वाले के रजिस्टर्ड नंबर पर WhatsApp में पासवर्ड भरा हुआ खुले (वहाँ बस ➤) + अर्ज़ी ✅ */
+async function sendPwHelp(id, h){
+  try{ const us=(await getDocs(collection(db,"users"))).docs.map(d=>({id:d.id,...d.data()})); const u=us.find(x=>x.mobile===h.mobile || x.email===h.mobile+"@"+MOB_DOMAIN);
+    if(!u){ toast("⚠️ इस नंबर का कोई खाता नहीं — अर्ज़ियाँ खोल रहा हूँ"); return showHelpList(); }
+    const pw=await findPw(u); if(!pw){ toast("पासवर्ड रिकॉर्ड में नहीं — अर्ज़ियाँ खोल रहा हूँ"); return showHelpList(); }
+    window.open(waTo(h.mobile,`नमस्ते ${u.name}, MASTER CONNECTOR लॉगिन:\nमोबाइल: ${h.mobile}\nपासवर्ड: ${pw}\n(बड़ा D और डैश - वैसे ही लिखें)`),"_blank");
+    updateDoc(doc(db,"help",id),{done:true,doneAt:serverTimestamp()}).catch(()=>{}); toast("📲 WhatsApp खुला — बस ➤ भेजें दबाएँ");
+  }catch(e){ toast(errMsg(e)); showHelpList(); }
+}
 async function showHelpList(){
   const p=$("#popup"); p.innerHTML=`<div class="card">लोड हो रहा है…</div>`; p.classList.remove("hidden");
   let hs=[], us=[];
