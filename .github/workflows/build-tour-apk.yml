@@ -75,3 +75,9 @@ jobs:
           name: DIP Tour & Travels APK v${{ github.run_number }}
           files: DipTour.apk
           make_latest: false
+      # 📥 डाउनलोड link (tour-apk-v1) हमेशा नया APK दे — वही फ़ाइल बदल दें
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: tour-apk-v1
+          files: DipTour.apk
+          make_latest: false
