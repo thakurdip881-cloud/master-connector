@@ -162,7 +162,7 @@ service cloud.firestore {
     // 🆔 वर्कर का छोटा रेफर ID → uid (ग्राहक फ़ॉर्म पढ़ता है)
     match /refCodes/{code} {
       allow read: if true;
-      allow create: if active() && code.matches('DIP[A-Z0-9]{4,6}') && request.resource.data.keys().hasOnly(['uid']) && request.resource.data.uid == request.auth.uid;
+      allow create: if active() && code.matches('([0-9]{8}|DIP[A-Z0-9]{4,6})') && request.resource.data.keys().hasOnly(['uid']) && request.resource.data.uid == request.auth.uid;
       allow update, delete: if editor();
     }
     match /tCustomers/{uid} {
