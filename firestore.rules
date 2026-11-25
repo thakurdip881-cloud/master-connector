@@ -74,6 +74,17 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
 
+    // ---------- 📺 ड्यूटी स्क्रीन जाँच (3 मिनट, हर 5 सेकंड स्क्रीन + चेहरा की छोटी फ़ोटो) — वर्कर सिर्फ़ अपनी बनाए, एडमिन देखे ----------
+    match /scrRec/{id} {
+      allow read: if editor();
+      allow create: if active() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'duty', 'rec', 'i', 'scr', 'face', 'at'])
+        && request.resource.data.scr is string && request.resource.data.scr.size() < 300000
+        && request.resource.data.face is string && request.resource.data.face.size() < 200000;
+      allow update: if false;
+      allow delete: if isOwner();
+    }
+
     // ---------- वर्कर की काम की रिपोर्ट (हर 12 घंटे) — वर्कर अपनी भेजे/देखे, एडमिन सब देखे ----------
     match /reports/{id} {
       allow read: if editor() || (signed() && resource.data.uid == request.auth.uid);
@@ -92,7 +103,7 @@ service cloud.firestore {
       allow read: if editor() || (active() && resource.data.uid == request.auth.uid);
       allow create: if active() && request.resource.data.uid == request.auth.uid && request.resource.data.end == null;
       allow update: if editor() || (active() && resource.data.uid == request.auth.uid && resource.data.end == null
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['end', 'lastLat', 'lastLng', 'awayKm', 'lastAt', 'startLat', 'startLng', 'idleAlert', 'idleAt', 'chkAt', 'chkImg', 'vidRec', 'watchAt']));
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['end', 'lastLat', 'lastLng', 'awayKm', 'lastAt', 'startLat', 'startLng', 'idleAlert', 'idleAt', 'chkAt', 'chkImg', 'vidRec', 'watchAt', 'scrLive', 'scrRec', 'scrAt', 'scrDeny']));
       allow delete: if isOwner();
     }
 
