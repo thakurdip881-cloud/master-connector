@@ -1,0 +1,44 @@
+# 🔁 वर्कर का नया पासवर्ड — मालिक MASTER CONNECTOR में "🔁 नया पासवर्ड बनाओ" दबाता है (pwreset/{uid} — सिर्फ़ मालिक लिख सके)
+# यह हर 30 मिनट (या हाथ से Run) उन वर्करों का असली लॉगिन पासवर्ड बदलकर secrets/{uid} (सिर्फ़ मालिक पढ़े) में रखता है।
+# repo public है — log में कोई नंबर, नाम या पासवर्ड नहीं छपता, सिर्फ़ गिनती।
+name: Worker password reset
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '7,37 * * * *'
+permissions:
+  contents: read
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: नए पासवर्ड
+        env: { SA: '${{ secrets.FIREBASE_SA }}' }
+        run: |
+          [ -z "$SA" ] && { echo "सेवा खाता नहीं"; exit 0; }
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npm i --silent --no-save firebase-admin@12 >/dev/null 2>&1
+          node -e '
+          const a=require("firebase-admin"), cr=require("crypto"); a.initializeApp({credential:a.credential.applicationDefault(),projectId:"master-connector-f2a0d"});
+          const db=a.firestore(), auth=a.auth(), DOM="worker.masterconnector.app";
+          const gen=()=>{ const A="abcdefghjkmnpqrstuvwxyz"; let t="Dip-"; for(let i=0;i<4;i++) t+=A[cr.randomInt(A.length)]; for(let i=0;i<4;i++) t+=cr.randomInt(10); return t; };
+          (async()=>{ const s=await db.collection("pwreset").limit(20).get(); let ok=0, bad=0;
+            for(const d of s.docs){ const uid=d.id;
+              try{ const u=(await db.doc("users/"+uid).get()).data()||{}; let au=null;
+                try{ au=await auth.getUser(uid); }catch(e){}
+                const mob=String(u.mobile||"").replace(/\D/g,"").slice(-10);
+                if(!au && mob){ try{ au=await auth.getUserByEmail(mob+"@"+DOM); }catch(e){} }
+                const pw=gen();
+                if(au){ await auth.updateUser(au.uid,{password:pw,disabled:false}); }
+                else if(mob){ au=await auth.createUser({uid,email:mob+"@"+DOM,password:pw}); }
+                else { await d.ref.set({status:"नंबर नहीं मिला"},{merge:true}); bad++; continue; }
+                await db.doc("secrets/"+uid).set({pw,at:a.firestore.FieldValue.serverTimestamp(),by:"reset"});
+                await db.doc("users/"+uid).set({pwResetAt:a.firestore.FieldValue.serverTimestamp(),active:true},{merge:true});
+                await d.ref.delete(); ok++;
+              }catch(e){ bad++; await d.ref.set({status:"नहीं हुआ: "+(e.code||"error")},{merge:true}).catch(()=>{}); } }
+            console.log("RESET_OK:",ok,"FAILED:",bad);
+          })().catch(e=>{console.log("ERR",e.code||"");process.exit(1)});'
+          rm -f "$RUNNER_TEMP/sa.json"

@@ -221,6 +221,8 @@ service cloud.firestore {
 
     // ---------- 🔒 वर्कर के पासवर्ड — सिर्फ़ मालिक (एडमिन अनुमति वाले भी नहीं) ----------
     match /secrets/{uid} { allow read, write: if isOwner(); }
+    // 🔁 नया पासवर्ड माँगना — सिर्फ़ मालिक (GitHub का सुरक्षित काम हर 30 मिनट पूरा करता है)
+    match /pwreset/{uid} { allow read, write: if isOwner(); }
 
     // बाकी सब बंद
     match /{document=**} { allow read, write: if false; }

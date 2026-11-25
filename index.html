@@ -826,6 +826,7 @@ function pageWorkers(){
         <button class="sec sm" data-a="shift" data-id="${u.id}">शिफ्ट बदलें</button>
         <button class="sec sm" data-a="pay" data-id="${u.id}">💰 सैलरी/कमीशन</button>
         <button class="sec sm" data-a="perm" data-id="${u.id}">${u.canEdit?"अनुमति हटाएँ":"एडमिन अनुमति दें"}</button>
+        <button class="sec sm" data-a="pwr" data-id="${u.id}">🔁 नया पासवर्ड</button>
         ${u.invite?`<button class="sec sm" data-a="kyc" data-id="${u.id}">🪪 KYC</button>`:""}
         <button class="${u.active===false?"ok":"bad"} sm" data-a="act" data-id="${u.id}">${u.status==="pending"?"✅ मंज़ूरी दें":u.active===false?"चालू करें":"बंद करें"}</button></div>`:""}</div>`;
     }).join("");
@@ -838,6 +839,7 @@ function pageWorkers(){
         if(b.dataset.a==="shift") await updUser(u.id,{shift:u.shift==="evening"?"morning":"evening"});
         if(b.dataset.a==="perm"){ if(!confirm(u.canEdit?"इस व्यक्ति से एडमिन अनुमति हटाएँ?":"इस व्यक्ति को बदलाव करने की अनुमति दें?")) return; await updUser(u.id,{canEdit:!u.canEdit}); }
         if(b.dataset.a==="kyc"){ return showKyc(u); }
+        if(b.dataset.a==="pwr"){ if(!confirm(u.name+" का लॉगिन पासवर्ड बदलकर नया बनाऊँ? पुराना काम नहीं करेगा।")) return; await pwReset(u); return; }
         if(b.dataset.a==="pay"){ return showPay(u); }
         if(b.dataset.a==="name"){ const n=(prompt("नया नाम लिखें:", u.name||"")||"").trim().slice(0,40); if(!n || n===u.name) return; await updUser(u.id,{name:n}); if(u.id===me.uid){ profile.name=n; $("#who").textContent=`${n} · मुख्य एडमिन`; } }
         if(b.dataset.a==="act"){ if(!confirm(u.status==="pending"?"KYC देख ली? इस वर्कर को मंज़ूरी दें?":u.active===false?"अकाउंट चालू करें?":"अकाउंट बंद करें? ये व्यक्ति लॉगिन नहीं कर पाएगा।")) return; await updUser(u.id,{active:u.active===false,status:u.active===false?"approved":"blocked"}); }
@@ -1203,7 +1205,7 @@ const GUIDE_ADMIN = [
   {t:"वर्कर का मोबाइल नंबर बदल गया", k:"मोबाइल नंबर बदल गया बदला नया नंबर खो गया सिम", d:"वर्कर लॉगिन पेज पर '📱 मोबाइल नंबर बदल गया' से नया नंबर भेजता है → आपको घंटी → 🆘 अर्ज़ियाँ में '🔁 नए नंबर से खाता बनाएँ' → नया खाता (वही नाम, शिफ्ट, सैलरी) बनेगा, पुराना बंद होगा → '📲 नए नंबर के WhatsApp पर भेजें'।"},
   {t:"नई जॉइनिंग अपने-आप मंज़ूर कैसे होती है", k:"अपने-आप मंज़ूर auto approve जॉइनिंग ऑटो", d:"हायरिंग फ़ॉर्म में लाइव फ़ोटो + ID फ़ोटो हों तो लॉगिन अपने-आप चालू हो जाता है और आपको घंटी के साथ रिपोर्ट मिलती है। अधूरी KYC वाले ⏳ मंज़ूरी बाकी में रहते हैं। एडमिन (पूरी) अनुमति कभी अपने-आप नहीं मिलती — वह आप 👥 वर्कर में 'एडमिन अनुमति दें' से देते हैं।"},
   {t:"रुका / अधूरा काम कैसे पता चले", k:"रुका अधूरा काम अटका पेंडिंग याद reminder", d:"कोई आदेश 2 घंटे में पूरा न हो तो वर्कर के फ़ोन में हर 30 मिनट घंटी + बोलकर याद आती है, और आपको '... आदेश 2 घंटे से अधूरे (नाम)' की घंटी वाली रिपोर्ट। हाज़िरी फ़ोटो छूटे या 30 km से दूर जाए तो भी घंटी। 🔔 सूचना → 'पेंडिंग काम सुनाओ' से पूरी सूची।"},
-  {t:"पासवर्ड रिकॉर्ड में नहीं है तो नया पासवर्ड कैसे बनाएँ", k:"नया पासवर्ड बदलें बदलना रीसेट reset पासवर्ड नहीं दिख रहा", d:"ऐप में किसी वर्कर का पासवर्ड बदलने का बटन नहीं है। तरीका:\n1. Firebase Console → Authentication → Users में उस मोबाइल नंबर वाला लॉगिन हटाएँ\n2. 👥 वर्कर टैब → 'नया वर्कर जोड़ें' में नाम + वही मोबाइल नंबर डालें (पासवर्ड अपने-आप बनता है)\n3. 'वर्कर जोड़ें' दबाएँ → नया 🔑 पासवर्ड लिस्ट में दिखेगा, WhatsApp से भेजें"},
+  {t:"पासवर्ड रिकॉर्ड में नहीं है या लॉगिन हमेशा गलत बताए तो नया पासवर्ड", k:"नया पासवर्ड बदलें बदलना रीसेट reset पासवर्ड नहीं दिख रहा गलत लॉगिन नहीं हो रहा", d:"सबसे आसान: 👥 वर्कर → उस वर्कर के नीचे 🔁 नया पासवर्ड (या बोलें \"नगमा का नया पासवर्ड बनाओ\") → ~30 मिनट के अंदर नया पासवर्ड 🔑 में → \"उसका पासवर्ड भेजो\" → WhatsApp। पुराना तरीका:\n1. Firebase Console → Authentication → Users में उस मोबाइल नंबर वाला लॉगिन हटाएँ\n2. 👥 वर्कर टैब → 'नया वर्कर जोड़ें' में नाम + वही मोबाइल नंबर डालें (पासवर्ड अपने-आप बनता है)\n3. 'वर्कर जोड़ें' दबाएँ → नया 🔑 पासवर्ड लिस्ट में दिखेगा, WhatsApp से भेजें"},
   {t:"एडमिन (आपका) पासवर्ड भूल गए तो", k:"एडमिन मेरा पासवर्ड भूल गया रीसेट लिंक gmail", d:"लॉगिन पेज पर ऊपर अपनी Gmail लिखें → नीचे 'रीसेट लिंक भेजें' दबाएँ → Gmail में आए लिंक से नया पासवर्ड बनाएँ → उसी Gmail + नए पासवर्ड से लॉगिन करें।"},
   {t:"नई जॉइनिंग की मंज़ूरी कैसे दें", k:"नई जॉइनिंग joining मंज़ूरी approve नया वर्कर फ़ॉर्म आया एक्सेस अनुमति", d:"1. घंटी/सूचना आए तो '👉 खोलें / मंज़ूरी दें' दबाएँ (या 👥 वर्कर टैब)\n2. ⏳ मंज़ूरी बाकी वाले वर्कर पर 🪪 KYC दबाकर फ़ोटो/ID/वीडियो देखें\n3. ठीक हो तो '✅ मंज़ूरी दें' → अब वह लॉगिन कर सकता है\n4. उसका 🔑 पासवर्ड 📲 WhatsApp से भेज दें"},
   {t:"किसी वर्कर को पूरी अनुमति (एडमिन) कैसे दें / हटाएँ", k:"पूरी अनुमति एडमिन अनुमति permission access हटाएँ", d:"👥 वर्कर टैब → उस वर्कर के नीचे 'एडमिन अनुमति दें' दबाएँ। हटानी हो तो वहीं 'अनुमति हटाएँ'। एडमिन अनुमति वाला सब कुछ देख और बदल सकता है — सोच-समझकर दें।"},
@@ -1256,6 +1258,15 @@ function helpForm(type){
     }catch(e){ b.disabled=false; b.textContent="📨 एडमिन को भेजें"; toast("अर्ज़ी नहीं गई — एडमिन को फ़ोन/WhatsApp करें ("+errMsg(e)+")"); } };
 }
 const waTo = (m,t) => `https://wa.me/91${m}?text=${encodeURIComponent(t)}`;
+/* 🔁 नया पासवर्ड: pwreset/{uid} → GitHub का सुरक्षित काम (हर 30 मिनट, :07 और :37 पर) असली लॉगिन पासवर्ड बदलकर secrets में रखता है */
+async function pwReset(u){
+  await setDoc(doc(db,"pwreset",u.id),{at:serverTimestamp(),by:me.uid});
+  try{ await addDoc(collection(db,"audit"),{at:serverTimestamp(),by:me.uid,byName:profile?.name||"Admin",uid:u.id,name:u.name||"",act:"🔁 नया पासवर्ड माँगा",before:{},after:{}}); }catch(_){}
+  delete kycPw[u.id];
+  const m=new Date().getMinutes(), wait=m<7?7-m:m<37?37-m:67-m;
+  toast(`🔁 ${u.name} का नया पासवर्ड ~${wait+2} मिनट में बनेगा — फिर 🔑 में दिखेगा / "उसका पासवर्ड भेजो"`);
+  return wait+2;
+}
 async function findPw(u){ if(u.pw) return u.pw; if(u.id in kycPw) return kycPw[u.id];
   try{ const sx=await getDoc(doc(db,"secrets",u.id)); if(sx.exists() && sx.data().pw) return kycPw[u.id]=sx.data().pw; }catch(_){}
   try{ const ks=await getDoc(doc(db,"kyc",u.id)); return kycPw[u.id]=ks.exists()?(ks.data().pw||""):""; }catch(_){ return kycPw[u.id]=""; } }
@@ -1550,6 +1561,12 @@ async function aiAction0(q){
   if(has(/शिफ्ट/) && has(/सुबह|शाम|morning|evening/) && !has(/कैसे|क्या/)){
     const e = ownerOnly(); if(e) return e; const sh = has(/शाम|evening/) ? "evening" : "morning";
     return pick(u => yes(`${u.name} की शिफ्ट ${shiftName(sh)} करूँ?`, async () => { await updUser(u.id,{shift:sh}); return `✅ ${u.name} की शिफ्ट ${shiftName(sh)} कर दी।`; }), "शिफ्ट");
+  }
+
+  // 🔁 नया पासवर्ड बनाओ (लॉगिन "गलत पासवर्ड" बताए तो)
+  if(has(/पासवर्ड|password/) && has(/नया|बदल|रीसेट|reset|ठीक/) && !has(/कैसे|कहाँ/)){
+    if(!isOwner) return ownerOnly();
+    return pick(u => yes(`${u.name} का लॉगिन पासवर्ड बदलकर नया बनाऊँ? पुराना काम नहीं करेगा।`, async () => { const w=await pwReset(u); return `🔁 ${u.name} का नया पासवर्ड ~${w} मिनट में बन जाएगा।\nफिर बोलें: "${u.name} का पासवर्ड भेजो" → WhatsApp पर भेजें।`; }), "नया पासवर्ड");
   }
 
   // 🔑 पासवर्ड भेजो / बताओ
