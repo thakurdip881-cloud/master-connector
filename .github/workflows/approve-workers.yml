@@ -1,5 +1,5 @@
 # ✅ वर्करों को मंज़ूरी / खाता बनाना (मालिक के कहने पर) — हाथ से Run।
-# input "data" = [{"n":"नाम","m":"10 अंक मोबाइल"}] (log में छिपा रहता है)।
+# input "data" = [{"n":"नाम","m":"10 अंक मोबाइल"}] — event फ़ाइल से पढ़ा जाता है, log में नहीं छपता।
 # खाता है → मंज़ूरी + लॉगिन चालू। नहीं है → नया लॉगिन + users में जोड़ना + पासवर्ड secrets में (मालिक ऐप में देखे)।
 # repo public है: log में सिर्फ़ 1/2/3 और क्या हुआ।
 name: Approve workers
@@ -16,9 +16,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - name: मंज़ूरी
-        env: { SA: '${{ secrets.FIREBASE_SA }}', WD: '${{ inputs.data }}' }
+        env: { SA: '${{ secrets.FIREBASE_SA }}' }
         run: |
-          echo "::add-mask::$WD"
           [ -z "$SA" ] && { echo "सेवा खाता नहीं"; exit 1; }
           printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
@@ -27,7 +26,7 @@ jobs:
           const a=require("firebase-admin"), cr=require("crypto"); a.initializeApp({credential:a.credential.applicationDefault(),projectId:"master-connector-f2a0d"});
           const db=a.firestore(), auth=a.auth(), DOM="worker.masterconnector.app", TS=a.firestore.FieldValue.serverTimestamp();
           const gen=()=>{ const A="abcdefghjkmnpqrstuvwxyz"; let t="Dip-"; for(let i=0;i<4;i++) t+=A[cr.randomInt(A.length)]; for(let i=0;i<4;i++) t+=cr.randomInt(10); return t; };
-          const W=JSON.parse(process.env.WD||"[]"), last=m=>String(m||"").replace(/\D/g,"").slice(-10);
+          const W=JSON.parse((JSON.parse(require("fs").readFileSync(process.env.GITHUB_EVENT_PATH,"utf8")).inputs||{}).data||"[]"), last=m=>String(m||"").replace(/\D/g,"").slice(-10);
           (async()=>{ const us=(await db.collection("users").get()).docs;
             for(let i=0;i<W.length;i++){ const w=W[i], mob=last(w.m), email=mob+"@"+DOM;
               try{ const ds=us.filter(d=>last(d.data().mobile)===mob || d.data().email===email);
