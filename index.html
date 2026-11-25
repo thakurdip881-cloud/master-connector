@@ -1208,6 +1208,7 @@ function startVoiceAlerts(){
 
 /* 📘 AI गाइड — पूरी ऐप चलाने का तरीका (🎙️ पूछें / 🤖 AI में पूछने पर यही बताता है) */
 const GUIDE_ADMIN = [
+  {t:"AI से काम करवाना (बोलकर)", k:"काम करवाना करो बोलकर हुक्म आदेश ai खुद", d:"बस बोलें, AI पूछेगा 'करूँ?' — ✅ दबाएँ या 'हाँ' बोलें, AI खुद कर देगा:\n• रुका काम पूरा करो (मंज़ूरी + अधूरे आदेश की याद + अर्ज़ियाँ)\n• सबको मंज़ूरी दो / Raj को मंज़ूरी दो\n• नगमा को पूरी अनुमति दो / अनुमति हटाओ\n• Raj का खाता बंद करो / चालू करो\n• Raj का पासवर्ड भेजो\n• Raj को काम दो → AI पूछेगा कौन सा काम → बोलें → हाँ\n• सबको आदेश: … / Raj को आदेश: …\n• Raj की शिफ्ट शाम करो\n• अर्ज़ियाँ दिखाओ"},
   {t:"वर्कर लॉगिन कैसे करें (मोबाइल नंबर + पासवर्ड)", k:"वर्कर लॉगिन login कैसे करे खाता अकाउंट ऑनलाइन नहीं जा रहा मोबाइल नंबर", d:"1. ऊपर वाले खाने में सिर्फ़ 10 अंक का मोबाइल नंबर (Gmail नहीं, +91 या 0 नहीं)\n2. नीचे पासवर्ड वैसा ही जैसा 🔑 में है, जैसे Dip-abcd1234 (बड़ा D और डैश -)\n3. 👁️ दबाकर देख लें, फिर 'लॉगिन करें'\n4. लॉगिन के बाद लॉगआउट न करें — दोबारा पासवर्ड नहीं माँगेगा"},
   {t:"Gmail से लॉगिन क्यों नहीं होता", k:"gmail जीमेल ईमेल email लॉगिन नहीं हो रहा गलत", d:"वर्कर के खाते मोबाइल नंबर से बने हैं — उनकी Gmail से लॉगिन कभी नहीं होगा। Gmail से सिर्फ़ मुख्य एडमिन (आप) लॉगिन करते हैं। वर्कर हमेशा मोबाइल नंबर + Dip-… पासवर्ड डालें।"},
   {t:"वर्कर का पासवर्ड कहाँ मिलेगा / कैसे ढूँढें", k:"पासवर्ड password ढूँढें कहाँ मिलेगा भूल गया पता नहीं गलत", d:"1. नीचे 👥 वर्कर टैब खोलें\n2. 'सभी लोग' में वर्कर के नाम के नीचे 🔑 पासवर्ड दिखेगा\n3. 📋 कॉपी या 📲 WhatsApp दबाएँ — लॉगिन का तरीका + पासवर्ड वर्कर को चला जाएगा\n(आप यहाँ 'Raj का पासवर्ड' जैसा भी पूछ सकते हैं)"},
@@ -1339,10 +1340,122 @@ function workerReminder(getCmds){
   setTimeout(chk, 3*60e3); sub((()=>{ const iv=setInterval(chk, 30*60e3); return ()=>clearInterval(iv); })());
 }
 
+/* ⚡ AI से काम करवाना — "राज का खाता बंद करो", "नगमा को पूरी अनुमति दो", "सबको आदेश: …", "रुका काम पूरा करो" …
+   हर बदलाव से पहले ✅ हाँ (या बोलकर "हाँ") — फिर AI खुद करके रिपोर्ट देता है */
+const DV = {"क":"k","ख":"kh","ग":"g","घ":"gh","ङ":"n","च":"ch","छ":"chh","ज":"j","झ":"jh","ञ":"n","ट":"t","ठ":"th","ड":"d","ढ":"dh","ण":"n","त":"t","थ":"th","द":"d","ध":"dh","न":"n","प":"p","फ":"f","ब":"b","भ":"bh","म":"m","य":"y","र":"r","ल":"l","व":"v","श":"sh","ष":"sh","स":"s","ह":"h","ळ":"l","अ":"a","आ":"a","इ":"i","ई":"i","उ":"u","ऊ":"u","ए":"e","ऐ":"ai","ओ":"o","औ":"au","ऋ":"ri"};
+const skel = w => { let x = String(w||"").toLowerCase().replace(/[ऀ-ॿ]/g, c => DV[c] ?? "");
+  x = x.replace(/[^a-z]/g,"").replace(/ph/g,"f").replace(/w/g,"v").replace(/z/g,"j").replace(/q/g,"k").replace(/ck/g,"k").replace(/h/g,"");
+  return x ? x[0] + x.slice(1).replace(/[aeiou]/g,"") : ""; };
+const ACT_WORDS = /^(का|की|के|को|से|में|पर|और|ने|सब|सबको|सभी|खाता|अकाउंट|account|बंद|चालू|करो|कर|करें|दो|दें|दे|दीजिए|कीजिए|मंज़ूरी|मंजूरी|पूरी|अनुमति|परमिशन|एडमिन|हटाओ|हटा|पासवर्ड|भेजो|भेज|बताओ|बता|शिफ्ट|सुबह|शाम|आदेश|कमांड|हुक्म|मैसेज|वर्कर|जी|प्लीज|please|अभी|उसका|उसकी|नया|ब्लॉक|खोलो|वापस)$/;
+function findUsers(q, users){
+  const ws = String(q).split(/[\s,।.?!:]+/).filter(w => w && !ACT_WORDS.test(w)).map(skel).filter(s => s.length >= 2);
+  const dig = (String(q).match(/[6-9]\d{9}/)||[])[0];
+  if(dig){ const d = users.filter(u => u.mobile===dig || String(u.email).startsWith(dig)); if(d.length) return d; }
+  const sc = users.map(u => { const ns = String(u.name||"").split(/\s+/).map(skel).filter(Boolean);
+    return { u, n: ws.filter(w => ns.some(n => n === w || (w.length >= 3 && n.startsWith(w)))).length + (ns.length && ws.length && ns.every(n => ws.includes(n)) ? 0.5 : 0) }; }).filter(x => x.n >= 1);
+  const top = Math.max(0, ...sc.map(x => x.n)); return sc.filter(x => x.n === top).map(x => x.u);
+}
+async function aiAction(q){
+  if(!canEdit) return null;
+  const t = " " + String(q).toLowerCase() + " ";
+  const has = re => re.test(t);
+  const users = (await getDocs(collection(db,"users"))).docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.id!==OWNER_UID && u.role!=="admin");
+  const pick = (fn, verb) => { const m = findUsers(q, users);
+    if(m.length === 1) return fn(m[0]);
+    const list = m.length ? m : users;
+    return { text: m.length ? `${m.length} लोग मिले — किसका ${verb}?` : `किसका ${verb}? नाम पर दबाएँ (या नाम साफ़ बोलें)`, buttons: list.slice(0,8).map(u => ({ label: u.name, run: async () => fn(u) })) }; };
+  const ownerOnly = () => isOwner ? null : "यह काम सिर्फ़ मुख्य एडमिन कर सकते हैं।";
+  const yes = (text, run) => ({ text: text + "\n\n✅ हाँ दबाएँ या बोलें \"हाँ\"", say: text + "। करूँ? हाँ या नहीं बोलें।", confirm: true, buttons: [{ label: "✅ हाँ, करो", run }, { label: "❌ नहीं", run: async () => "ठीक है, नहीं किया।" }] });
+
+  // ▶️ रुका/पेंडिंग काम पूरा करो — AI खुद आगे बढ़ाए
+  if(has(/रुका|रुके|अधूर|पेंडिंग|बाकी काम|कंटिन्यू|continue|आगे बढ़/) && has(/पूरा|कर|कंटिन्यू|continue|बढ़|निपटा|दिला/))
+    return yes("मैं ये करूँगा: (1) KYC पूरी वाली जॉइनिंग मंज़ूर (2) 2 घंटे से अधूरे आदेश वाले हर वर्कर को 🔁 याद का आदेश (3) वर्कर अर्ज़ियों की सूची खोलूँगा", async () => {
+      const out = [];
+      if(isOwner){ const before = users.filter(u=>u.status==="pending").length; await autoApprove(); const after = (await getDocs(collection(db,"users"))).docs.filter(d=>d.data().status==="pending").length; out.push(`✅ ${before-after} जॉइनिंग मंज़ूर${after?`, ${after} की KYC अधूरी — 🪪 देखें`:""}`); }
+      const st = await stuckCmds(); let n = 0;
+      for(const c of st) for(const name of c.left){ const u = users.find(x=>x.name===name); if(!u) continue;
+        await addDoc(collection(db,"commands"),{text:`🔁 याद: ${c.text}\n(${c.hrs} घंटे से अधूरा — काम करके ✅ हो गया दबाएँ)`,to:u.id,toName:u.name,kind:"msg",ref:"",autoOpen:false,by:me.uid,byName:"🤖 AI",createdAt:serverTimestamp()}); n++; }
+      out.push(n ? `🔁 ${n} वर्कर को अधूरे आदेश की याद भेजी` : "✅ कोई आदेश 2 घंटे से अधूरा नहीं");
+      let hs = []; try{ hs = (await getDocs(collection(db,"help"))).docs.map(d=>d.data()).filter(h=>!h.done); }catch(_){}
+      if(hs.length){ out.push(`🆘 ${hs.length} अर्ज़ी बाकी — सूची खोल दी, WhatsApp बटन दबाएँ`); setTimeout(showHelpList, 1500); } else out.push("✅ कोई वर्कर अर्ज़ी बाकी नहीं");
+      return "रिपोर्ट:\n" + out.join("\n"); });
+
+  // 🆘 अर्ज़ियाँ
+  if(has(/अर्ज़ी|अर्जी|अर्ज़ियाँ|अर्जियां/)) { setTimeout(showHelpList, 300); return "🆘 वर्कर अर्ज़ियाँ खोल रहा हूँ — पासवर्ड वाली पर 📲 WhatsApp, नंबर वाली पर 🔁 नया खाता दबाएँ।"; }
+
+  // 🧑‍🔧 "Raj को काम दो / सौंपो" → AI पूछे कौन सा काम → आप बोलें → ✅ ओके → काम शुरू (वर्कर के फ़ोन में घंटी)
+  if(has(/काम/) && has(/दो|दें|सौंप|असाइन|assign|देना/) && !has(/कैसे|क्या|कितन|बाकी|रुका|पूरा करो/)){
+    const files = await getDocs(query(collection(db,"files"),orderBy("createdAt","desc"),limit(100))).then(s=>s.docs.map(d=>({id:d.id,...d.data()}))).catch(()=>[]);
+    const give = u => ({ text: `${u?u.name:"सबको"} को कौन सा काम देना है? बोलिए या लिखिए (फ़ाइल का नाम बोलेंगे तो फ़ाइल भी साथ जाएगी)`, say: `${u?u.name:"सबको"} को कौन सा काम देना है? बोलिए।`,
+      next: async task => { task = String(task).trim(); if(task.length < 3) return "काम साफ़ बोलिए — फिर से 'काम दो' बोलें।";
+        const ts = String(task).split(/\s+/).map(skel).filter(x=>x.length>=3);
+        const f = files.find(x => { const fs = String(x.title||"").split(/\s+/).map(skel); return ts.some(w => fs.some(n => n && (n===w || n.startsWith(w)))); });
+        return yes(`${u?u.name:"सबको"} को काम: "${task}"${f?`\n📎 फ़ाइल साथ: ${f.title}`:""}\nभेजते ही वर्कर के फ़ोन में घंटी बजेगी, 2 घंटे में पूरा न हुआ तो अपने-आप याद।`, async () => {
+          await addDoc(collection(db,"commands"),{text:task,to:u?u.id:"all",toName:u?u.name:"सब",kind:f?"link":"msg",ref:f&&/^https?:/.test(f.url||"")?f.url:"",autoOpen:false,by:me.uid,byName:profile.name||"Admin",createdAt:serverTimestamp()});
+          return `✅ काम शुरू — ${u?u.name:"सबको"} को भेज दिया: "${task}"${f?` (📎 ${f.title})`:""}\nपूरा होते ही आपको घंटी + रिपोर्ट मिलेगी।`; }); } });
+    if(has(/सब|सभी|all/)) return give(null);
+    return pick(u => give(u), "काम");
+  }
+
+  // 📢 आदेश भेजो
+  const cm = String(q).match(/(?:आदेश|कमांड|हुक्म|मैसेज)\s*(?:भेजो|दो|भेजें)?\s*[:：\-–]?\s*(?:कि\s+)?(.{3,})$/);
+  if(cm && has(/आदेश|कमांड|हुक्म|मैसेज/)){
+    const text = cm[1].trim(), before = String(q).slice(0, cm.index);
+    const toAll = /सब|सभी|all/.test(before) || !findUsers(before, users).length;
+    const send = async u => { await addDoc(collection(db,"commands"),{text,to:u?u.id:"all",toName:u?u.name:"सब",kind:"msg",ref:"",autoOpen:false,by:me.uid,byName:profile.name||"Admin",createdAt:serverTimestamp()}); return `✅ आदेश भेज दिया — ${u?u.name:"सबको"}: "${text}"\nपूरा होने पर घंटी बजेगी।`; };
+    if(toAll) return yes(`सबको आदेश भेजूँ: "${text}"`, () => send(null));
+    return pick(u => yes(`${u.name} को आदेश भेजूँ: "${text}"`, () => send(u)), "आदेश");
+  }
+
+  // ✅ मंज़ूरी
+  if(has(/मंज़ूरी|मंजूरी|approve|जॉइनिंग/) && !has(/कैसे|क्या|कहाँ/)){
+    const e = ownerOnly(); if(e) return e;
+    const pend = users.filter(u=>u.status==="pending");
+    if(!pend.length) return "✅ कोई मंज़ूरी बाकी नहीं।";
+    const ok = async u => { await updateDoc(doc(db,"users",u.id),{active:true,status:"auto",autoAt:serverTimestamp()}); return `✅ ${u.name} को मंज़ूरी दे दी — अब लॉगिन कर सकता है। पासवर्ड भेजना हो तो बोलें "${u.name} का पासवर्ड भेजो"।`; };
+    if(has(/सब|सभी|all/)) return yes(`${pend.length} लोगों को मंज़ूरी दूँ: ${pend.map(u=>u.name).join(", ")}`, async () => { for(const u of pend) await ok(u); return `✅ ${pend.length} को मंज़ूरी दे दी: ${pend.map(u=>u.name).join(", ")}`; });
+    const m = findUsers(q, pend); if(m.length===1) return yes(`${m[0].name} को मंज़ूरी दूँ?`, () => ok(m[0]));
+    return { text: "किसको मंज़ूरी दूँ?", buttons: pend.map(u => ({ label: u.name, run: async () => ok(u) })).concat([{ label: "✅ सबको", run: async () => { for(const u of pend) await ok(u); return `✅ ${pend.length} को मंज़ूरी दे दी`; } }]) };
+  }
+
+  // 👑 एडमिन अनुमति
+  if(has(/अनुमति|परमिशन|permission|एडमिन बना/) && !has(/कैसे|क्या/)){
+    const e = ownerOnly(); if(e) return e; const off = has(/हटा|वापस|बंद|ले लो/);
+    return pick(u => yes(`${u.name} की एडमिन (पूरी) अनुमति ${off?"हटाऊँ":"दूँ — वह सब कुछ देख और बदल सकेगा"}?`, async () => {
+      const d = off ? {canEdit:false} : {canEdit:true, active:true}; if(!off && u.status==="pending") d.status="auto";
+      await updateDoc(doc(db,"users",u.id), d); return `✅ ${u.name} की एडमिन अनुमति ${off?"हटा दी":"दे दी"}।`; }), "अनुमति");
+  }
+
+  // 🔒 खाता बंद / चालू
+  if(has(/खाता|अकाउंट|account|ब्लॉक/) && has(/बंद|ब्लॉक|चालू|खोल/) && !has(/कैसे|क्या/)){
+    const e = ownerOnly(); if(e) return e; const on = has(/चालू|खोल/) && !has(/बंद|ब्लॉक/);
+    return pick(u => yes(`${u.name} का खाता ${on?"चालू":"बंद"} करूँ?${on?"":" वह तुरंत लॉग आउट होगा।"}`, async () => {
+      await updateDoc(doc(db,"users",u.id), on ? {active:true} : {active:false}); return `✅ ${u.name} का खाता ${on?"चालू":"बंद"} कर दिया।`; }), on?"खाता चालू":"खाता बंद");
+  }
+
+  // 🕘 शिफ्ट
+  if(has(/शिफ्ट/) && has(/सुबह|शाम|morning|evening/) && !has(/कैसे|क्या/)){
+    const e = ownerOnly(); if(e) return e; const sh = has(/शाम|evening/) ? "evening" : "morning";
+    return pick(u => yes(`${u.name} की शिफ्ट ${shiftName(sh)} करूँ?`, async () => { await updateDoc(doc(db,"users",u.id),{shift:sh}); return `✅ ${u.name} की शिफ्ट ${shiftName(sh)} कर दी।`; }), "शिफ्ट");
+  }
+
+  // 🔑 पासवर्ड भेजो / बताओ
+  if(has(/पासवर्ड|password/) && has(/भेज|सेंड|send|बता|दो|दिखा/) && !has(/कैसे|कहाँ|भूल/)){
+    if(!isOwner) return ownerOnly();
+    return pick(async u => { const pw = await findPw(u), mob = u.mobile || String(u.email).split("@")[0];
+      if(!pw) return `${u.name} का पासवर्ड रिकॉर्ड में नहीं। बोलें "नया पासवर्ड कैसे बनाएँ" — मैं तरीका बताऊँगा।`;
+      const send = has(/भेज|सेंड|send/);
+      return { text: `${u.name}\nमोबाइल: ${mob}\nपासवर्ड: ${pw}`, say: `${u.name} का पासवर्ड स्क्रीन पर है।${send?" WhatsApp पर भेजने के लिए बटन दबाएँ।":""}`,
+        buttons: [{ label: "📲 WhatsApp पर भेजें", run: async () => { window.open(waTo(mob, `नमस्ते ${u.name}, MASTER CONNECTOR लॉगिन:\nमोबाइल: ${mob}\nपासवर्ड: ${pw}\n(बड़ा D और डैश - वैसे ही लिखें)`), "_blank"); return `✅ WhatsApp खुल गया — ${u.name} को भेजें दबाएँ।`; } },
+                  { label: "📋 कॉपी", run: async () => { try{ await navigator.clipboard.writeText(pw); }catch(_){} return "📋 पासवर्ड कॉपी हो गया।"; } }] }; }, "पासवर्ड");
+  }
+  return null;
+}
+
 function startVoiceAI(){
   if(!window.DipVoiceAI){ if(vaTry++<20) setTimeout(startVoiceAI,500); return; }
-  DipVoiceAI.init({ title: canEdit ? "MASTER CONNECTOR" : "मेरा काम", bottom: 78,
-    chips: canEdit ? ["आज का हाल बताओ","कितने काम बाकी हैं?","वर्कर लॉगिन कैसे करें?","पासवर्ड कहाँ मिलेगा?","सभी वर्कर के पासवर्ड","नई जॉइनिंग मंज़ूरी कैसे?","खाता बंद कैसे करें?","मोबाइल नंबर बदल गया","रुका काम कैसे पता चले?","ग्राहक मैसेज का जवाब कैसे?"] : ["मेरे कितने आदेश बाकी हैं?","मेरी ड्यूटी का हाल","आज का हाल बताओ"],
+  DipVoiceAI.init({ title: canEdit ? "MASTER CONNECTOR" : "मेरा काम", bottom: 78, action: aiAction,
+    chips: canEdit ? ["Raj को काम दो","रुका काम पूरा करो","सबको मंज़ूरी दो","सबको आदेश: आज समय पर आएँ","Raj का पासवर्ड भेजो","नगमा को पूरी अनुमति दो","आज का हाल बताओ","कितने काम बाकी हैं?","वर्कर लॉगिन कैसे करें?","पासवर्ड कहाँ मिलेगा?","सभी वर्कर के पासवर्ड","नई जॉइनिंग मंज़ूरी कैसे?","खाता बंद कैसे करें?","मोबाइल नंबर बदल गया","रुका काम कैसे पता चले?","ग्राहक मैसेज का जवाब कैसे?"] : ["मेरे कितने आदेश बाकी हैं?","मेरी ड्यूटी का हाल","आज का हाल बताओ"],
     facts: async () => {
       const F = [], now = new Date(), day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const acksQ = canEdit ? query(collection(db,"acks"),orderBy("at","desc"),limit(1500)) : query(collection(db,"acks"),where("uid","==",me.uid),limit(500));

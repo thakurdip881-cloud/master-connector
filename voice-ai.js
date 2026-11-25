@@ -157,8 +157,29 @@
 .dva .mut{color:#9ca3af;font-size:12px;margin-top:6px}`;
     document.head.appendChild(s);
   }
+  /* ⚡ काम करवाना: OPT.action(q) → {text, buttons:[{label, run:async()=>text|{text,buttons}}], confirm:true}
+     confirm वाले काम पर बोलकर "हाँ" कहें या ✅ दबाएँ → काम हो जाता है */
+  let PEND = null, NEXT = null;
+  function showAct(r, q) {
+    const a = box.querySelector('.ans'); if (typeof r === 'string') r = { text: r };
+    a.textContent = (q ? '❓ ' + q + '\n\n' : '') + r.text;
+    PEND = r.confirm && r.buttons && r.buttons[0] ? r.buttons[0] : null; NEXT = r.next || null;
+    if (r.buttons && r.buttons.length) {
+      const d = document.createElement('div'); d.className = 'chips';
+      r.buttons.forEach(b => { const x = document.createElement('button'); x.textContent = b.label; x.style.cssText = 'background:#f59e0b;color:#1e0b36;font-weight:700;border:0';
+        x.onclick = async () => { PEND = null; x.disabled = true; a.textContent = '⏳ कर रहा हूँ…'; let o; try { o = await b.run(); } catch (e) { o = '❌ नहीं हुआ: ' + (e.message || e); } showAct(o || '✅ हो गया'); }; d.appendChild(x); });
+      a.appendChild(d);
+    }
+    if (speakOn) speak(r.say || r.text);
+  }
   async function ask(q) {
-    const a = box.querySelector('.ans'); a.textContent = '⏳ देख रहा हूँ…';
+    const a = box.querySelector('.ans');
+    const nq = norm(q);
+    if (PEND && /^(हा|हां|हाँ|yes|ok|ओके|ठीक|कर दो|करो|जी)/.test(nq)) { const b = PEND; PEND = null; a.textContent = '⏳ कर रहा हूँ…'; let o; try { o = await b.run(); } catch (e) { o = '❌ नहीं हुआ: ' + (e.message || e); } showAct(o || '✅ हो गया', q); return; }
+    if ((PEND || NEXT) && /^(नहीं|नही|no|रद्द|मत|cancel)/.test(nq)) { PEND = null; NEXT = null; showAct('❌ ठीक है, नहीं किया।', q); return; }
+    if (NEXT) { const f = NEXT; NEXT = null; a.textContent = '⏳ देख रहा हूँ…'; let o; try { o = await f(q); } catch (e) { o = '❌ ' + (e.message || e); } showAct(o || '✅ हो गया', q); return; }
+    if (OPT.action) { let r = null; a.textContent = '⏳ देख रहा हूँ…'; try { r = await OPT.action(q); } catch (e) { r = '❌ ' + (e.message || e); } if (r) { showAct(r, q); return; } }
+    a.textContent = '⏳ देख रहा हूँ…';
     try { FACTS = (await OPT.facts()) || []; } catch (e) { FACTS = []; a.textContent = '❌ जानकारी नहीं मिल पाई: ' + (e.message || e); return; }
     const t = answer(q, FACTS); a.textContent = '❓ ' + q + '\n\n' + t; if (speakOn) speak(t);
   }
