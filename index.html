@@ -80,7 +80,7 @@ a{color:var(--pri2);word-break:break-all}
 <script type="module">
 import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup, linkWithCredential, EmailAuthProvider, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, getFirestore, writeBatch, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, getFirestore, writeBatch, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, deleteField, onSnapshot, query, where, orderBy, limit, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyApw_GttyXeEmHFvKlJjoQFI11KuL4ahxI",
@@ -806,7 +806,8 @@ function pageWorkers(){
     const tmp = initializeApp(firebaseConfig, "tmp"+Date.now());
     try{
       const cred = await createUserWithEmailAndPassword(getAuth(tmp), email, pass);
-      await setDoc(doc(db,"users",cred.user.uid),{name,email,mobile:mobDigits($("#we").value)||"",role:"worker",canEdit:false,active:true,shift,pw:pass,createdAt:serverTimestamp()});
+      await setDoc(doc(db,"users",cred.user.uid),{name,email,mobile:mobDigits($("#we").value)||"",role:"worker",canEdit:false,active:true,shift,createdAt:serverTimestamp()});
+      await setDoc(doc(db,"secrets",cred.user.uid),{pw:pass,at:serverTimestamp()}).catch(()=>{}); kycPw[cred.user.uid]=pass;
       toast(`✅ ${name} जोड़ा गया — पासवर्ड: ${pass}`); ["#wn","#we"].forEach(s=>$(s).value=""); $("#wp").value=genPw();
     }catch(e){ toast(errMsg(e)); }
     try{ await signOut(getAuth(tmp)); await deleteApp(tmp); }catch(e){}
@@ -829,7 +830,7 @@ function pageWorkers(){
         <button class="${u.active===false?"ok":"bad"} sm" data-a="act" data-id="${u.id}">${u.status==="pending"?"✅ मंज़ूरी दें":u.active===false?"चालू करें":"बंद करें"}</button></div>`:""}</div>`;
     }).join("");
     if(isOwner) $("#wl").querySelectorAll(".kpw").forEach(async el=>{ if(el.querySelector(".pwcp")) return; const id=el.dataset.uid;
-      if(!(id in kycPw)) try{ const ks=await getDoc(doc(db,"kyc",id)); kycPw[id]=ks.exists()?(ks.data().pw||""):""; }catch(e){ kycPw[id]=""; }
+      if(!(id in kycPw)) await findPw({id});
       el.innerHTML = kycPw[id] ? pwRow(kycPw[id]) : "🔑 पासवर्ड रिकॉर्ड में नहीं — Firebase → Authentication से यह नंबर हटाकर ऊपर 'वर्कर जोड़ें' से दोबारा जोड़ें, नया पासवर्ड यहीं दिखेगा"; });
     $("#wl").querySelectorAll("button[data-a]").forEach(b=>b.onclick=async()=>{
       const u=rows.find(r=>r.id===b.dataset.id); const r=doc(db,"users",u.id);
@@ -853,7 +854,7 @@ const cmdLink = c => { const l = c.ref || c.link || ""; return /^https?:\/\//.te
 const cmdTo = c => c.to || c.target || "all";
 const myCmdQuery = () => query(collection(db,"commands"),where("to","in",["all",me.uid]),limit(100));
 const sortCmds = s => s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(toD(b.createdAt)||9e15)-(toD(a.createdAt)||9e15));
-const ack = (id,status) => setDoc(doc(db,"acks",id+"_"+me.uid),{cmd:id,uid:me.uid,name:profile?.name||me.email,status,at:serverTimestamp()});
+const ack = (id,status,extra) => setDoc(doc(db,"acks",id+"_"+me.uid),{cmd:id,uid:me.uid,name:profile?.name||me.email,status,at:serverTimestamp(),...(extra||{})},{merge:true});
 let myAcks = {};
 function watchCommands(){
   if(canEdit) return;
@@ -868,6 +869,11 @@ function watchCommands(){
   }, ()=>{}));
 }
 function markSeen(id){ const seen=JSON.parse(localStorage.getItem("mc_seen")||"[]"); if(!seen.includes(id)){ seen.push(id); localStorage.setItem("mc_seen",JSON.stringify(seen.slice(-300))); } if(myAcks[id]!=="done") ack(id,"seen").catch(()=>{}); }
+function replyTo(uid,name){
+  const p=$("#popup"); p.innerHTML=`<div class="card"><h3 style="margin:0">↩️ ${esc(name)} को जवाब</h3><textarea id="rtT" rows="3" maxlength="1000" style="width:100%;margin-top:8px" placeholder="जवाब लिखें"></textarea><div class="row" style="margin-top:8px"><button class="ok" id="rtGo">📨 भेजें</button><button class="sec" id="rtX">बंद</button></div></div>`;
+  p.classList.remove("hidden"); $("#rtX").onclick=()=>p.classList.add("hidden");
+  $("#rtGo").onclick=async()=>{ const t=$("#rtT").value.trim(); if(!t) return toast("जवाब लिखें"); try{ await addDoc(collection(db,"commands"),{text:t,to:uid,toName:name,kind:"msg",ref:"",autoOpen:false,by:me.uid,byName:profile.name||"Admin",createdAt:serverTimestamp()}); p.classList.add("hidden"); toast("📨 "+name+" के ऐप में चला गया (घंटी के साथ)"); }catch(e){ toast(errMsg(e)); } };
+}
 function showCommandPopup(id,c){
   const p=$("#popup"); if(!p.classList.contains("hidden")) { setTimeout(()=>showCommandPopup(id,c),1500); return; }
   try{ navigator.vibrate?.([300,150,300]); }catch(e){}
@@ -875,12 +881,16 @@ function showCommandPopup(id,c){
   p.innerHTML = `<div class="card"><div class="between"><h3 style="margin:0">📢 एडमिन की कमांड</h3><span class="muted">${fmtT(c.createdAt)}</span></div>
     <p style="font-size:18px;white-space:pre-wrap">${linkify(c.text)}</p>
     ${link?`<p><a href="${esc(link)}" target="_blank" rel="noopener">${esc(link)}</a></p>`:""}
-    <div class="row">${link?`<button class="sec" id="cOpen">खोलें</button>`:""}<button class="sec" id="cOk">देख लिया</button><button class="ok" id="cDone">✅ हो गया</button></div></div>`;
+    <div class="row">${link?`<button class="sec" id="cOpen">खोलें</button>`:""}<button class="sec" id="cOk">देख लिया</button><button class="ok" id="cDone">✅ हो गया</button></div>
+    <textarea id="cRep" rows="2" maxlength="500" placeholder="✍️ एडमिन को जवाब लिखें (ज़रूरी नहीं)" style="width:100%;margin-top:10px"></textarea>
+    <button class="sec" id="cRepB" style="width:100%;margin-top:6px">📨 जवाब भेजें</button></div>`;
   p.classList.remove("hidden");
   const close = () => { markSeen(id); p.classList.add("hidden"); };
   $("#cOk").onclick = close;
   $("#cDone").onclick = () => { close(); ack(id,"done").then(()=>toast("✅ एडमिन को बता दिया")).catch(e=>toast(errMsg(e))); };
   if(link) $("#cOpen").onclick = () => { close(); window.open(link,"_blank"); };
+  $("#cRepB").onclick = () => { const t=$("#cRep").value.trim(); if(t.length<1) return toast("जवाब लिखें"); markSeen(id); p.classList.add("hidden");
+    ack(id, myAcks[id]==="done"?"done":"seen", {reply:t.slice(0,500), replyAt:serverTimestamp()}).then(()=>toast("📨 जवाब एडमिन को चला गया")).catch(e=>toast(errMsg(e))); };
   if(link && c.autoOpen){ close(); window.open(link,"_blank"); }
 }
 function pageCmd(){
@@ -916,8 +926,10 @@ function pageCmd(){
       const A=acks.filter(a=>a.cmd===c.id), dn=A.filter(a=>a.status==="done"), sn=A.filter(a=>a.status==="seen"), mine=canEdit?null:myAcks[c.id];
       return `<div><div class="between"><span class="muted">${fmtD(c.createdAt)} ${fmtT(c.createdAt)} · ${to==="all"?"सभी":esc(c.toName||users.find(u=>u.id===to)?.name||"एक वर्कर")}${c.byName?" · "+esc(c.byName):""}</span>${canEdit?`<button class="sec sm" data-del="${c.id}">हटाएँ</button>`:""}</div>
       <div style="white-space:pre-wrap;margin-top:4px">${linkify(c.text)}</div>${link?`<a href="${esc(link)}" target="_blank" rel="noopener">${esc(link)}</a>`:""}
-      ${canEdit?`<div class="muted" style="margin-top:4px">✅ हो गया: ${dn.length}/${to==="all"?act:1}${dn.length?" ("+esc(dn.map(a=>a.name).join(", "))+")":""}<br>👁 सिर्फ़ देखा: ${sn.length}${sn.length?" ("+esc(sn.map(a=>a.name).join(", "))+")":""}</div>`
-        : mine==="done"?`<span class="pill ok">✅ हो गया</span>`:`<button class="ok sm" data-done="${c.id}" style="margin-top:6px">✅ हो गया</button>`}</div>`; }).join("") || `<p class="muted">अभी कुछ नहीं</p>`;
+      ${canEdit?`<div class="muted" style="margin-top:4px">✅ हो गया: ${dn.length}/${to==="all"?act:1}${dn.length?" ("+esc(dn.map(a=>a.name).join(", "))+")":""}<br>👁 सिर्फ़ देखा: ${sn.length}${sn.length?" ("+esc(sn.map(a=>a.name).join(", "))+")":""}</div>${A.filter(a=>a.reply).map(a=>`<div style="margin-top:6px;background:#eef6ff;border-radius:10px;padding:8px"><b>💬 ${esc(a.name)}:</b> ${esc(a.reply)} <span class="muted">${a.replyAt?fmtT(a.replyAt):""}</span><br><button class="sec sm" data-rto="${esc(a.uid)}" data-rname="${esc(a.name)}" style="margin-top:4px;width:auto">↩️ जवाब दें</button></div>`).join("")}`
+        : (mine==="done"?`<span class="pill ok">✅ हो गया</span>`:`<button class="ok sm" data-done="${c.id}" style="margin-top:6px">✅ हो गया</button>`)+` <button class="sec sm" data-rep="${c.id}" style="margin-top:6px;width:auto">✍️ जवाब</button>`}</div>`; }).join("") || `<p class="muted">अभी कुछ नहीं</p>`;
+    el.querySelectorAll("[data-rep]").forEach(b=>b.onclick=()=>{ const c=rows.find(r=>r.id===b.dataset.rep); if(c) showCommandPopup(c.id,c); });
+    el.querySelectorAll("[data-rto]").forEach(b=>b.onclick=()=>replyTo(b.dataset.rto,b.dataset.rname));
     el.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{ if(!confirm("ये कमांड हटाएँ?")) return; const id=b.dataset.del;
       try{ await deleteDoc(doc(db,"commands",id)); acks.filter(a=>a.cmd===id).forEach(a=>deleteDoc(doc(db,"acks",id+"_"+a.uid)).catch(()=>{})); }catch(e){ toast(errMsg(e)); } });
     el.querySelectorAll("[data-done]").forEach(b=>b.onclick=async()=>{ b.disabled=true; try{ await ack(b.dataset.done,"done"); myAcks[b.dataset.done]="done"; markSeen(b.dataset.done); draw(); toast("✅ एडमिन को बता दिया"); }catch(e){ toast(errMsg(e)); b.disabled=false; } });
@@ -1104,6 +1116,7 @@ function vaPush(text, tabKey){
     $("#vaRep").onclick = () => vaSay(msg); $("#vaX").onclick = () => b.remove();
   }, 2500);
 }
+const vaRep = {};
 const vaFirst = fn => { let first = true; return s => { if(first){ first = false; fn(s, true); return; } fn(s, false); }; };
 async function vaPending(speakIt){
   const parts = [];
@@ -1147,7 +1160,7 @@ function startVoiceAlerts(){
   sub(onSnapshot(collection(db,"help"), vaFirst((s, first) => { if(first) return;
     s.docChanges().forEach(c => { const h = c.doc.data(); if((c.type==="added"||c.type==="modified") && !h.done && !c.doc.metadata.hasPendingWrites) vaPush(h.type==="pw" ? `${h.name} (${h.mobile}) पासवर्ड भूल गए — एक टैप में WhatsApp पर भेजें` : `${h.name} का मोबाइल नंबर बदला: ${h.newMobile} — एक टैप में नया खाता बनाएँ`, h.type==="pw" ? ()=>sendPwHelp(c.doc.id, h) : showHelpList); });
   }), ()=>{}));
-  setTimeout(autoApprove, 5000); watchStuck(); watchSys();
+  setTimeout(autoApprove, 5000); watchStuck(); watchSys(); setTimeout(movePwSecrets, 7000);
   /* वर्कर रिपोर्ट */
   sub(onSnapshot(query(collection(db,"reports"),orderBy("at","desc"),limit(5)), vaFirst((s, first) => { if(first) return;
     s.docChanges().forEach(c => { if(c.type==="added" && !c.doc.metadata.hasPendingWrites){ const r = c.doc.data(); vaPush(`${r.name||"वर्कर"} की नई काम रिपोर्ट आई`, tabGo("home")); } });
@@ -1166,7 +1179,8 @@ function startVoiceAlerts(){
       dPrev[id] = { end: !!d.end, idleAlert: !!d.idleAlert, awayKm: +d.awayKm||0 }; });
   }), ()=>{}));
   /* आदेश पूरा */
-  sub(onSnapshot(query(collection(db,"acks"),orderBy("at","desc"),limit(20)), vaFirst((s, first) => { if(first) return;
+  sub(onSnapshot(query(collection(db,"acks"),orderBy("at","desc"),limit(20)), vaFirst((s, first) => { if(first){ s.docs.forEach(d=>{ const a=d.data(); if(a.reply) vaRep[d.id]=a.reply; }); return; }
+    s.docChanges().forEach(c => { const a = c.doc.data(); if((c.type==="added"||c.type==="modified") && a.reply && vaRep[c.doc.id]!==a.reply){ vaRep[c.doc.id]=a.reply; vaPush(`${a.name||"वर्कर"} का जवाब: ${String(a.reply).slice(0,80)}`, ()=>replyTo(a.uid, a.name||"वर्कर")); } });
     s.docChanges().forEach(c => { const a = c.doc.data(); if((c.type==="added"||c.type==="modified") && a.status==="done") vaPush(`${a.name||"वर्कर"} ने आदेश पूरा किया`, tabGo("cmd")); });
   }), ()=>{}));
   /* DIP प्लान अर्ज़ी */
@@ -1200,6 +1214,7 @@ const GUIDE_ADMIN = [
   {t:"ड्यूटी, लोकेशन और हाज़िरी कैसे देखें", k:"ड्यूटी लोकेशन जगह दूर 30 km हाज़िरी फ़ोटो रिपोर्ट excel", d:"🏠 होम पर 'अभी ड्यूटी पर' में हर वर्कर की जगह। ड्यूटी की जगह से 30 km से दूर गया तो 🚩 और घंटी। हाज़िरी फ़ोटो न दे तो भी घंटी। 'रिपोर्ट Excel' / 'ड्यूटी Excel' से फ़ाइल।"},
   {t:"घंटी और बोलकर सूचना (चालू/बंद)", k:"घंटी रिंग सूचना notification आवाज़ बोलकर alert चालू बंद", d:"नीचे बाएँ 🔔 सूचना बटन → 'पेंडिंग काम सुनाओ', 'घंटी जाँचें', चालू/बंद। नई जॉइनिंग, रिपोर्ट, ड्यूटी, आदेश पूरा, प्लान अर्ज़ी पर घंटी बजती है (ऐप खुला या पीछे चलता हो तब)।"},
   {t:"सारे पेज और APK ठीक हैं या नहीं", k:"पेज साइट apk लिंक खुल नहीं रहा down जाँच वेरिफाई verify", d:"बोलें \"सिस्टम जाँचो\" — AI फ़ोन से ही सारे 11 पेज/APK खोलकर देखता है और ❌ वाले का नाम बताता है। इसके अलावा GitHub रोज़ 9:11, 2:11 और 7:11 बजे अपने-आप सब जाँचता है (Health check)। हर पेज अलग है — एक खराब हो तो बाकी चलते रहते हैं।"},
+  {t:"वर्कर का जवाब और नंबर/पासवर्ड की सुरक्षा", k:"जवाब reply रिप्लाई सुरक्षा सेफ safe नंबर पासवर्ड", d:"वर्कर ऐप में आदेश पर ✍️ जवाब लिखता है → आपको घंटी + \"Raj का जवाब: …\" → पट्टी से ↩️ जवाब दें (उसके ऐप में घंटी के साथ)। 📢 कमांड में हर आदेश के नीचे सारे जवाब। पासवर्ड अब सिर्फ़ मालिक देख सकते हैं (एडमिन अनुमति वाले भी नहीं); नंबर सिर्फ़ लॉगिन वाले एडमिन देखते हैं।"},
   {t:"फ़ाइल या लिंक वर्कर से शेयर करना", k:"फ़ाइल लिंक शेयर अपलोड file", d:"नीचे 📁 फ़ाइलें टैब → 'फ़ाइल / लिंक शेयर करें' → नाम + फ़ाइल/लिंक → भेजें। सब वर्कर देख सकेंगे।"},
   {t:"DIP ग्राहक को प्लान / License देना", k:"dip प्लान license अर्ज़ी device ग्राहक ट्रायल", d:"नीचे ⚡ DIP टैब → '📝 प्लान की अर्ज़ियाँ' में ✅ प्लान दें, या '🔑 प्लान दें (Device ID से)' में Device ID डालें।"},
   {t:"ऐप अपडेट (नया APK) कैसे करें", k:"अपडेट update apk नया संस्करण वर्ज़न install", d:"साइट वाले बदलाव ऐप दोबारा खोलते ही आ जाते हैं। फ़ोन वाला नया APK आए तो links पेज से डाउनलोड करके Install दबाएँ — Uninstall की ज़रूरत नहीं।"}
@@ -1212,8 +1227,8 @@ const GUIDE_WORKER = [
 async function pwFacts(){
   const us = (await getDocs(collection(db,"users"))).docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.id!==OWNER_UID && u.role!=="admin");
   const out = [], all = [];
-  for(const u of us){ let pw = u.pw || kycPw[u.id];
-    if(!pw && u.invite && !(u.id in kycPw)) try{ const ks = await getDoc(doc(db,"kyc",u.id)); pw = kycPw[u.id] = ks.exists() ? (ks.data().pw||"") : ""; }catch(_){ kycPw[u.id] = ""; }
+  for(const u of us){ let pw = await findPw(u);
+    if(false) try{ }catch(_){ kycPw[u.id] = ""; }
     const mob = u.mobile || showId(u.email), st = u.status==="pending" ? " (⏳ मंज़ूरी बाकी)" : u.active===false ? " (बंद)" : "";
     all.push(`${u.name}${st}: ${mob} / ${pw || "रिकॉर्ड में नहीं"}`);
     out.push({t:`${u.name} — लॉगिन जानकारी${st}`, k:`${u.name} ${mob}`, d:`मोबाइल (लॉगिन): ${mob}\nपासवर्ड: ${pw || "रिकॉर्ड में नहीं — 'नया पासवर्ड कैसे बनाएँ' पूछें"}\n👥 वर्कर टैब में 📲 WhatsApp से भेजें`, s: u.status==="pending" ? "baki" : "info"});
@@ -1241,7 +1256,9 @@ function helpForm(type){
     }catch(e){ b.disabled=false; b.textContent="📨 एडमिन को भेजें"; toast("अर्ज़ी नहीं गई — एडमिन को फ़ोन/WhatsApp करें ("+errMsg(e)+")"); } };
 }
 const waTo = (m,t) => `https://wa.me/91${m}?text=${encodeURIComponent(t)}`;
-async function findPw(u){ if(u.pw) return u.pw; if(u.id in kycPw) return kycPw[u.id]; try{ const ks=await getDoc(doc(db,"kyc",u.id)); return kycPw[u.id]=ks.exists()?(ks.data().pw||""):""; }catch(_){ return kycPw[u.id]=""; } }
+async function findPw(u){ if(u.pw) return u.pw; if(u.id in kycPw) return kycPw[u.id];
+  try{ const sx=await getDoc(doc(db,"secrets",u.id)); if(sx.exists() && sx.data().pw) return kycPw[u.id]=sx.data().pw; }catch(_){}
+  try{ const ks=await getDoc(doc(db,"kyc",u.id)); return kycPw[u.id]=ks.exists()?(ks.data().pw||""):""; }catch(_){ return kycPw[u.id]=""; } }
 /* 🔑 एक टैप: अर्ज़ी वाले के रजिस्टर्ड नंबर पर WhatsApp में पासवर्ड भरा हुआ खुले (वहाँ बस ➤) + अर्ज़ी ✅ */
 async function sendPwHelp(id, h){
   try{ const us=(await getDocs(collection(db,"users"))).docs.map(d=>({id:d.id,...d.data()})); const u=us.find(x=>x.mobile===h.mobile || x.email===h.mobile+"@"+MOB_DOMAIN);
@@ -1279,8 +1296,8 @@ async function showHelpList(){
     b.disabled=true; b.textContent="बना रहा है…";
     const tmp=initializeApp(firebaseConfig,"mv"+Date.now()), pass=genPw2();
     try{ const cred=await createUserWithEmailAndPassword(getAuth(tmp), nm+"@"+MOB_DOMAIN, pass);
-      const nd={name:u.name,email:nm+"@"+MOB_DOMAIN,mobile:nm,role:u.role==="trainee"?"trainee":"worker",canEdit:false,active:true,shift:u.shift||"morning",pw:pass,from:u.id,createdAt:serverTimestamp()}; if(u.pay) nd.pay=u.pay;
-      await setDoc(doc(db,"users",cred.user.uid),nd);
+      const nd={name:u.name,email:nm+"@"+MOB_DOMAIN,mobile:nm,role:u.role==="trainee"?"trainee":"worker",canEdit:false,active:true,shift:u.shift||"morning",from:u.id,createdAt:serverTimestamp()}; if(u.pay) nd.pay=u.pay;
+      await setDoc(doc(db,"users",cred.user.uid),nd); await setDoc(doc(db,"secrets",cred.user.uid),{pw:pass,at:serverTimestamp()}).catch(()=>{});
       await updUser(u.id,{active:false,movedTo:cred.user.uid}).catch(()=>{});
       await done(h.id);
       p.innerHTML=`<div class="card"><h3>✅ नया खाता बन गया</h3><p>${esc(u.name)} — मोबाइल ${esc(nm)}<br>पासवर्ड: <b>${esc(pass)}</b></p><a class="ok" style="display:block;text-align:center;text-decoration:none;padding:10px;border-radius:10px" target="_blank" rel="noopener" href="${waTo(nm,`नमस्ते ${u.name}, आपका MASTER CONNECTOR खाता नए नंबर से बन गया:\nमोबाइल: ${nm}\nपासवर्ड: ${pass}\n(बड़ा D और डैश - वैसे ही लिखें)`)}">📲 नए नंबर के WhatsApp पर भेजें</a><button class="sec" id="mvX" style="width:100%;margin-top:8px">बंद</button></div>`;
@@ -1290,6 +1307,12 @@ async function showHelpList(){
 }
 const genPw2 = () => { const A="abcdefghjkmnpqrstuvwxyz", r=crypto.getRandomValues(new Uint32Array(8)); let t="Dip-"; for(let i=0;i<4;i++) t+=A[r[i]%A.length]; for(let i=4;i<8;i++) t+=r[i]%10; return t; };
 /* ✅ नई जॉइनिंग अपने-आप मंज़ूर — KYC में फ़ोटो + ID हो तो (सिर्फ़ लॉगिन; एडमिन अनुमति कभी अपने-आप नहीं) */
+/* 🔒 पासवर्ड सिर्फ़ मालिक देखे: users (जिसे एडमिन भी पढ़ सकते हैं) से हटाकर secrets/{uid} (सिर्फ़ मालिक) में */
+async function movePwSecrets(){
+  if(!isOwner) return;
+  try{ const us=(await getDocs(collection(db,"users"))).docs.filter(d=>d.data().pw);
+    for(const d of us){ try{ await setDoc(doc(db,"secrets",d.id),{pw:d.data().pw,at:serverTimestamp()}); await updateDoc(doc(db,"users",d.id),{pw:deleteField()}); kycPw[d.id]=d.data().pw; }catch(_){} } }catch(_){}
+}
 async function autoApprove(){
   if(!isOwner) return;
   try{ const us=(await getDocs(collection(db,"users"))).docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.status==="pending");

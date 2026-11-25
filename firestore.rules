@@ -219,6 +219,9 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
 
+    // ---------- 🔒 वर्कर के पासवर्ड — सिर्फ़ मालिक (एडमिन अनुमति वाले भी नहीं) ----------
+    match /secrets/{uid} { allow read, write: if isOwner(); }
+
     // बाकी सब बंद
     match /{document=**} { allow read, write: if false; }
   }
