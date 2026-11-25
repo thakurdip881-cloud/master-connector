@@ -139,7 +139,16 @@ let me = null, profile = null, isOwner = false, canEdit = false, tab = null, uns
 const clearSubs = () => { unsubs.forEach(u=>{try{u()}catch(e){}}); unsubs = []; };
 const sub = u => unsubs.push(u);
 
-if ("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").then(r=>{ try{ r.update().catch(()=>{}); }catch(_){} }).catch(()=>{}); let rl=!navigator.serviceWorker.controller || !!JOIN_CODE; navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(!rl){ rl=true; location.reload(); } }); }
+if ("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").then(r=>{ try{ r.update().catch(()=>{}); }catch(_){}
+    // 🔄 ऐप खुला रहे तब भी नया अपडेट अपने-आप: वापस आने पर और हर 15 मिनट जाँच (छोटी फ़ाइल, कम डेटा)
+    const chk=()=>{ try{ r.update().catch(()=>{}); }catch(_){} };
+    document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") chk(); }); setInterval(chk,15*60000);
+  }).catch(()=>{});
+  let rl=!navigator.serviceWorker.controller || !!JOIN_CODE;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(rl) return; rl=true;
+    // PC पर स्क्रीन-शेयर चालू हो तो बीच में न रोकें — बाद में खोलने पर नया वर्ज़न
+    try{ if(typeof scrLive==="function" && scrLive()){ toast("🔄 नया अपडेट आया — ड्यूटी के बाद ऐप दोबारा खोलें"); return; } }catch(_){}
+    location.reload(); }); }
 
 $("#logoutBtn").onclick = async () => { if(confirm("लॉग आउट करें?")) { clearSubs(); await signOut(auth); } };
 
@@ -905,7 +914,7 @@ function pageHome(){
   psub(onSnapshot(query(collection(db,"duty"),orderBy("start","desc"),limit(300)), s => { all = s.docs.map(d=>({id:d.id,...d.data()})); render(); }, e=>toast(errMsg(e))));
   getDocs(collection(db,"users")).then(us=>{ const el=$("#quickW"); if(!el) return; const W=us.docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.role!=="admin"&&u.status!=="pending");
     el.innerHTML = W.map(u=>`<div class="between" style="gap:6px"><b style="flex:1">${esc(u.name)}</b>${mobDigits(u.mobile)?`<a href="https://wa.me/91${mobDigits(u.mobile)}" target="_blank" rel="noopener"><button class="sec sm" style="width:auto">📹 कॉल</button></a>`:""}<button class="sec sm qwatch" data-uid="${u.id}" data-name="${esc(u.name)}" style="width:auto">👁️ देखें</button></div>`).join("") || `<p class="muted">अभी कोई वर्कर नहीं</p>`;
-    el.querySelectorAll(".qwatch").forEach(b=>b.onclick=async()=>{ try{ const ds=(await getDocs(query(collection(db,"duty"),where("uid","==",b.dataset.uid)))).docs.filter(d=>!d.data().end); if(!ds.length) return toast("यह वर्कर अभी ड्यूटी पर नहीं है"); await updateDoc(ds[0].ref,{watchReq:serverTimestamp()}); toast("👁️ स्क्रीन + चेहरे का 30 सेकंड वीडियो माँगा — होम पर 'आखिरी रिकॉर्डिंग देखें' में आएगा"); showScreen(b.dataset.uid, b.dataset.name||"वर्कर"); }catch(e){ toast(errMsg(e)); } });
+    el.querySelectorAll(".qwatch").forEach(b=>b.onclick=async()=>{ try{ const ds=(await getDocs(query(collection(db,"duty"),where("uid","==",b.dataset.uid)))).docs.filter(d=>!d.data().end); if(!ds.length) return toast("यह वर्कर अभी ड्यूटी पर नहीं है"); await updateDoc(ds[0].ref,{watchReq:serverTimestamp()}); toast("👁️ स्क्रीन + चेहरे का 30 सेकंड वीडियो माँगा — होम पर 'आखिरी रिकॉर्डिंग देखें' में आएगा"); showScreen(b.dataset.uid, b.dataset.name||"वर्कर", ds[0].id); }catch(e){ toast(errMsg(e)); } });
   }).catch(()=>{});
   $("#tapOn").onclick=()=>showWorkerList(true); $("#tapAll").onclick=()=>showWorkerList(false);
   // 💻 PC/लैपटॉप पर काम की अनुमति — 30 सेकंड वीडियो देखकर ✅/❌

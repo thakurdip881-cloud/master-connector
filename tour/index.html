@@ -89,7 +89,10 @@ const errM=e=>{ const c=String(e?.code||""); return c.includes("invalid-credenti
 // 🔊 AI से सुनें — हर पेज पर बोलकर बताए क्या करना है (फ़ोन की अपनी आवाज़, इंटरनेट डेटा नहीं)
 let GUIDE="";
 { const g=document.createElement("button"); g.id="guideBtn"; g.textContent="🔊 AI से सुनें"; g.style.cssText="position:fixed;left:12px;bottom:14px;z-index:50;width:auto;padding:10px 14px;border-radius:24px;box-shadow:0 3px 10px rgba(0,0,0,.25)";
-  g.onclick=()=>{ try{ const ss=speechSynthesis; if(ss.speaking){ ss.cancel(); g.textContent="🔊 AI से सुनें"; return; } const u=new SpeechSynthesisUtterance(GUIDE||"नमस्ते"); u.lang="hi-IN"; u.rate=0.95; u.onend=u.onerror=()=>{ g.textContent="🔊 AI से सुनें"; }; ss.speak(u); g.textContent="⏹ रोकें"; }catch(_){ toast("इस फ़ोन में आवाज़ नहीं चल पाई"); } };
+  g.onclick=()=>{ const N=window.TourNative;
+    if(N && N.speak){ try{ if(N.speaking()){ N.stop(); g.textContent="🔊 AI से सुनें"; return; } if(N.speak(GUIDE||"नमस्ते")){ g.textContent="⏹ रोकें"; const iv=setInterval(()=>{ try{ if(!N.speaking()){ clearInterval(iv); g.textContent="🔊 AI से सुनें"; } }catch(_){ clearInterval(iv); } },1500); return; } }catch(_){} }
+    try{ const ss=window.speechSynthesis; if(!ss) throw 0; if(ss.speaking){ ss.cancel(); g.textContent="🔊 AI से सुनें"; return; } const u=new SpeechSynthesisUtterance(GUIDE||"नमस्ते"); u.lang="hi-IN"; u.rate=0.95; u.onend=u.onerror=()=>{ g.textContent="🔊 AI से सुनें"; }; ss.speak(u); g.textContent="⏹ रोकें"; }
+    catch(_){ const ga=$("#getApk"); if(ga){ ga.style.display="block"; ga.textContent="📱 आवाज़ के लिए नया DIP Tour ऐप डालें (यहाँ दबाएँ)"; } toast("🔊 आवाज़ के लिए ऊपर पीले बटन से नया ऐप डालें"); } };
   document.body.appendChild(g); }
 // 🎥 ग्राहक का 3 मिनट कैमरा वीडियो (फ़ॉर्म भरते समय) — custVid में टुकड़ों में, 7 दिन बाद अपने-आप हटे
 let cRec=null, cStream=null, cParts=[], cStopT=null, cTick=null, cT0=0;

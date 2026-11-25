@@ -9,7 +9,11 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.speech.tts.TextToSpeech;
 import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
+import java.util.Locale;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -24,6 +28,9 @@ public class MainActivity extends Activity {
     private WebView web;
     private ValueCallback<Uri[]> fileCb;
     private Uri camUri;
+    private TextToSpeech tts; private boolean ttsReady = false;
+    private PermissionRequest pendingPerm;
+    private static final int REQ_MEDIA = 13;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -34,6 +41,10 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
+        s.setMediaPlaybackRequiresUserGesture(false);
+        // 🔊 AI से सुनें — फ़ोन की अपनी आवाज़ (Hindi), इंटरनेट डेटा नहीं
+        tts = new TextToSpeech(this, st -> { if (st == TextToSpeech.SUCCESS) { int r = tts.setLanguage(new Locale("hi", "IN")); ttsReady = r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED; if (!ttsReady) { tts.setLanguage(Locale.getDefault()); ttsReady = true; } tts.setSpeechRate(0.95f); } });
+        web.addJavascriptInterface(new Bridge(), "TourNative");
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
         web.setWebViewClient(new WebViewClient() {
@@ -47,6 +58,14 @@ public class MainActivity extends Activity {
             }
         });
         web.setWebChromeClient(new WebChromeClient() {
+            // 🎥 फ़ॉर्म वीडियो के लिए कैमरा + माइक
+            @Override
+            public void onPermissionRequest(PermissionRequest req) {
+                runOnUiThread(() -> {
+                    if (Build.VERSION.SDK_INT < 23 || (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)) { req.grant(req.getResources()); }
+                    else { pendingPerm = req; requestPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO}, REQ_MEDIA); }
+                });
+            }
             @Override
             public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
                 if (fileCb != null) fileCb.onReceiveValue(null);
@@ -75,6 +94,25 @@ public class MainActivity extends Activity {
         });
         if (b != null) web.restoreState(b); else web.loadUrl(APP_URL);
     }
+
+    @Override
+    public void onRequestPermissionsResult(int req, String[] perms, int[] res) {
+        super.onRequestPermissionsResult(req, perms, res);
+        if (req == REQ_MEDIA && pendingPerm != null) {
+            boolean ok = res.length > 0; for (int r : res) if (r != PackageManager.PERMISSION_GRANTED) ok = false;
+            if (ok) pendingPerm.grant(pendingPerm.getResources()); else pendingPerm.deny();
+            pendingPerm = null;
+        }
+    }
+
+    class Bridge {
+        @JavascriptInterface public boolean speak(String t) { if (tts == null || !ttsReady) return false; tts.speak(t, TextToSpeech.QUEUE_FLUSH, null, "g"); return true; }
+        @JavascriptInterface public void stop() { if (tts != null) tts.stop(); }
+        @JavascriptInterface public boolean speaking() { return tts != null && tts.isSpeaking(); }
+    }
+
+    @Override
+    protected void onDestroy() { if (tts != null) { tts.stop(); tts.shutdown(); } super.onDestroy(); }
 
     private boolean hasCamera() {
         return Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
