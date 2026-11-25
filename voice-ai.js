@@ -153,12 +153,12 @@
   function css() {
     const s = document.createElement('style');
     s.textContent = `.dva-fab{position:fixed;right:14px;z-index:9998;border:0;border-radius:28px;padding:12px 16px;font:600 15px system-ui,sans-serif;color:#1e0b36;background:linear-gradient(135deg,#fde68a,#f59e0b);box-shadow:0 6px 18px rgba(0,0,0,.35)}
-.dva{position:fixed;left:8px;right:8px;z-index:9999;max-width:560px;margin:auto;background:#111827;color:#f3f4f6;border:1px solid #f59e0b;border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.5);font:15px system-ui,sans-serif}
-.dva h4{margin:0 0 8px;display:flex;justify-content:space-between;align-items:center;font-size:16px}.dva h4 button{background:none;border:0;color:#9ca3af;font-size:20px}
+.dva{position:fixed;left:8px;right:8px;z-index:9999;max-width:560px;margin:auto;max-height:calc(100vh - 110px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;background:#111827;color:#f3f4f6;border:1px solid #f59e0b;border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.5);font:15px system-ui,sans-serif}
+.dva h4{position:sticky;top:-12px;z-index:2;background:#111827;padding:6px 0;margin:-6px 0 8px;display:flex;justify-content:space-between;align-items:center;font-size:16px}.dva h4 button{background:none;border:0;color:#9ca3af;font-size:24px;padding:4px 8px}
 .dva .row{display:flex;gap:6px}.dva input{flex:1;min-width:0;padding:11px;border-radius:10px;border:1px solid #374151;background:#1f2937;color:#fff;font-size:15px}
 .dva .b{border:0;border-radius:10px;padding:10px 12px;font-weight:700;background:#f59e0b;color:#1e0b36}.dva .b.alt{background:#374151;color:#fff}
-.dva .ans{white-space:pre-wrap;margin-top:10px;max-height:45vh;overflow:auto;line-height:1.5;background:#0b1220;border-radius:10px;padding:10px}
-.dva .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.dva .chips button{border:1px solid #4b5563;background:#1f2937;color:#e5e7eb;border-radius:14px;padding:6px 10px;font-size:13px}
+.dva .ans{white-space:pre-wrap;margin-top:10px;max-height:38vh;overflow:auto;line-height:1.5;background:#0b1220;border-radius:10px;padding:10px}
+.dva .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;max-height:26vh;overflow-y:auto;overscroll-behavior:contain}.dva .chips button{border:1px solid #4b5563;background:#1f2937;color:#e5e7eb;border-radius:14px;padding:6px 10px;font-size:13px}
 .dva .mut{color:#9ca3af;font-size:12px;margin-top:6px}`;
     document.head.appendChild(s);
   }
@@ -206,6 +206,7 @@
 <div class="row"><input placeholder="जैसे: कितने काम बाकी हैं?" enterkeyhint="send"><button class="b m" aria-label="बोलें">🎙️</button><button class="b alt go" aria-label="पूछें">➤</button></div>
 <div class="mut"></div><div class="chips">${(OPT.chips || ['कितने काम बाकी हैं?', 'आज का हाल बताओ', 'क्या-क्या पूरा हो गया?']).map(c => `<button>${c}</button>`).join('')}</div><div class="ans">${help([])}</div>`;
     document.body.appendChild(box);
+    try { history.pushState({dva:1}, ''); } catch (e) {}
     const inp = box.querySelector('input');
     box.querySelector('.x').onclick = open;
     box.querySelector('.lp').onclick = () => { if (LOOP) { setLoop(false); box.querySelector('.mut').textContent = '🙌 लगातार बात बंद'; } else { setLoop(true); if (!speakOn) { speakOn = true; const sp = box.querySelector('.sp'); if (sp) sp.textContent = '🔊'; } speak('लगातार बात चालू। बोलिए, मैं सुन रहा हूँ। रोकना हो तो बस बोलें।', () => setTimeout(mic, 400)); } };
@@ -223,6 +224,7 @@
     const f = document.createElement('button'); f.className = 'dva-fab'; f.textContent = '🎙️ पूछें'; f.style.bottom = (opt.bottom || 18) + 'px';
     f.setAttribute('aria-label', 'AI से बोलकर पूछें'); f.onclick = open; document.body.appendChild(f);
   }
+  window.addEventListener('popstate', () => { if (box) { LOOP = false; box.remove(); box = null; } });
   function remove() { document.querySelector('.dva-fab')?.remove(); box?.remove(); box = null; }
   window.DipVoiceAI = { init, remove, answer, factsFromMd, speak, listen, norm };
 })();

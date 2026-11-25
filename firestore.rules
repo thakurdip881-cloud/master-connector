@@ -226,6 +226,10 @@ service cloud.firestore {
         && request.resource.data.uid == uid && request.resource.data.img is string && request.resource.data.img.size() < 400000;
       allow delete: if isOwner();
     }
+    // 🔴 लाइव (WebRTC सिग्नल) — एडमिन माँगे, वही वर्कर जवाब दे
+    match /live/{uid} {
+      allow read, write: if editor() || (signed() && request.auth.uid == uid);
+    }
     match /screenReq/{uid} {
       allow read: if editor() || (signed() && request.auth.uid == uid);
       allow write: if editor();
