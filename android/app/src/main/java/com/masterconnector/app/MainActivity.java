@@ -35,7 +35,9 @@ import java.util.List;
 
 public class MainActivity extends Activity {
     private static final String APP_URL = "https://thakurdip881-cloud.github.io/master-connector/";
-    private static final int REQ_PERM = 7, REQ_VOICE = 8, REQ_FILE = 9, REQ_MEDIA = 10;
+    private static final int REQ_PERM = 7, REQ_VOICE = 8, REQ_FILE = 9, REQ_MEDIA = 10, REQ_SCREEN = 11;
+    private static java.lang.ref.WeakReference<MainActivity> self;
+    private String[] pendingScreen;
     private PermissionRequest mediaReq;
     private ValueCallback<Uri[]> fileCb;
     private Uri camUri;
@@ -49,6 +51,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        self = new java.lang.ref.WeakReference<>(this);
         web = new WebView(this);
         setContentView(web);
         WebSettings s = web.getSettings();
@@ -137,9 +140,23 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
         if (req == REQ_FILE) { fileDone(res, data); return; }
+        if (req == REQ_SCREEN) {
+            String[] p = pendingScreen; pendingScreen = null;
+            if (res == RESULT_OK && data != null && p != null) {
+                try { ScreenService.start(this, res, data, p[0], p[1]); } catch (Exception e) { screenEvent("fail"); }
+            } else screenEvent("no");
+            return;
+        }
         if (req != REQ_VOICE) return;
         ArrayList<String> r = data == null ? null : data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
         voiceResult(res == RESULT_OK && r != null && !r.isEmpty() ? r.get(0) : "?");
+    }
+
+    /** 🖥️ स्क्रीन जाँच की हालत web को: ok / no / fail / end */
+    static void screenEvent(String st) {
+        MainActivity a = self == null ? null : self.get();
+        if (a == null || a.web == null) return;
+        a.runOnUiThread(() -> { try { a.web.evaluateJavascript("window.__mcScreen&&window.__mcScreen(" + JSONObject.quote(st) + ")", null); } catch (Exception ignored) { } });
     }
 
     @Override
@@ -220,9 +237,26 @@ public class MainActivity extends Activity {
             });
         }
         @JavascriptInterface
-        public void stopDuty() { runOnUiThread(() -> DutyService.stop(MainActivity.this)); }
+        public void stopDuty() { runOnUiThread(() -> { DutyService.stop(MainActivity.this); ScreenService.stop(); }); }
         @JavascriptInterface
-        public int version() { return 5; }
+        public int version() { return 6; }
+        /** 🖥️ ड्यूटी में स्क्रीन जाँच — फ़ोन एक बार "Start now" पूछेगा, फिर ड्यूटी खत्म तक चुपचाप */
+        @JavascriptInterface
+        public void startScreen(String uid, String refreshToken) {
+            runOnUiThread(() -> {
+                if (ScreenService.running) { screenEvent("ok"); return; }
+                try {
+                    android.media.projection.MediaProjectionManager mpm = (android.media.projection.MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
+                    Intent i = Build.VERSION.SDK_INT >= 34
+                            ? mpm.createScreenCaptureIntent(android.media.projection.MediaProjectionConfig.createConfigForDefaultDisplay())
+                            : mpm.createScreenCaptureIntent();
+                    pendingScreen = new String[]{uid, refreshToken};
+                    startActivityForResult(i, REQ_SCREEN);
+                } catch (Exception e) { screenEvent("fail"); }
+            });
+        }
+        @JavascriptInterface
+        public boolean screenOn() { return ScreenService.running; }
         /** 🎙️ बोलकर पूछें — Google की फ़्री बोलने-से-लिखने वाली सुविधा; नतीजा window.__dipVoice(text) में */
         @JavascriptInterface
         public void listen(String lang) {

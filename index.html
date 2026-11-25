@@ -486,6 +486,7 @@ function startScrWatch(dutyId){ if(scrFor===dutyId) return; stopScrWatch(); scrF
 function stopScrWatch(){ try{ scrStopIv&&scrStopIv(); scrStopLive&&scrStopLive(); scrReqUnsub&&scrReqUnsub(); }catch(_){} scrStopIv=scrStopLive=scrReqUnsub=null; scrFor=null; }
 // फ़ोन ऐप: स्क्रीन जाँच native से (हर ड्यूटी पर एक बार "Allow")
 function nativeScreen(){ if(canEdit || scrNativeAsked || !NATIVE || typeof NATIVE.startScreen!=="function") return; scrNativeAsked=true; try{ NATIVE.startScreen(me.uid, me.refreshToken||""); }catch(_){} }
+window.__mcScreen = st => { if(st==="no"){ scrNativeAsked=false; toast("⚠️ स्क्रीन जाँच के लिए Start now दबाना ज़रूरी है"); } else if(st==="end" || st==="fail") scrNativeAsked=false; else if(st==="ok") toast("✅ स्क्रीन जाँच चालू"); };
 const nativeScreenOn = () => { try{ return !!(NATIVE && typeof NATIVE.screenOn==="function" && NATIVE.screenOn()); }catch(_){ return false; } };
 // 💻 PC पर काम: आज की अनुमति है?
 async function pcAllowed(){ try{ const s=await getDoc(doc(db,"devReq",me.uid)); const r=s.data(); return !!(r && r.status==="ok" && (toD(r.okUntil)?.getTime()||0)>Date.now()); }catch(_){ return false; } }
