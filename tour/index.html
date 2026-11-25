@@ -72,7 +72,7 @@ a{color:var(--pri2);word-break:break-all}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, addDoc, collection, query, where, limit, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, limit, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const app0=initializeApp({apiKey:"AIzaSyApw_GttyXeEmHFvKlJjoQFI11KuL4ahxI",authDomain:"master-connector-f2a0d.firebaseapp.com",projectId:"master-connector-f2a0d",storageBucket:"master-connector-f2a0d.firebasestorage.app",messagingSenderId:"542800382335",appId:"1:542800382335:web:8bf9d3ac9ad3b7906bb24a"},"tour");
 const auth=getAuth(app0), db=getFirestore(app0); setPersistence(auth,browserLocalPersistence).catch(()=>{});
 const DOM="customer.diptour.app", OWNER_MAIL="thakurdip881@gmail.com";
@@ -107,7 +107,7 @@ function showAuth(reg){
     <label class="req">ID नंबर</label><input id="rI" autocapitalize="characters" inputmode="numeric" placeholder="1234 5678 9012"><p class="muted" id="rIh">आधार: सुरक्षा के लिए सिर्फ़ आखिरी 4 अंक सेव होंगे।</p>
     <label class="req">पासवर्ड बनाएँ (कम से कम 6 अक्षर)</label><input id="rP" type="password" autocomplete="new-password">
     <label class="req">पासवर्ड फिर से</label><input id="rP2" type="password" autocomplete="new-password">
-    <label>🆔 वर्कर ID — जिस वर्कर ने link भेजा (8 अंक, जैसे 13174393)</label><input id="rRef" inputmode="numeric" maxlength="12" placeholder="13174393" value="${esc(/^(\d{8}|DIP[A-Z0-9]{4,6})$/i.test(REF)?REF.toUpperCase():"")}"><p class="muted" style="margin:2px 0 0">यह वर्कर का ID है। आपका अपना ग्राहक ID रजिस्ट्रेशन के बाद अलग बनेगा।</p>
+    <label class="req">🆔 वर्कर ID — जिस वर्कर ने link भेजा (8 अंक, जैसे 13174393)</label><input id="rRef" inputmode="numeric" maxlength="12" placeholder="13174393" value="${esc(/^(\d{8}|DIP[A-Z0-9]{4,6})$/i.test(REF)?REF.toUpperCase():"")}"><p class="muted" style="margin:2px 0 0">यह वर्कर का ID है। आपका अपना ग्राहक ID रजिस्ट्रेशन के बाद अलग बनेगा।</p>
     <label class="row" style="color:var(--ink);margin-top:10px"><input type="checkbox" id="rC" style="width:auto;flex:none"> <span class="req">मैं सहमति देता/देती हूँ कि मेरी जानकारी सिर्फ़ यात्रा के रिकॉर्ड के लिए DIP Tour & Travels देख सकेगा।</span></label>
     <button id="rGo" style="width:100%;margin-top:12px">✅ रजिस्टर करें</button>`
   :`${last.name?`<div style="background:#e8f6f1;border-radius:12px;padding:10px;margin:6px 0"><b>👋 ${esc(last.name)}</b><br><span class="muted">📱 ${esc(last.id||"")}</span></div>`:""}
@@ -130,6 +130,7 @@ function showAuth(reg){
     const rc=$("#rRef").value.replace(/[^A-Za-z0-9]/g,"").toUpperCase(); let refUid="";
     if(rc){ if(!/^(\d{8}|DIP[A-Z0-9]{4,6})$/.test(rc)) return toast("वर्कर ID 8 अंक का होना चाहिए (जैसे 13174393)"); try{ const g=await getDoc(doc(db,"refCodes",rc)); if(!g.exists()) return toast("यह रेफर ID नहीं मिला — वर्कर से दोबारा पूछें"); refUid=g.data().uid; }catch(_){ return toast("रेफर ID जाँच नहीं हो पाई, इंटरनेट देखें"); } }
     else if(REF && !/^(\d{8}|DIP.*)$/i.test(REF)) refUid=REF;   // पुराना लंबा link
+    if(!refUid) return toast("🆔 वर्कर ID भरें — जिस वर्कर ने आपको link भेजा, उससे 8 अंक का ID पूछें");
     const idNo=it==="aadhaar"?"XXXX-XXXX-"+raw.slice(-4):raw, b=$("#rGo"); b.disabled=true; b.textContent="रजिस्टर हो रहा है…";
     try{ const c=await createUserWithEmailAndPassword(auth,m+"@"+DOM,p);
       const rec={uid:c.user.uid,name,mobile:m,wa,mail,tg:tg?"@"+tg:"",idType:it,idNo,consent:true,at:serverTimestamp(),...(rc&&refUid?{refCode:rc}:{})};
@@ -149,6 +150,24 @@ async function showHome(user){
   $("#who").textContent=me.name+" · ग्राहक";
   let cfg={}; try{ const c=await getDoc(doc(db,"tour","config")); cfg=c.exists()?c.data():{}; }catch(_){} if(!cfg.wa) cfg.wa="8691019233"; if(!cfg.tg1) cfg.tg1="@WorkforhomeIndia";
   const tgA=t=>String(t||"").replace(/^@/,""), custId="C"+String(me.mobile||"").slice(-4)+String(user.uid).slice(0,3).toUpperCase();
+  // 🔒 वर्कर ID भरे बिना आगे का कुछ नहीं खुलेगा — हर बार खोलने पर याद दिलाए
+  if(!me.ref){
+    GUIDE="नमस्ते "+me.name+"। आपका खाता बन गया है, पर वर्कर आईडी अभी नहीं भरा है। जिस वर्कर ने आपको लिंक भेजा, उससे आठ अंक का आईडी पूछें, नीचे के खाने में भरें और जमा करें दबाएँ। आईडी भरे बिना आगे का काम नहीं खुलेगा।";
+    app.innerHTML=`<div class="card" style="border:2px solid #d97706;background:#fff7e6"><h3 style="margin:0">⏳ एक काम बाकी है — वर्कर ID भरें</h3>
+      <p style="margin:6px 0">जिस वर्कर ने आपको link भेजा, उससे उसका <b>8 अंक का वर्कर ID</b> पूछें और नीचे भरें। <b>ID भरे बिना आगे का काम रुका रहेगा।</b></p>
+      <p class="muted" style="margin:0 0 6px">🆔 आपका ग्राहक ID: <b>${esc(custId)}</b> (यह आपका अपना है, अलग है)</p>
+      <label class="req">🆔 वर्कर ID</label><input id="gRef" inputmode="numeric" maxlength="12" placeholder="13174393" value="${esc(/^(\d{8}|DIP[A-Z0-9]{4,6})$/i.test(REF)?REF.toUpperCase():"")}">
+      <button id="gGo" class="ok" style="width:100%;margin-top:10px">✅ जमा करें</button>
+      <a href="https://wa.me/91${esc(cfg.wa)}?text=${encodeURIComponent("नमस्ते, मुझे वर्कर ID चाहिए — "+me.name+" ("+me.mobile+")")}" target="_blank" rel="noopener"><button class="sec" style="width:100%;margin-top:8px">💬 ID नहीं पता? WhatsApp पर पूछें</button></a></div>`;
+    $("#gGo").onclick=async()=>{ const rc=$("#gRef").value.replace(/[^A-Za-z0-9]/g,"").toUpperCase(); if(!/^(\d{8}|DIP[A-Z0-9]{4,6})$/.test(rc)) return toast("वर्कर ID 8 अंक का होना चाहिए (जैसे 13174393)");
+      const b=$("#gGo"); b.disabled=true; b.textContent="जाँच हो रही है…";
+      try{ const g=await getDoc(doc(db,"refCodes",rc)); if(!g.exists()){ toast("यह वर्कर ID नहीं मिला — वर्कर से दोबारा पूछें"); b.disabled=false; b.textContent="✅ जमा करें"; return; }
+        await updateDoc(doc(db,"tCustomers",user.uid),{ref:g.data().uid,refCode:rc}); try{ sessionStorage.setItem("tourNew","1"); }catch(_){}
+        mailCopy("🆔 ग्राहक ने वर्कर ID भरा — "+me.name,{"ग्राहक":me.name,"मोबाइल":me.mobile,"वर्कर ID":rc,"समय":new Date().toLocaleString("hi-IN")});
+        toast("✅ वर्कर ID जुड़ गया"); showHome(user);
+      }catch(e){ toast("जमा नहीं हुआ, इंटरनेट देखकर फिर कोशिश करें"); b.disabled=false; b.textContent="✅ जमा करें"; } };
+    return;
+  }
   GUIDE="नमस्ते "+me.name+"। यह आपका DIP Tour and Travels खाता है। ऊपर आपका ग्राहक आईडी लिखा है। नीचे के बटन से व्हाट्सऐप या टेलीग्राम पर हमसे बात करें। सूचना वाले हिस्से में नई जानकारी आती रहेगी।";
   app.innerHTML=`
   ${(()=>{ let n=""; try{ n=sessionStorage.getItem("tourNew"); sessionStorage.removeItem("tourNew"); }catch(_){} return n?`<div class="card" style="border:2px solid #0e8a6a;background:#e8f6f1"><h3 style="margin:0">✅ आपका अकाउंट खुल गया!</h3><p style="margin:6px 0 0">🆔 आपका ग्राहक ID: <b>${esc(custId)}</b>${me.refCode?`<br>👷 जुड़े वर्कर का ID: <b>${esc(me.refCode)}</b>`:""}</p></div>`:""; })()}
