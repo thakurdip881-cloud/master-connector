@@ -678,7 +678,7 @@ function pageDuty(){
           const r = await addDoc(collection(db,"duty"),{uid:me.uid,name:profile.name||me.email,shift:$("#sh").value,start:serverTimestamp(),end:null,
             startLat:p?p.lat:null,startLng:p?p.lng:null,lastLat:p?p.lat:null,lastLng:p?p.lng:null,awayKm:0,lastAt:serverTimestamp()});
           nativeStart(r.id, p?.lat, p?.lng);
-          setTimeout(()=>screenCheck({id:r.id},"start"),800);
+          if(!canEdit) setTimeout(()=>screenCheck({id:r.id},"start"),800);
           toast(p?"ड्यूटी शुरू दर्ज हुई":"ड्यूटी शुरू — पर लोकेशन नहीं मिली, Location चालू करें");
         }catch(e){ toast(errMsg(e)); b.disabled=false; b.textContent="ड्यूटी शुरू करें"; } };
     }
