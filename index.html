@@ -1130,10 +1130,10 @@ function startVoiceAlerts(){
     p.innerHTML = `<div class="card"><div class="between"><h3 style="margin:0">🔔 बोलकर सूचना</h3><button class="sec sm" id="vpX">बंद</button></div>
       <p class="muted">नई जॉइनिंग, वर्कर रिपोर्ट, ड्यूटी शुरू/खत्म, हाज़िरी फ़ोटो न देना, आदेश पूरा और प्लान अर्ज़ी आते ही घंटी बजेगी और फ़ोन बोलकर बताएगा (ऐप खुला या पीछे चलता हो तब)।</p>
       <p><b>${esc(msg)}</b></p>
-      <div class="row"><button class="ok sm" id="vpS">🔊 पेंडिंग काम सुनाओ</button><button class="sec sm" id="vpT">${vaOn()?"🔕 सूचना बंद करें":"🔔 सूचना चालू करें"}</button><button class="sec sm" id="vpR">🔔 घंटी जाँचें</button><button class="sec sm" id="vpH">🆘 वर्कर अर्ज़ियाँ</button><button class="sec sm" id="vpP">📇 सबका डेटा</button><button class="sec sm" id="vpY">🩺 सिस्टम जाँच</button><button class="sec sm" id="vpA">📜 बदलाव</button>${window.Notification&&Notification.permission!=="granted"?`<button class="sec sm" id="vpN">📲 फ़ोन सूचना की अनुमति</button>`:""}</div></div>`;
+      <div class="row"><button class="ok sm" id="vpS">🔊 पेंडिंग काम सुनाओ</button><button class="sec sm" id="vpT">${vaOn()?"🔕 सूचना बंद करें":"🔔 सूचना चालू करें"}</button><button class="sec sm" id="vpR">🔔 घंटी जाँचें</button><button class="sec sm" id="vpH">🆘 वर्कर अर्ज़ियाँ</button><button class="sec sm" id="vpP">📇 सबका डेटा</button><button class="sec sm" id="vpY">🩺 सिस्टम जाँच</button><button class="sec sm" id="vpA">📜 बदलाव</button><button class="sec sm" id="vpQ">📋 कतार</button>${window.Notification&&Notification.permission!=="granted"?`<button class="sec sm" id="vpN">📲 फ़ोन सूचना की अनुमति</button>`:""}</div></div>`;
     p.classList.remove("hidden");
     $("#vpX").onclick = () => p.classList.add("hidden");
-    $("#vpS").onclick = () => vaSay(msg); $("#vpH").onclick = showHelpList; $("#vpP").onclick = () => showPeople(""); $("#vpA").onclick = showAudit; $("#vpY").onclick = () => { p.classList.add("hidden"); const f=document.querySelector(".dva-fab"); if(f){ if(!document.querySelector(".dva")) f.click(); setTimeout(()=>{ const i=document.querySelector(".dva input"); if(i){ i.value="सिस्टम जाँचो"; document.querySelector(".dva .go")?.click(); } }, 300); } };
+    $("#vpS").onclick = () => vaSay(msg); $("#vpH").onclick = showHelpList; $("#vpP").onclick = () => showPeople(""); $("#vpA").onclick = showAudit; $("#vpQ").onclick = showQueue; $("#vpY").onclick = () => { p.classList.add("hidden"); const f=document.querySelector(".dva-fab"); if(f){ if(!document.querySelector(".dva")) f.click(); setTimeout(()=>{ const i=document.querySelector(".dva input"); if(i){ i.value="सिस्टम जाँचो"; document.querySelector(".dva .go")?.click(); } }, 300); } };
     $("#vpR").onclick = () => { vaRing(); setTimeout(()=>vaSay("घंटी और आवाज़ ठीक चल रही है"), 2500); };
     $("#vpT").onclick = () => { try{ localStorage.setItem(VA_KEY, vaOn() ? "0" : "1"); }catch(_){} paint(); p.classList.add("hidden"); toast(vaOn() ? "🔔 बोलकर सूचना चालू" : "🔕 बोलकर सूचना बंद"); };
     const n = $("#vpN"); if(n) n.onclick = async () => { try{ const r = await Notification.requestPermission(); toast(r==="granted" ? "✅ अनुमति मिल गई" : "अनुमति नहीं मिली"); }catch(_){ toast("इस ऐप में फ़ोन सूचना नहीं चलती — घंटी और आवाज़ चलेंगी"); } };
@@ -1179,8 +1179,9 @@ function startVoiceAlerts(){
 
 /* 📘 AI गाइड — पूरी ऐप चलाने का तरीका (🎙️ पूछें / 🤖 AI में पूछने पर यही बताता है) */
 const GUIDE_ADMIN = [
+  {t:"काम की कतार", k:"कतार सूची लिस्ट क्यू queue पहले करो बाद में एक एक करके", d:"कई काम एक साथ बोलें: \"कतार में जोड़ो: Raj को काम दो, फिर सबको आदेश: 9 बजे आएँ\" → \"कतार चलाओ\" → AI एक-एक करके करेगा, हर काम पर हाँ पूछेगा और रिपोर्ट लिखेगा। बीच में \"2 नंबर पहले करो\" या \"Raj वाला पहले करो\" → वह सबसे ऊपर। देखने के लिए \"कतार दिखाओ\" या 🔔 → 📋 कतार।"},
   {t:"लगातार बात — बिना टैप", k:"लगातार बात बिना टैप हाथ मुक्त hands free बार बार चलता रहे रुके नहीं 🙌", d:"🎙️ पूछें खोलकर ऊपर 🙌 एक बार दबाएँ। अब AI जवाब बोलकर अपने-आप फिर सुनता है — आप बोलते रहें: \"Raj को काम दो\" → काम बोलें → \"हाँ\" → अगला हुक्म… रोकना हो तो \"बस\" बोलें (3 बार चुप रहने पर भी रुकता है)। अगली बार पूछें खोलते ही अपने-आप चालू रहेगा।"},
-  {t:"AI से काम करवाना (बोलकर)", k:"काम करवाना करो बोलकर हुक्म आदेश ai खुद", d:"बस बोलें, AI पूछेगा 'करूँ?' — ✅ दबाएँ या 'हाँ' बोलें, AI खुद कर देगा:\n• रुका काम पूरा करो (मंज़ूरी + अधूरे आदेश की याद + अर्ज़ियाँ)\n• सबको मंज़ूरी दो / Raj को मंज़ूरी दो\n• नगमा को पूरी अनुमति दो / अनुमति हटाओ\n• Raj का खाता बंद करो / चालू करो\n• Raj का पासवर्ड भेजो\n• Raj को काम दो → AI पूछेगा कौन सा काम → बोलें → हाँ\n• सबको आदेश: … / Raj को आदेश: …\n• Raj की शिफ्ट शाम करो\n• सिस्टम जाँचो → हर गड़बड़ी + ठीक करो बटन\n• आज की रिपोर्ट (रात 9 बजे अपने-आप बोलकर)\n• आज क्या बदला? / गलती से हुआ बदलाव वापस लो\n• अर्ज़ियाँ दिखाओ\n• Raj का डेटा दिखाओ / सबका डेटा (मोबाइल, WhatsApp, Gmail, Telegram)"},
+  {t:"AI से काम करवाना (बोलकर)", k:"काम करवाना करो बोलकर हुक्म आदेश ai खुद", d:"बस बोलें, AI पूछेगा 'करूँ?' — ✅ दबाएँ या 'हाँ' बोलें, AI खुद कर देगा:\n• रुका काम पूरा करो (मंज़ूरी + अधूरे आदेश की याद + अर्ज़ियाँ)\n• सबको मंज़ूरी दो / Raj को मंज़ूरी दो\n• नगमा को पूरी अनुमति दो / अनुमति हटाओ\n• Raj का खाता बंद करो / चालू करो\n• Raj का पासवर्ड भेजो\n• Raj को काम दो → AI पूछेगा कौन सा काम → बोलें → हाँ\n• सबको आदेश: … / Raj को आदेश: …\n• Raj की शिफ्ट शाम करो\n• कतार में जोड़ो: … फिर … / कतार चलाओ / 2 नंबर पहले करो / कतार दिखाओ\n• सिस्टम जाँचो → हर गड़बड़ी + ठीक करो बटन\n• आज की रिपोर्ट (रात 9 बजे अपने-आप बोलकर)\n• आज क्या बदला? / गलती से हुआ बदलाव वापस लो\n• अर्ज़ियाँ दिखाओ\n• Raj का डेटा दिखाओ / सबका डेटा (मोबाइल, WhatsApp, Gmail, Telegram)"},
   {t:"वर्कर लॉगिन कैसे करें (मोबाइल नंबर + पासवर्ड)", k:"वर्कर लॉगिन login कैसे करे खाता अकाउंट ऑनलाइन नहीं जा रहा मोबाइल नंबर", d:"1. ऊपर वाले खाने में सिर्फ़ 10 अंक का मोबाइल नंबर (Gmail नहीं, +91 या 0 नहीं)\n2. नीचे पासवर्ड वैसा ही जैसा 🔑 में है, जैसे Dip-abcd1234 (बड़ा D और डैश -)\n3. 👁️ दबाकर देख लें, फिर 'लॉगिन करें'\n4. लॉगिन के बाद लॉगआउट न करें — दोबारा पासवर्ड नहीं माँगेगा"},
   {t:"Gmail से लॉगिन क्यों नहीं होता", k:"gmail जीमेल ईमेल email लॉगिन नहीं हो रहा गलत", d:"वर्कर के खाते मोबाइल नंबर से बने हैं — उनकी Gmail से लॉगिन कभी नहीं होगा। Gmail से सिर्फ़ मुख्य एडमिन (आप) लॉगिन करते हैं। वर्कर हमेशा मोबाइल नंबर + Dip-… पासवर्ड डालें।"},
   {t:"वर्कर का पासवर्ड कहाँ मिलेगा / कैसे ढूँढें", k:"पासवर्ड password ढूँढें कहाँ मिलेगा भूल गया पता नहीं गलत", d:"1. नीचे 👥 वर्कर टैब खोलें\n2. 'सभी लोग' में वर्कर के नाम के नीचे 🔑 पासवर्ड दिखेगा\n3. 📋 कॉपी या 📲 WhatsApp दबाएँ — लॉगिन का तरीका + पासवर्ड वर्कर को चला जाएगा\n(आप यहाँ 'Raj का पासवर्ड' जैसा भी पूछ सकते हैं)"},
@@ -1327,7 +1328,93 @@ function findUsers(q, users){
     return { u, n: ws.filter(w => ns.some(n => n === w || (w.length >= 3 && n.startsWith(w)))).length + (ns.length && ws.length && ns.every(n => ws.includes(n)) ? 0.5 : 0) }; }).filter(x => x.n >= 1);
   const top = Math.max(0, ...sc.map(x => x.n)); return sc.filter(x => x.n === top).map(x => x.u);
 }
+/* 📋 काम की कतार — कई हुक्म एक साथ, AI एक-एक करके करे, हर काम की रिपोर्ट, "ये पहले करो" से ऊपर
+   बोलें: "कतार में जोड़ो: Raj को काम दो, फिर सबको आदेश: 9 बजे आएँ" · "कतार चलाओ" · "2 नंबर पहले करो" · "कतार दिखाओ" */
+const QK = "mcQueue";
+function qLoad(){ try{ return JSON.parse(localStorage.getItem(QK)||"[]")||[]; }catch(_){ return []; } }
+function qSave(Q){ try{ localStorage.setItem(QK, JSON.stringify(Q.slice(-40))); }catch(_){} try{ qBadge(); }catch(_){} }
+const QST = { wait:["⏳","बाकी"], run:["⚙️","चल रहा"], done:["✅","पूरा"], skip:["⏭️","छोड़ा"], fail:["❓","समझ नहीं आया"] };
+const qTime = () => new Date().toLocaleTimeString("hi-IN",{hour:"2-digit",minute:"2-digit"});
+function qAdd(texts, top){ const Q=qLoad(); const items=texts.map(t=>({id:Date.now()+Math.random(), text:t.trim(), st:"wait", at:qTime()})).filter(x=>x.text.length>2);
+  if(top){ const i=Q.findIndex(x=>x.st==="wait"); Q.splice(i<0?Q.length:i,0,...items); } else Q.push(...items); qSave(Q); return items.length; }
+function qText(Q){ const live=Q.filter(x=>x.st==="wait"||x.st==="run"), old=Q.filter(x=>!(x.st==="wait"||x.st==="run")).slice(-5).reverse();
+  let n=0; return (live.length?"📋 बाकी काम:\n"+live.map(x=>`${++n}. ${QST[x.st][0]} ${x.text}`).join("\n"):"📋 कतार में कोई बाकी काम नहीं।")+(old.length?"\n\n🧾 हाल के काम:\n"+old.map(x=>`${QST[x.st][0]} ${x.text}${x.res?`\n   👉 ${String(x.res).split("\n")[0].slice(0,90)}`:""} (${x.end||x.at})`).join("\n"):""); }
+function qMark(it, st, res){ const Q=qLoad(); const x=Q.find(y=>y.id===it.id); if(x){ x.st=st; if(res!=null) x.res=String(res).slice(0,300); x.end=qTime(); qSave(Q); } }
+function qWrap(r, it){
+  if(r==null){ qMark(it,"fail"); return null; }
+  if(typeof r==="string"){ qMark(it,"done",r); return r; }
+  if(!r.buttons && !r.next){ qMark(it,"done",r.text); return r; }
+  const out={...r};
+  if(r.buttons) out.buttons=r.buttons.map(b=>({ label:b.label, run: async()=>{ const o=await b.run();
+    if(o && typeof o==="object" && (o.buttons||o.next)) return qWrap(o,it);
+    qMark(it, /नहीं|❌/.test(b.label)?"skip":"done", typeof o==="string"?o:(o&&o.text)||"");
+    return qChain(o); } }));
+  if(r.next) out.next=async a=>qWrap(await r.next(a), it);
+  return out;
+}
+async function qChain(o){ const ot=typeof o==="string"?o:(o&&o.text)||"✅ हो गया"; const nx=await qRunNext();
+  if(!nx){ const left=qLoad().filter(x=>x.st==="wait").length; return left?ot:ot+"\n\n🎉 कतार के सारे काम पूरे।"; }
+  if(typeof nx==="string") return ot+"\n\n▶️ "+nx;
+  return {...nx, text: ot+"\n\n▶️ अगला काम: "+nx.text, say: (typeof o==="string"?o:(o&&o.say)||ot)+"। अगला काम। "+(nx.say||nx.text)}; }
+async function qRunNext(){
+  const Q=qLoad(); const it=Q.find(x=>x.st==="wait"); if(!it) return null;
+  it.st="run"; qSave(Q);
+  let r=null; try{ r=await aiAction0(it.text); }catch(e){ r="❌ "+(e.message||e); }
+  const w=qWrap(r,it);
+  if(w==null){ const nx=await qRunNext(); const m=`❓ "${it.text}" समझ नहीं आया — छोड़ दिया (नाम/काम साफ़ बोलकर फिर जोड़ें)`; if(!nx) return m; return typeof nx==="string"?m+"\n\n▶️ "+nx:{...nx,text:m+"\n\n▶️ अगला काम: "+nx.text}; }
+  return w;
+}
+function qBadge(){ const n=qLoad().filter(x=>x.st==="wait"||x.st==="run").length; const b=$("#vaBtn"); if(b && b.dataset) b.dataset.q=n; }
+async function showQueue(){
+  const p=$("#popup"); const Q=qLoad();
+  const live=Q.filter(x=>x.st==="wait"||x.st==="run"), old=Q.filter(x=>!(x.st==="wait"||x.st==="run")).slice(-15).reverse();
+  p.innerHTML=`<div class="card" style="max-height:88vh;overflow:auto"><div class="between"><h3 style="margin:0">📋 काम की कतार</h3><button class="sec sm" id="qX">बंद</button></div>
+    <p class="muted">🎙️ बोलें: "कतार में जोड़ो: … फिर …", "कतार चलाओ", "2 नंबर पहले करो"। AI एक-एक करके करेगा और हर काम की रिपोर्ट यहाँ लिखेगा।</p>
+    <div class="row" style="gap:6px;margin:6px 0"><input id="qIn" placeholder="नया काम लिखें, जैसे: Raj को काम दो" style="flex:1"><button class="ok sm" id="qAddB" style="width:auto">➕</button></div>
+    <h3 style="margin:10px 0 4px">बाकी (${live.length})</h3>
+    ${live.map((x,i)=>`<div style="border-bottom:1px solid #e5e7eb;padding:7px 0;display:flex;gap:8px;align-items:center"><b style="min-width:1.6em">${i+1}.</b><span style="flex:1">${QST[x.st][0]} ${esc(x.text)}<br><span class="muted">जोड़ा: ${esc(x.at)}</span></span>${i?`<button class="sec sm" data-qup="${x.id}" style="width:auto">⬆️ पहले</button>`:""}<button class="sec sm" data-qdel="${x.id}" style="width:auto">🗑️</button></div>`).join("")||"<p class='muted'>कोई बाकी काम नहीं</p>"}
+    ${live.length?`<button class="ok" id="qRun" style="width:100%;margin-top:8px">▶️ कतार चलाओ (AI से)</button>`:""}
+    <h3 style="margin:14px 0 4px">रिपोर्ट</h3>
+    ${old.map(x=>`<div style="border-bottom:1px solid #e5e7eb;padding:6px 0"><b>${QST[x.st][0]} ${esc(x.text)}</b> <span class="muted">${esc(x.end||"")}</span>${x.res?`<br><span class="muted">👉 ${esc(String(x.res).slice(0,200))}</span>`:""}</div>`).join("")||"<p class='muted'>अभी कोई रिपोर्ट नहीं</p>"}
+    ${old.length?`<button class="sec sm" id="qClr" style="margin-top:8px">🧹 पुरानी रिपोर्ट साफ़ करें</button>`:""}</div>`;
+  p.classList.remove("hidden");
+  $("#qX").onclick=()=>p.classList.add("hidden");
+  $("#qAddB").onclick=()=>{ const t=$("#qIn").value.trim(); if(t.length<3) return toast("काम लिखें"); qAdd(qSplit(t)); showQueue(); };
+  p.querySelectorAll("[data-qup]").forEach(b=>b.onclick=()=>{ const Q=qLoad(); const i=Q.findIndex(x=>String(x.id)===b.dataset.qup); if(i<0) return; const [it]=Q.splice(i,1); const j=Q.findIndex(x=>x.st==="wait"); Q.splice(j<0?Q.length:j,0,it); qSave(Q); showQueue(); });
+  p.querySelectorAll("[data-qdel]").forEach(b=>b.onclick=()=>{ qSave(qLoad().filter(x=>String(x.id)!==b.dataset.qdel)); showQueue(); });
+  const r=$("#qRun"); if(r) r.onclick=()=>{ p.classList.add("hidden"); const f=document.querySelector(".dva-fab"); if(f){ if(!document.querySelector(".dva")) f.click(); setTimeout(()=>{ const i=document.querySelector(".dva input"); if(i){ i.value="कतार चलाओ"; document.querySelector(".dva .go")?.click(); } },300); } };
+  const c=$("#qClr"); if(c) c.onclick=()=>{ qSave(qLoad().filter(x=>x.st==="wait"||x.st==="run")); showQueue(); };
+}
+const qSplit = t => String(t).split(/\s*(?:,|।|;|\n|\s+फिर\s+|\s+और\s+फिर\s+|\s+उसके\s+बाद\s+)\s*/).map(x=>x.trim().replace(/^(?:और\s+)?(?:फिर|उसके\s+बाद|then)\s+/,"").trim()).filter(x=>x.length>2);
 async function aiAction(q){
+  if(!canEdit) return null;
+  const t=" "+String(q).toLowerCase()+" ", has=re=>re.test(t), Q=qLoad();
+  // ▶️ चलाओ
+  if((has(/कतार|क्यू|queue|लाइन/) && has(/चलाओ|शुरू|चालू|करो|पूरा/) && !has(/जोड़|डाल/)) || has(/अगला काम|next task/)){
+    const r=await qRunNext(); if(!r) return "📋 कतार में कोई बाकी काम नहीं। जोड़ने के लिए बोलें: \"कतार में जोड़ो: …\"";
+    if(typeof r==="string") return r; return {...r, text:"▶️ कतार शुरू\n\n"+r.text}; }
+  // 📋 दिखाओ
+  if(has(/कतार|क्यू|queue/) && has(/दिखा|बता|सूची|लिस्ट|क्या है|देख|रिपोर्ट/) && !has(/जोड़|डाल/)){
+    return { text: qText(Q), say: (()=>{ const n=Q.filter(x=>x.st==="wait"||x.st==="run").length; return n?`कतार में ${n} काम बाकी हैं।`:"कतार में कोई बाकी काम नहीं।"; })(), buttons:[{label:"📋 कतार खोलें", run: async()=>{ setTimeout(showQueue,200); return "📋 कतार खोल दी।"; }}, ...(Q.some(x=>x.st==="wait")?[{label:"▶️ कतार चलाओ", run: async()=>{ const r=await qRunNext(); return r||"कोई बाकी काम नहीं"; }}]:[])] }; }
+  // ➕ जोड़ो
+  if(has(/कतार|क्यू|queue|लिस्ट|लाइन|बाद में/) && has(/जोड़|डाल|रख|add|बाद में/)){
+    const body=String(q).replace(/^\s*(?:इसे\s+|ये\s+|यह\s+)?(?:कतार|क्यू|queue|लिस्ट|लाइन)\s*(?:में)?\s*(?:जोड़ो|जोड़ें|जोड़ दो|डालो|डाल दो|रखो|add)?\s*[:：\-–]?\s*/i,"").replace(/\s*(?:को\s+)?(?:कतार|क्यू|लिस्ट|लाइन)\s*में\s*(?:जोड़ो|डालो|रखो|जोड़ दो)\s*$/i,"").replace(/^\s*बाद में\s*[:：\-–]?\s*/,"").trim();
+    const items=qSplit(body); if(!items.length) return { text:"कौन सा काम कतार में जोड़ूँ? बोलिए।", next: async a=>{ const n=qAdd(qSplit(a)); return `➕ ${n} काम कतार में जोड़ा।\n\n`+qText(qLoad()); } };
+    const n=qAdd(items); return { text:`➕ ${n} काम कतार में जोड़े।\n\n`+qText(qLoad()), say:`${n} काम कतार में जोड़े। चलाऊँ? हाँ बोलें।`, confirm:true, buttons:[{label:"▶️ हाँ, कतार चलाओ", run: async()=>{ const r=await qRunNext(); return r||"कोई बाकी काम नहीं"; }},{label:"⏸️ बाद में", run: async()=>"ठीक है, कतार में रखा है। जब चाहें बोलें: कतार चलाओ"}] }; }
+  // ⬆️ पहले करो
+  if(has(/पहले/) && has(/करो|कीजिए|करें|कर दो|रखो/) && Q.some(x=>x.st==="wait")){
+    const W=Q.filter(x=>x.st==="wait"); const num=(String(q).match(/(\d+)/)||[])[1]; let it=null;
+    if(num) it=W[+num-1];
+    if(!it){ const ws=String(q).split(/\s+/).map(skel).filter(s=>s.length>=2); let best=0; W.forEach(x=>{ const xs=String(x.text).split(/\s+/).map(skel); const sc=ws.filter(w=>xs.some(n=>n===w||(w.length>=3&&n.startsWith(w)))).length; if(sc>best){ best=sc; it=x; } }); if(best<1) it=null; }
+    if(it){ const i=Q.indexOf(it); Q.splice(i,1); const j=Q.findIndex(x=>x.st==="wait"); Q.splice(j<0?Q.length:j,0,it); qSave(Q);
+      return { text:`⬆️ "${it.text}" सबसे ऊपर कर दिया।\n\n`+qText(qLoad()), say:"सबसे ऊपर कर दिया। अभी करूँ? हाँ बोलें।", confirm:true, buttons:[{label:"▶️ हाँ, अभी करो", run: async()=>{ const r=await qRunNext(); return r||"कोई बाकी काम नहीं"; }},{label:"⏸️ बाद में", run: async()=>"ठीक है।"}] }; }
+    const body=String(q).replace(/(?:ये|यह|इसे)?\s*(?:काम)?\s*पहले\s*(?:करो|कीजिए|करें|कर दो)\s*[:：\-–]?\s*/,"").trim();
+    if(body.length>2){ qAdd([body], true); const r=await qRunNext(); return r||"कोई बाकी काम नहीं"; }
+  }
+  return aiAction0(q);
+}
+
+async function aiAction0(q){
   if(!canEdit) return null;
   const t = " " + String(q).toLowerCase() + " ";
   const has = re => re.test(t);
@@ -1576,7 +1663,7 @@ function watchSys(){
 function startVoiceAI(){
   if(!window.DipVoiceAI){ if(vaTry++<20) setTimeout(startVoiceAI,500); return; }
   DipVoiceAI.init({ title: canEdit ? "MASTER CONNECTOR" : "मेरा काम", bottom: 78, action: aiAction,
-    chips: canEdit ? ["सिस्टम जाँचो","आज की रिपोर्ट","आज क्या बदला?","गलती से हुआ बदलाव वापस लो","Raj का डेटा दिखाओ","सबका डेटा","Raj को काम दो","रुका काम पूरा करो","सबको मंज़ूरी दो","सबको आदेश: आज समय पर आएँ","Raj का पासवर्ड भेजो","नगमा को पूरी अनुमति दो","आज का हाल बताओ","कितने काम बाकी हैं?","वर्कर लॉगिन कैसे करें?","पासवर्ड कहाँ मिलेगा?","सभी वर्कर के पासवर्ड","नई जॉइनिंग मंज़ूरी कैसे?","खाता बंद कैसे करें?","मोबाइल नंबर बदल गया","रुका काम कैसे पता चले?"] : ["मेरे कितने आदेश बाकी हैं?","मेरी ड्यूटी का हाल","आज का हाल बताओ"],
+    chips: canEdit ? ["कतार दिखाओ","कतार चलाओ","सिस्टम जाँचो","आज की रिपोर्ट","आज क्या बदला?","गलती से हुआ बदलाव वापस लो","Raj का डेटा दिखाओ","सबका डेटा","Raj को काम दो","रुका काम पूरा करो","सबको मंज़ूरी दो","सबको आदेश: आज समय पर आएँ","Raj का पासवर्ड भेजो","नगमा को पूरी अनुमति दो","आज का हाल बताओ","कितने काम बाकी हैं?","वर्कर लॉगिन कैसे करें?","पासवर्ड कहाँ मिलेगा?","सभी वर्कर के पासवर्ड","नई जॉइनिंग मंज़ूरी कैसे?","खाता बंद कैसे करें?","मोबाइल नंबर बदल गया","रुका काम कैसे पता चले?"] : ["मेरे कितने आदेश बाकी हैं?","मेरी ड्यूटी का हाल","आज का हाल बताओ"],
     facts: async () => {
       const F = [], now = new Date(), day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const acksQ = canEdit ? query(collection(db,"acks"),orderBy("at","desc"),limit(1500)) : query(collection(db,"acks"),where("uid","==",me.uid),limit(500));
