@@ -165,6 +165,12 @@ service cloud.firestore {
       allow create: if active() && code.matches('([0-9]{8}|DIP[A-Z0-9]{4,6})') && request.resource.data.keys().hasOnly(['uid']) && (request.resource.data.uid == request.auth.uid || (editor() && exists(userDoc(request.resource.data.uid))));
       allow update, delete: if editor();
     }
+    // 🎥 ग्राहक का फ़ॉर्म वीडियो (3 मिनट) — ग्राहक सिर्फ़ अपना डाले, देखे/हटाए एडमिन; 7 दिन बाद ऐप हटाता है
+    match /custVid/{id} {
+      allow create: if tCust() && request.resource.data.uid == request.auth.uid && request.resource.data.keys().hasOnly(['uid', 'rec', 'i', 'n', 'part', 'at']) && request.resource.data.part is string && request.resource.data.part.size() < 800000;
+      allow read, delete: if editor();
+      allow update: if false;
+    }
     match /tCustomers/{uid} {
       // वर्कर सिर्फ़ अपने link (ref) से जुड़े ग्राहक देख सके
       allow read: if editor() || (tCust() && request.auth.uid == uid) || (active() && resource.data.ref == request.auth.uid);
